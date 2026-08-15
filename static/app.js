@@ -68,6 +68,17 @@ function formatDate(dateStr) {
   return { text: `${dd}/${mm}/${yyyy}`, day: days[d.getDay()] };
 }
 
+function dateState(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (d.getTime() < today.getTime()) return "date-past";
+  if (d.getTime() > today.getTime()) return "date-future";
+  return "date-today";
+}
+
 async function openReleases(mediaType, tmdbId, title) {
   const modal = document.getElementById("releases-modal");
   const body = document.getElementById("releases-body");
@@ -113,19 +124,128 @@ async function openReleases(mediaType, tmdbId, title) {
             : "Diğer"
           : `Sezon ${seasonKey}`;
       html += `<div class="season-box">`;
-      html += `<div class="season-box-title">${seasonLabel}</div>`;
+      if (data.media_type === "tv") {
+        const releasedItems = seasonItems.filter((it) => {
+          const st = dateState(it.date);
+          return st === "date-past" || st === "date-today";
+        });
+        const total = releasedItems.length;
+        const watched = releasedItems.filter((it) => it.watched).length;
+        const pct = total ? Math.round((watched / total) * 100) : 0;
+        const allWatched = total > 0 && watched === total;
+        const btnDisabled = total === 0 ? " disabled" : "";
+        html += `<div class="season-box-title">${seasonLabel}<span class="season-actions"><span class="season-progress">${watched}/${total} · %${pct}</span><button class="season-watch-all" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}"${btnDisabled}>${allWatched ? "Temizle" : "Tümünü izle"}</button></span></div>`;
+        html += `<div class="season-bar"><div class="season-bar-fill" style="width:${pct}%"></div></div>`;
+      } else {
+        html += `<div class="season-box-title">${seasonLabel}</div>`;
+      }
       html += `<table class="releases-table"><thead><tr><th>Bölüm</th><th>Tarih</th><th>Gün</th></tr></thead><tbody>`;
       seasonItems.forEach((it) => {
         const f = formatDate(it.date);
+        const st = dateState(it.date);
+        const dateClass = st ? ` class="${st}"` : "";
         const epName = it.episode_name
           ? `<div class="episode-name">${it.episode_name}</div>`
           : "";
-        html += `<tr><td><div class="episode-label">${it.label}</div>${epName}</td><td>${f.text}</td><td>${f.day}</td></tr>`;
+        const watchedClass = it.watched ? " watched" : "";
+        const btnCls = it.watched ? "watch-btn on" : "watch-btn";
+        const checkIcon = it.watched ? "✓" : "";
+        const released = st === "date-past" || st === "date-today" ? 1 : 0;
+        html += `<tr class="${watchedClass}" data-released="${released}">`;
+        if (data.media_type === "tv") {
+          html += `<td><button class="${btnCls}" data-s="${it.season}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}">${checkIcon}</button><span class="episode-cell"><span class="episode-label">${it.label}</span>${epName}</span></td>`;
+        } else {
+          html += `<td><div class="episode-label">${it.label}</div>${epName}</td>`;
+        }
+        html += `<td${dateClass}>${f.text}</td><td${dateClass}>${f.day}</td></tr>`;
       });
       html += "</tbody></table></div>";
     });
 
     body.innerHTML = html || '<div class="releases-error">Yayın tarihi bulunamadı.</div>';
+
+    if (data.media_type === "tv") {
+      body.querySelectorAll(".watch-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const season = btn.dataset.s;
+          const episode = btn.dataset.e;
+          const watched = btn.dataset.w === "1" ? 0 : 1;
+          const res = await fetch("/api/episode/watch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tmdb_id: tmdbId,
+              season: Number(season),
+              episode: Number(episode),
+              watched,
+            }),
+          });
+          if (!res.ok) return;
+          btn.dataset.w = String(watched);
+          btn.classList.toggle("on", watched === 1);
+          btn.textContent = watched ? "✓" : "";
+          const tr = btn.closest("tr");
+          tr.classList.toggle("watched", watched === 1);
+
+          const seasonBox = btn.closest(".season-box");
+          const releasedRows = seasonBox.querySelectorAll("tbody tr[data-released='1']");
+          const total = releasedRows.length;
+          const done = seasonBox.querySelectorAll("tbody tr[data-released='1'].watched").length;
+          const pct = total ? Math.round((done / total) * 100) : 0;
+          const prog = seasonBox.querySelector(".season-progress");
+          const bar = seasonBox.querySelector(".season-bar-fill");
+          if (prog) prog.textContent = `${done}/${total} · %${pct}`;
+          if (bar) bar.style.width = pct + "%";
+          const allBtn = seasonBox.querySelector(".season-watch-all");
+          if (allBtn) {
+            const allDone = total > 0 && done === total;
+            allBtn.dataset.w = allDone ? 0 : 1;
+            allBtn.textContent = allDone ? "Temizle" : "Tümünü izle";
+            allBtn.disabled = total === 0;
+          }
+        });
+      });
+
+      body.querySelectorAll(".season-watch-all").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const season = btn.dataset.s;
+          const watched = btn.dataset.w === "1" ? 1 : 0;
+          const res = await fetch("/api/season/watch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tmdb_id: tmdbId,
+              season: Number(season),
+              watched,
+            }),
+          });
+          if (!res.ok) return;
+          const seasonBox = btn.closest(".season-box");
+          const rows = seasonBox.querySelectorAll("tbody tr");
+          rows.forEach((tr) => {
+            const isReleased = tr.dataset.released === "1";
+            if (watched === 1 && !isReleased) return;
+            tr.classList.toggle("watched", watched === 1);
+            const b = tr.querySelector(".watch-btn");
+            b.dataset.w = String(watched);
+            b.classList.toggle("on", watched === 1);
+            b.textContent = watched ? "✓" : "";
+          });
+          const releasedRows = seasonBox.querySelectorAll("tbody tr[data-released='1']");
+          const total = releasedRows.length;
+          const done = seasonBox.querySelectorAll("tbody tr[data-released='1'].watched").length;
+          const pct = total ? Math.round((done / total) * 100) : 0;
+          const prog = seasonBox.querySelector(".season-progress");
+          const bar = seasonBox.querySelector(".season-bar-fill");
+          if (prog) prog.textContent = `${done}/${total} · %${pct}`;
+          if (bar) bar.style.width = pct + "%";
+          const allDone = total > 0 && done === total;
+          btn.dataset.w = allDone ? 0 : 1;
+          btn.textContent = allDone ? "Temizle" : "Tümünü izle";
+          btn.disabled = total === 0;
+        });
+      });
+    }
   } catch (e) {
     body.innerHTML = '<div class="releases-error">Bağlantı hatası oluştu.</div>';
   }
@@ -142,6 +262,25 @@ function closeDetails() {
 function closeModals() {
   closeReleases();
   closeDetails();
+  closeConfirm();
+}
+
+function closeConfirm() {
+  document.getElementById("confirm-modal").style.display = "none";
+}
+
+function showConfirm(text, onYes) {
+  document.getElementById("confirm-text").textContent = text;
+  document.getElementById("confirm-modal").style.display = "flex";
+  document.getElementById("confirm-yes").onclick = () => {
+    closeConfirm();
+    onYes();
+  };
+  document.getElementById("confirm-no").onclick = closeConfirm;
+  document.getElementById("confirm-close").onclick = closeConfirm;
+  document.getElementById("confirm-modal").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeConfirm();
+  });
 }
 
 document.getElementById("releases-close").onclick = closeReleases;
@@ -267,9 +406,14 @@ async function loadFollowed() {
     `;
     div.querySelector(".remove").onclick = (e) => {
       e.stopPropagation();
-      fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
-      loadFollowed();
-      toast("Takip bırakıldı");
+      showConfirm(
+        `"${item.title}" takibini bırakmak istiyor musunuz?`,
+        async () => {
+          await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
+          loadFollowed();
+          toast("Takip bırakıldı");
+        }
+      );
     };
     div.querySelector(".calendar-btn").onclick = (e) => {
       e.stopPropagation();

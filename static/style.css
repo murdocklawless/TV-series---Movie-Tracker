@@ -291,6 +291,37 @@ main {
   background: #3b82f6;
 }
 
+.confirm-modal {
+  max-width: 380px;
+}
+
+.confirm-text {
+  font-size: 0.95rem;
+  color: #c9cedb;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.confirm-actions .btn {
+  padding: 7px 14px;
+  font-size: 0.8rem;
+  border-radius: 7px;
+}
+
+.confirm-danger {
+  background: #dc2626;
+}
+
+.confirm-danger:hover {
+  background: #ef4444;
+}
+
 .msg {
   margin-top: 8px;
   padding: 10px 14px;
@@ -367,19 +398,25 @@ main {
   font-size: 1.05rem;
   margin: 0;
   color: #f59e0b;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 8px;
 }
 
 .modal-close {
   background: transparent;
   border: none;
-  color: #8b90a0;
+  color: #ef4444;
   font-size: 1.6rem;
   line-height: 1;
   cursor: pointer;
 }
 
 .modal-close:hover {
-  color: #fff;
+  color: #f87171;
 }
 
 .modal-body {
@@ -556,6 +593,20 @@ main {
   background: #1d212c;
 }
 
+/* Yayın tarihi durum renkleri */
+.releases-table td.date-past {
+  color: #b06a6a;
+}
+
+.releases-table td.date-future {
+  color: #6aa879;
+}
+
+.releases-table td.date-today {
+  color: #6f9ec9;
+  font-weight: 700;
+}
+
 /* Season boxes */
 .season-box {
   border: 1px solid #2a2f3d;
@@ -584,6 +635,99 @@ main {
 
 .season-box .releases-table tr:last-child td {
   border-bottom: none;
+}
+
+/* İzleme durumu */
+.season-box-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.season-progress {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #8b90a0;
+  white-space: nowrap;
+}
+
+.season-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.season-watch-all {
+  background: #262a36;
+  border: 1px solid #3a4050;
+  color: #c9cedb;
+  font-size: 0.72rem;
+  padding: 3px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.season-watch-all:hover {
+  background: #2f3542;
+  color: #fff;
+}
+
+.season-watch-all:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.season-bar {
+  height: 4px;
+  background: #262a36;
+  overflow: hidden;
+}
+
+.season-bar-fill {
+  height: 100%;
+  background: #4ade80;
+  transition: width 0.3s ease;
+}
+
+.releases-table .watch-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid #3a4050;
+  background: transparent;
+  color: transparent;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  margin-right: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.episode-cell {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.releases-table .watch-btn:hover {
+  border-color: #4ade80;
+  color: #4ade80;
+}
+
+.releases-table .watch-btn.on {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+
+.releases-table tr.watched .episode-label,
+.releases-table tr.watched .episode-name {
+  color: #5a6f5f;
 }
 
 /* ============ Responsive / Mobile ============ */
@@ -700,8 +844,38 @@ main {
     border: none;
   }
 
+  #releases-modal > .modal,
+  .modal-overlay .confirm-modal,
+  .modal-overlay .details-modal {
+    max-width: 92%;
+    max-height: none;
+    height: auto;
+    border-radius: 12px;
+    border: 1px solid #2a2f3d;
+    padding: 0;
+  }
+
+  .modal-overlay .details-modal,
+  #releases-modal > .modal {
+    max-height: 90vh;
+  }
+
   .modal-header {
     padding: 14px 16px;
+  }
+
+  .modal-header h3 {
+    white-space: normal;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+  }
+
+  .modal-close {
+    font-size: 1.8rem;
+    padding: 4px 10px;
+    flex-shrink: 0;
   }
 
   .modal-body {
@@ -719,6 +893,7 @@ main {
 
   .season-box-title {
     padding: 9px 12px;
+    flex-wrap: wrap;
   }
 }
 

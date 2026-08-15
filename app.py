@@ -52,9 +52,13 @@ def init_db():
             episode INTEGER,
             air_date TEXT,
             notified INTEGER DEFAULT 0,
+            watched INTEGER DEFAULT 0,
             UNIQUE(follow_id, season, episode)
         )"""
     )
+    ecols = [r["name"] for r in conn.execute("PRAGMA table_info(episodes)").fetchall()]
+    if "watched" not in ecols:
+        conn.execute("ALTER TABLE episodes ADD COLUMN watched INTEGER DEFAULT 0")
     conn.commit()
     conn.close()
 
@@ -93,7 +97,10 @@ def tmdb_request(path, params=None):
 
 @app.route("/")
 def index():
-    return send_from_directory(STATIC_DIR, "index.html")
+    resp = send_from_directory(STATIC_DIR, "index.html")
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 
 @app.route("/api/search")
@@ -247,6 +254,13 @@ def releases():
     if not data:
         return jsonify({"error": "TMDB'den veri alınamadı"}), 400
 
+    conn = get_db()
+    follow = conn.execute(
+        "SELECT id FROM followed WHERE tmdb_id=? AND media_type='tv'",
+        (tmdb_id,),
+    ).fetchone()
+    follow_id = follow["id"] if follow else None
+
     items = []
     for season in data.get("seasons", []):
         season_number = season.get("season_number")
@@ -258,15 +272,26 @@ def releases():
         for ep in season_data.get("episodes", []):
             ep_num = ep.get("episode_number")
             ep_name = ep.get("name") or ""
+            watched = 0
+            if follow_id is not None:
+                wrow = conn.execute(
+                    "SELECT watched FROM episodes "
+                    "WHERE follow_id=? AND season=? AND episode=?",
+                    (follow_id, season_number, ep_num),
+                ).fetchone()
+                watched = wrow["watched"] if wrow else 0
             items.append(
                 {
                     "label": f"Sezon {season_number} · Bölüm {ep_num}",
                     "episode_name": ep_name,
                     "season": season_number,
+                    "episode": ep_num,
                     "date": ep.get("air_date"),
+                    "watched": watched,
                 }
             )
 
+    conn.close()
     return jsonify(
         {
             "title": title or data.get("name"),
@@ -274,6 +299,82 @@ def releases():
             "items": items,
         }
     )
+
+
+@app.route("/api/episode/watch", methods=["POST"])
+def episode_watch():
+    body = request.get_json()
+    tmdb_id = body.get("tmdb_id")
+    season = body.get("season")
+    episode = body.get("episode")
+    watched = 1 if body.get("watched") else 0
+    if not tmdb_id or season is None or episode is None:
+        return jsonify({"error": "Eksik bilgi"}), 400
+
+    conn = get_db()
+    follow = conn.execute(
+        "SELECT id FROM followed WHERE tmdb_id=? AND media_type='tv'",
+        (tmdb_id,),
+    ).fetchone()
+    if not follow:
+        conn.close()
+        return jsonify({"error": "Takip bulunamadı"}), 400
+
+    conn.execute(
+        "INSERT INTO episodes (follow_id, season, episode, watched) "
+        "VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(follow_id, season, episode) "
+        "DO UPDATE SET watched=excluded.watched",
+        (follow["id"], season, episode, watched),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "watched": watched})
+
+
+@app.route("/api/season/watch", methods=["POST"])
+def season_watch():
+    body = request.get_json()
+    tmdb_id = body.get("tmdb_id")
+    season = body.get("season")
+    watched = 1 if body.get("watched") else 0
+    if not tmdb_id or season is None:
+        return jsonify({"error": "Eksik bilgi"}), 400
+
+    conn = get_db()
+    follow = conn.execute(
+        "SELECT id FROM followed WHERE tmdb_id=? AND media_type='tv'",
+        (tmdb_id,),
+    ).fetchone()
+    if not follow:
+        conn.close()
+        return jsonify({"error": "Takip bulunamadı"}), 400
+
+    season_data = tmdb_request(f"/tv/{tmdb_id}/season/{season}")
+    if not season_data:
+        conn.close()
+        return jsonify({"error": "Sezon bilgisi alınamadı"}), 400
+
+    today = datetime.date.today().isoformat()
+    count = 0
+    for ep in season_data.get("episodes", []):
+        ep_num = ep.get("episode_number")
+        if not ep_num:
+            continue
+        air_date = ep.get("air_date")
+        if watched and (not air_date or air_date > today):
+            continue
+        conn.execute(
+            "INSERT INTO episodes (follow_id, season, episode, air_date, watched) "
+            "VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(follow_id, season, episode) "
+            "DO UPDATE SET watched=excluded.watched, air_date=excluded.air_date",
+            (follow["id"], season, ep_num, air_date, watched),
+        )
+        count += 1
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "count": count})
 
 
 @app.route("/api/details")
@@ -428,6 +529,10 @@ def build_episode_message(title, media_type, season, episode, date):
     )
 
 
+def build_movie_message(title, date):
+    return f"🎬 *{title}* bugün yayında!\n\nFilm - Tarih: {date}"
+
+
 def check_releases():
     today = datetime.date.today().isoformat()
     conn = get_db()
@@ -451,6 +556,16 @@ def check_releases():
         )
         if send_telegram(msg):
             conn.execute("UPDATE episodes SET notified=1 WHERE id=?", (row["id"],))
+            conn.commit()
+
+    movies = conn.execute(
+        "SELECT * FROM followed WHERE media_type='movie' AND notified=0 AND release_date=?",
+        (today,),
+    ).fetchall()
+    for movie in movies:
+        msg = build_movie_message(movie["title"], movie["release_date"])
+        if send_telegram(msg):
+            conn.execute("UPDATE followed SET notified=1 WHERE id=?", (movie["id"],))
             conn.commit()
 
     conn.close()
