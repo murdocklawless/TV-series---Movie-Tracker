@@ -1,0 +1,20 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Veritabani
+*.db
+
+# Gizli anahtarlar
+*.ppk
+*.pem
+*.key
+*.id_rsa
+
+# Isletim sistemi
+.DS_Store
+Thumbs.db
+
+# Gecici test dosyalari
+test_sync.py

@@ -1,0 +1,15 @@
+[Unit]
+Description=Takip Listesi - Dizi/Film Takip Uygulamasi
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/etc/tracker
+Environment=PORT=8050
+ExecStart=/etc/tracker/venv/bin/python /etc/tracker/app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
