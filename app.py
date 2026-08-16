@@ -212,8 +212,26 @@ def follow():
 def followed():
     conn = get_db()
     rows = conn.execute("SELECT * FROM followed ORDER BY id DESC").fetchall()
+    today = datetime.date.today().isoformat()
+    items = []
+    for r in rows:
+        item = dict(r)
+        if item["media_type"] == "tv":
+            nxt = conn.execute(
+                "SELECT season, episode, air_date FROM episodes "
+                "WHERE follow_id=? AND air_date IS NOT NULL AND air_date>=? "
+                "ORDER BY air_date ASC, episode ASC LIMIT 1",
+                (item["id"], today),
+            ).fetchone()
+            if nxt:
+                item["next_episode"] = {
+                    "season": nxt["season"],
+                    "episode": nxt["episode"],
+                    "air_date": nxt["air_date"],
+                }
+        items.append(item)
     conn.close()
-    return jsonify([dict(r) for r in rows])
+    return jsonify(items)
 
 
 @app.route("/api/unfollow/<int:item_id>", methods=["DELETE"])
@@ -390,6 +408,20 @@ def details():
 
     genres = [g.get("name") for g in data.get("genres", []) if g.get("name")]
 
+    cast = []
+    credits = tmdb_request(f"/{media_type}/{tmdb_id}/credits")
+    if credits:
+        for c in (credits.get("cast") or [])[:8]:
+            name = c.get("name") or c.get("original_name")
+            if name:
+                cast.append(
+                    {
+                        "name": name,
+                        "character": c.get("character"),
+                        "profile_path": c.get("profile_path"),
+                    }
+                )
+
     if media_type == "movie":
         result = {
             "media_type": "movie",
@@ -402,6 +434,7 @@ def details():
             "vote_count": data.get("vote_count"),
             "runtime": data.get("runtime"),
             "release_date": data.get("release_date"),
+            "cast": cast,
         }
     else:
         runtimes = data.get("episode_run_time") or []
@@ -418,6 +451,7 @@ def details():
             "number_of_seasons": data.get("number_of_seasons"),
             "number_of_episodes": data.get("number_of_episodes"),
             "status": data.get("status"),
+            "cast": cast,
         }
 
     return jsonify(result)

@@ -68,6 +68,23 @@ function formatDate(dateStr) {
   return { text: `${dd}/${mm}/${yyyy}`, day: days[d.getDay()] };
 }
 
+function shortDate(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return dateStr;
+  const months = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+  return `${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+function isToday(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return false;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return d.getTime() === today.getTime();
+}
+
 function dateState(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr + "T00:00:00");
@@ -129,17 +146,16 @@ async function openReleases(mediaType, tmdbId, title) {
           const st = dateState(it.date);
           return st === "date-past" || st === "date-today";
         });
-        const total = releasedItems.length;
-        const watched = releasedItems.filter((it) => it.watched).length;
+        const total = seasonItems.length;
+        const watched = seasonItems.filter((it) => it.watched).length;
         const pct = total ? Math.round((watched / total) * 100) : 0;
         const allWatched = total > 0 && watched === total;
-        const btnDisabled = total === 0 ? " disabled" : "";
-        html += `<div class="season-box-title">${seasonLabel}<span class="season-actions"><span class="season-progress">${watched}/${total} · %${pct}</span><button class="season-watch-all" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}"${btnDisabled}>${allWatched ? "Temizle" : "Tümünü izle"}</button></span></div>`;
-        html += `<div class="season-bar"><div class="season-bar-fill" style="width:${pct}%"></div></div>`;
+        const btnDisabled = releasedItems.length === 0 ? " disabled" : "";
+        html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} · %${pct}</span></div><button class="season-watch-all" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}"${btnDisabled}>${allWatched ? "Temizle" : "Tümünü izle"}</button></div>`;
       } else {
         html += `<div class="season-box-title">${seasonLabel}</div>`;
       }
-      html += `<table class="releases-table"><thead><tr><th>Bölüm</th><th>Tarih</th><th>Gün</th></tr></thead><tbody>`;
+      html += `<table class="releases-table"><thead><tr><th>Bölüm</th><th>Tarih</th></tr></thead><tbody>`;
       seasonItems.forEach((it) => {
         const f = formatDate(it.date);
         const st = dateState(it.date);
@@ -148,16 +164,17 @@ async function openReleases(mediaType, tmdbId, title) {
           ? `<div class="episode-name">${it.episode_name}</div>`
           : "";
         const watchedClass = it.watched ? " watched" : "";
+        const released = st === "date-past" || st === "date-today" ? 1 : 0;
+        const btnDisabled = released === 0 ? " disabled" : "";
         const btnCls = it.watched ? "watch-btn on" : "watch-btn";
         const checkIcon = it.watched ? "✓" : "";
-        const released = st === "date-past" || st === "date-today" ? 1 : 0;
         html += `<tr class="${watchedClass}" data-released="${released}">`;
         if (data.media_type === "tv") {
-          html += `<td><button class="${btnCls}" data-s="${it.season}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}">${checkIcon}</button><span class="episode-cell"><span class="episode-label">${it.label}</span>${epName}</span></td>`;
+          html += `<td><button class="${btnCls}" data-s="${it.season}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${it.label}</span>${epName}</span></td>`;
         } else {
           html += `<td><div class="episode-label">${it.label}</div>${epName}</td>`;
         }
-        html += `<td${dateClass}>${f.text}</td><td${dateClass}>${f.day}</td></tr>`;
+        html += `<td${dateClass}>${f.text}</td></tr>`;
       });
       html += "</tbody></table></div>";
     });
@@ -167,6 +184,7 @@ async function openReleases(mediaType, tmdbId, title) {
     if (data.media_type === "tv") {
       body.querySelectorAll(".watch-btn").forEach((btn) => {
         btn.addEventListener("click", async () => {
+          if (btn.disabled) return;
           const season = btn.dataset.s;
           const episode = btn.dataset.e;
           const watched = btn.dataset.w === "1" ? 0 : 1;
@@ -188,12 +206,13 @@ async function openReleases(mediaType, tmdbId, title) {
           tr.classList.toggle("watched", watched === 1);
 
           const seasonBox = btn.closest(".season-box");
-          const releasedRows = seasonBox.querySelectorAll("tbody tr[data-released='1']");
-          const total = releasedRows.length;
-          const done = seasonBox.querySelectorAll("tbody tr[data-released='1'].watched").length;
+          const allRows = seasonBox.querySelectorAll("tbody tr");
+          const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
+          const total = allRows.length;
+          const done = seasonBox.querySelectorAll("tbody tr.watched").length;
           const pct = total ? Math.round((done / total) * 100) : 0;
-          const prog = seasonBox.querySelector(".season-progress");
-          const bar = seasonBox.querySelector(".season-bar-fill");
+          const prog = seasonBox.querySelector(".season-progress-text");
+          const bar = seasonBox.querySelector(".season-progress-fill");
           if (prog) prog.textContent = `${done}/${total} · %${pct}`;
           if (bar) bar.style.width = pct + "%";
           const allBtn = seasonBox.querySelector(".season-watch-all");
@@ -201,7 +220,7 @@ async function openReleases(mediaType, tmdbId, title) {
             const allDone = total > 0 && done === total;
             allBtn.dataset.w = allDone ? 0 : 1;
             allBtn.textContent = allDone ? "Temizle" : "Tümünü izle";
-            allBtn.disabled = total === 0;
+            allBtn.disabled = releasedCount === 0;
           }
         });
       });
@@ -224,25 +243,29 @@ async function openReleases(mediaType, tmdbId, title) {
           const rows = seasonBox.querySelectorAll("tbody tr");
           rows.forEach((tr) => {
             const isReleased = tr.dataset.released === "1";
-            if (watched === 1 && !isReleased) return;
-            tr.classList.toggle("watched", watched === 1);
             const b = tr.querySelector(".watch-btn");
+            if (watched === 1 && !isReleased) {
+              if (b) b.disabled = true;
+              return;
+            }
+            tr.classList.toggle("watched", watched === 1);
             b.dataset.w = String(watched);
             b.classList.toggle("on", watched === 1);
             b.textContent = watched ? "✓" : "";
+            b.disabled = false;
           });
-          const releasedRows = seasonBox.querySelectorAll("tbody tr[data-released='1']");
-          const total = releasedRows.length;
-          const done = seasonBox.querySelectorAll("tbody tr[data-released='1'].watched").length;
+          const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
+          const total = rows.length;
+          const done = seasonBox.querySelectorAll("tbody tr.watched").length;
           const pct = total ? Math.round((done / total) * 100) : 0;
-          const prog = seasonBox.querySelector(".season-progress");
-          const bar = seasonBox.querySelector(".season-bar-fill");
+          const prog = seasonBox.querySelector(".season-progress-text");
+          const bar = seasonBox.querySelector(".season-progress-fill");
           if (prog) prog.textContent = `${done}/${total} · %${pct}`;
           if (bar) bar.style.width = pct + "%";
           const allDone = total > 0 && done === total;
           btn.dataset.w = allDone ? 0 : 1;
           btn.textContent = allDone ? "Temizle" : "Tümünü izle";
-          btn.disabled = total === 0;
+          btn.disabled = releasedCount === 0;
         });
       });
     }
@@ -327,7 +350,7 @@ async function openDetails(mediaType, tmdbId, title) {
 
     let html = '<div class="details-wrap">';
     if (data.poster_path) {
-      html += `<img class="details-poster" src="${IMAGE_BASE}${data.poster_path}" alt="${data.title}" />`;
+      html += `<div class="details-poster-col"><img class="details-poster" src="${IMAGE_BASE}${data.poster_path}" alt="${data.title}" /></div>`;
     }
 
     html += '<div class="details-main">';
@@ -364,6 +387,17 @@ async function openDetails(mediaType, tmdbId, title) {
       html += `<p class="details-overview">${data.overview}</p>`;
     }
 
+    if (data.cast && data.cast.length) {
+      html += '<div class="details-cast"><div class="details-cast-title">Oyuncular</div><div class="details-cast-list">';
+      data.cast.forEach((c) => {
+        const img = c.profile_path
+          ? `<img class="cast-avatar" src="${IMAGE_BASE}${c.profile_path}" alt="${c.name}" />`
+          : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
+        html += `<div class="cast-item">${img}<div class="cast-info"><div class="cast-name">${c.name}</div><div class="cast-char">${c.character || ""}</div></div></div>`;
+      });
+      html += "</div></div>";
+    }
+
     html += `<button class="btn primary detail-calendar-btn" data-mt="${mediaType}" data-id="${tmdbId}" data-title="${encodeURIComponent(data.title || title || "")}">Yayın Takvimi</button>`;
     html += "</div></div>";
 
@@ -397,7 +431,15 @@ async function loadFollowed() {
         <div class="meta">
           <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
           ${scoreTag(item.vote_average)}
-          <div>${item.release_date || "Tarih bilinmiyor"}</div>
+          ${
+            item.media_type === "tv"
+              ? item.next_episode
+                ? isToday(item.next_episode.air_date)
+                  ? `<div class="next-ep today">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} Bugün Yayında</div>`
+                  : `<div class="next-ep">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} · ${shortDate(item.next_episode.air_date)}</div>`
+                : `<div class="next-ep muted">Yeni Sezon Bekleniyor</div>`
+              : `<div>${item.release_date || "Tarih bilinmiyor"}</div>`
+          }
           ${item.notified ? '<div style="color:#6ee7a0">✓ Bildirildi</div>' : ""}
         </div>
       </div>

@@ -162,8 +162,26 @@ main {
 }
 
 .card .info .meta .badge.badge-score {
-  background: rgba(245, 158, 11, 0.85);
+  background: rgba(194, 120, 8, 0.95);
   margin-left: 4px;
+  font-weight: 600;
+}
+
+.card .info .meta .next-ep {
+  color: #22c55e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+.card .info .meta .next-ep.muted {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.card .info .meta .next-ep.today {
+  color: #60a5fa;
+  font-weight: 700;
 }
 
 .card .remove {
@@ -381,6 +399,7 @@ main {
   width: 100%;
   max-width: 560px;
   max-height: 80vh;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -422,6 +441,8 @@ main {
 .modal-body {
   padding: 16px 20px;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 .details-modal {
@@ -431,6 +452,11 @@ main {
 .details-wrap {
   display: flex;
   gap: 20px;
+}
+
+.details-poster-col {
+  display: flex;
+  align-items: center;
 }
 
 .details-poster {
@@ -495,11 +521,85 @@ main {
 }
 
 .detail-calendar-btn {
-  margin-top: auto;
-  align-self: center;
+  margin-top: 24px;
   padding: 7px 14px;
   font-size: 0.8rem;
   border-radius: 7px;
+}
+
+.details-cast {
+  margin-top: 18px;
+}
+
+.details-cast-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e5e9f0;
+  margin-bottom: 10px;
+}
+
+.details-cast-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.cast-item:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: auto;
+  max-width: 100%;
+}
+
+.cast-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid #2a2f3b;
+  border-radius: 8px;
+  padding: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cast-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.cast-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2f3542;
+  color: #e5e9f0;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.cast-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cast-name {
+  font-size: 0.75rem;
+  color: #e5e9f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cast-char {
+  font-size: 0.65rem;
+  color: #8b90a0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .releases-loading {
@@ -560,9 +660,10 @@ main {
 
 .releases-table th:first-child,
 .releases-table td:first-child {
-  width: 44%;
+  width: 70%;
   text-align: left;
   white-space: normal;
+  overflow: hidden;
 }
 
 .releases-table .episode-label {
@@ -570,23 +671,17 @@ main {
 }
 
 .releases-table .episode-name {
-  font-size: 0.82rem;
+  font-size: 0.7rem;
   color: #8b90a0;
   margin-top: 2px;
 }
 
-.releases-table th:nth-child(2),
-.releases-table td:nth-child(2) {
-  width: 28%;
-  text-align: center;
-  white-space: nowrap;
-}
-
 .releases-table th:last-child,
 .releases-table td:last-child {
-  width: 28%;
+  width: 30%;
   text-align: center;
   white-space: nowrap;
+  font-size: 0.82rem;
 }
 
 .releases-table tbody tr:hover {
@@ -614,6 +709,7 @@ main {
   margin-bottom: 14px;
   overflow: hidden;
   background: #14161f;
+  min-width: 0;
 }
 
 .season-box-title {
@@ -645,17 +741,39 @@ main {
   gap: 10px;
 }
 
-.season-progress {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #8b90a0;
+.season-name {
   white-space: nowrap;
+  font-size: 0.85rem;
 }
 
-.season-actions {
+.season-progress {
+  flex: 1;
+  min-width: 0;
+  height: 14px;
+  background: #262a36;
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+}
+
+.season-progress-fill {
+  height: 100%;
+  width: 0;
+  background: #16a34a;
+  transition: width 0.3s ease;
+}
+
+.season-progress-text {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  white-space: nowrap;
 }
 
 .season-watch-all {
@@ -667,6 +785,7 @@ main {
   border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .season-watch-all:hover {
@@ -678,18 +797,6 @@ main {
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
-}
-
-.season-bar {
-  height: 4px;
-  background: #262a36;
-  overflow: hidden;
-}
-
-.season-bar-fill {
-  height: 100%;
-  background: #4ade80;
-  transition: width 0.3s ease;
 }
 
 .releases-table .watch-btn {
@@ -704,19 +811,38 @@ main {
   cursor: pointer;
   margin-right: 8px;
   vertical-align: middle;
-  flex-shrink: 0;
+  display: inline-block;
 }
 
 .episode-cell {
-  display: inline-flex;
-  flex-direction: column;
+  display: inline-block;
   vertical-align: middle;
   text-align: left;
+  min-width: 0;
+  width: calc(100% - 36px);
+}
+
+.episode-cell .episode-name,
+.episode-cell .episode-label {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .releases-table .watch-btn:hover {
   border-color: #4ade80;
   color: #4ade80;
+}
+
+.releases-table .watch-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: #2a2f3d;
+}
+
+.releases-table .watch-btn:disabled:hover {
+  border-color: #2a2f3d;
+  color: transparent;
 }
 
 .releases-table .watch-btn.on {
@@ -891,9 +1017,34 @@ main {
     padding: 9px 8px;
   }
 
+  .releases-table th:first-child,
+  .releases-table td:first-child {
+    width: 70%;
+  }
+
+  .releases-table th:last-child,
+  .releases-table td:last-child {
+    width: 30%;
+    font-size: 0.7rem;
+  }
+
+  .releases-table .watch-btn {
+    width: 18px;
+    height: 18px;
+    font-size: 0.7rem;
+  }
+
   .season-box-title {
     padding: 9px 12px;
     flex-wrap: wrap;
+  }
+
+  .season-box-title .season-name {
+    font-size: 0.85rem;
+  }
+
+  .card .info .meta .next-ep {
+    font-size: 0.6rem;
   }
 }
 
