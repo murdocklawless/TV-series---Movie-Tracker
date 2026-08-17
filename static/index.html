@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Takip Listesi</title>
-  <link rel="stylesheet" href="/static/style.css?v=208" />
+  <link rel="stylesheet" href="/static/style.css?v=220" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -29,7 +29,16 @@
           <button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button>
         </div>
       </div>
-      <button id="tab-settings" class="tab"><i class="fa-solid fa-gear"></i></button>
+      <div class="settings-wrap">
+        <button id="tab-settings" class="tab"><i class="fa-solid fa-gear"></i></button>
+        <div id="settings-menu" class="settings-menu">
+          <button class="settings-menu-item" data-target="settings-lang-modal"><i class="fa-solid fa-globe"></i><span data-i18n="settings_lang">Dil ve Zaman</span></button>
+          <button class="settings-menu-item" data-target="settings-tmdb-modal"><i class="fa-solid fa-key"></i><span data-i18n="settings_tmdb">TMDB ve Telegram</span></button>
+          <button class="settings-menu-item" data-target="settings-favactors-modal"><i class="fa-solid fa-heart"></i><span data-i18n="settings_favactors">Favori Oyuncular</span></button>
+          <button class="settings-menu-item" data-target="settings-favgenres-modal"><i class="fa-solid fa-star"></i><span data-i18n="settings_favgenres">Favori Türler</span></button>
+          <button class="settings-menu-item" data-target="settings-notify-modal"><i class="fa-solid fa-bell"></i><span data-i18n="settings_notify">Bildirim Ayarları</span></button>
+        </div>
+      </div>
     </div>
   </nav>
 
@@ -102,64 +111,122 @@
       </div>
     </div>
 
-    <!-- Settings view -->
-    <section id="view-settings" class="view">
-      <div class="settings-card">
-        <div class="settings-card-header">
-          <h2 data-i18n="settings_title">Ayarlar</h2>
-          <button id="settings-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
-        </div>
-        <div class="settings-form">
-          <label><span data-i18n="label_lang">Uygulama Dili / TMDB Dili</span>
-            <select id="s-lang">
-              <option value="tr-TR">Türkçe</option>
-              <option value="en-US">English</option>
-              <option value="de-DE">Deutsch</option>
-              <option value="fr-FR">Français</option>
-              <option value="es-ES">Español</option>
-              <option value="it-IT">Italiano</option>
-              <option value="ru-RU">Русский</option>
-              <option value="ar-SA">العربية</option>
-              <option value="pt-BR">Português (BR)</option>
-              <option value="nl-NL">Nederlands</option>
-              <option value="pl-PL">Polski</option>
-              <option value="ja-JP">日本語</option>
-              <option value="ko-KR">한국어</option>
-              <option value="zh-CN">中文</option>
-            </select>
-          </label>
-          <label><span data-i18n="label_tz">Zaman Dilimi</span>
-            <div class="tz-combobox">
-              <input id="s-tz" type="text" placeholder="Yazın ve seçin..." autocomplete="off" data-i18n="tz_placeholder" />
-              <div id="s-tz-list" class="tz-list" style="display:none"></div>
-            </div>
-          </label>
-          <label><span data-i18n="label_tmdb">TMDB API Key</span>
-            <input id="s-tmdb" type="text" placeholder="tmdb_api_key" />
-          </label>
-          <label><span data-i18n="label_token">Telegram Bot Token</span>
-            <input id="s-token" type="text" placeholder="123456:ABC-DEF..." />
-          </label>
-          <label><span data-i18n="label_chat">Telegram Chat ID</span>
-            <input id="s-chat" type="text" placeholder="-100123456789" />
-          </label>
-          <label><span data-i18n="label_ntfy">ntfy Konu</span>
-            <input id="s-ntfy" type="text" placeholder="konu-adi" data-i18n="ntfy_placeholder" />
-          </label>
-          <label><span data-i18n="label_hour">Bildirim Saati (günlük)</span>
-            <input id="s-hour" type="time" value="09:00" />
-          </label>
-          <div class="settings-actions">
-            <button id="save-settings" class="btn primary"><span data-i18n="save">Kaydet</span></button>
-            <button id="test-settings" class="btn"><i class="fa-solid fa-paper-plane"></i> <span data-i18n="test_message">Test Mesajı Gönder</span></button>
-          </div>
-          <div id="settings-msg" class="msg"></div>
-        </div>
-      </div>
-    </section>
   </main>
 
   <div id="toast" class="toast"></div>
+
+  <!-- Settings modals -->
+  <div id="settings-lang-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="settings_lang">Dil ve Zaman</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body settings-form">
+        <label><span data-i18n="label_lang">Uygulama Dili / TMDB Dili</span>
+          <select id="s-lang">
+            <option value="tr-TR">Türkçe</option>
+            <option value="en-US">English</option>
+            <option value="de-DE">Deutsch</option>
+            <option value="fr-FR">Français</option>
+            <option value="es-ES">Español</option>
+            <option value="it-IT">Italiano</option>
+            <option value="ru-RU">Русский</option>
+            <option value="ar-SA">العربية</option>
+            <option value="pt-BR">Português (BR)</option>
+            <option value="nl-NL">Nederlands</option>
+            <option value="pl-PL">Polski</option>
+            <option value="ja-JP">日本語</option>
+            <option value="ko-KR">한국어</option>
+            <option value="zh-CN">中文</option>
+          </select>
+        </label>
+        <label><span data-i18n="label_tz">Zaman Dilimi</span>
+          <div class="tz-combobox">
+            <input id="s-tz" type="text" placeholder="Yazın ve seçin..." autocomplete="off" data-i18n="tz_placeholder" />
+            <div id="s-tz-list" class="tz-list" style="display:none"></div>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-tmdb-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="settings_tmdb">TMDB ve Telegram</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body settings-form">
+        <label><span data-i18n="label_tmdb">TMDB API Key</span>
+          <input id="s-tmdb" type="text" placeholder="tmdb_api_key" />
+        </label>
+        <label><span data-i18n="label_token">Telegram Bot Token</span>
+          <input id="s-token" type="text" placeholder="123456:ABC-DEF..." />
+        </label>
+        <label><span data-i18n="label_chat">Telegram Chat ID</span>
+          <input id="s-chat" type="text" placeholder="-100123456789" />
+        </label>
+        <label><span data-i18n="label_ntfy">ntfy Konu</span>
+          <input id="s-ntfy" type="text" placeholder="konu-adi" data-i18n="ntfy_placeholder" />
+        </label>
+        <label><span data-i18n="label_hour">Bildirim Saati (günlük)</span>
+          <input id="s-hour" type="time" value="09:00" />
+        </label>
+        <div class="settings-actions">
+          <button id="save-settings" class="btn primary"><span data-i18n="save">Kaydet</span></button>
+          <button id="test-settings" class="btn"><i class="fa-solid fa-paper-plane"></i> <span data-i18n="test_message">Test Mesajı Gönder</span></button>
+        </div>
+        <div id="settings-msg" class="msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-favactors-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="settings_favactors">Favori Oyuncular</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="fav-actors-list" class="fav-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-favgenres-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="settings_favgenres">Favori Türler</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="fav-genres-list" class="fav-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-notify-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="settings_notify">Bildirim Ayarları</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="notify-row">
+          <span class="notify-name"><i class="fa-brands fa-telegram notify-ico-telegram"></i> Telegram</span>
+          <label class="switch"><input type="checkbox" id="s-telegram-enabled" checked /><span class="slider"></span></label>
+        </div>
+        <div class="notify-row">
+          <span class="notify-name"><i class="fa-solid fa-bell notify-ico-ntfy"></i> ntfy</span>
+          <label class="switch"><input type="checkbox" id="s-ntfy-enabled" checked /><span class="slider"></span></label>
+        </div>
+        <div class="settings-actions">
+          <button id="save-notify" class="btn primary"><span data-i18n="save">Kaydet</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Releases modal -->
   <div id="releases-modal" class="modal-overlay" style="display:none">
@@ -252,6 +319,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=114"></script>
+  <script src="/static/app.js?v=121"></script>
 </body>
 </html>

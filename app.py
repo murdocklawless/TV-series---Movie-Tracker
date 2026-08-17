@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import json
+import time
 import datetime
 import threading
 import requests
@@ -157,6 +158,49 @@ def tmdb_request(path, params=None):
         if _has_content(data):
             return data
     return None
+
+
+_tvmaze_cache = {}
+_TVMAZE_TTL = 6 * 3600  # 6 saat
+
+
+def _tvmaze_episode_times(title):
+    """TVmaze'ten dizi bölümlerinin yayın saatlerini (UTC epoch) döndürür.
+
+    Dönüş: {(season, episode): epoch_saniye} veya None (bulunamadı/hata).
+    """
+    if not title:
+        return None
+    now = time.time()
+    cached = _tvmaze_cache.get(title)
+    if cached and now - cached[0] < _TVMAZE_TTL:
+        return cached[1]
+    try:
+        r = requests.get(
+            "https://api.tvmaze.com/singlesearch/shows",
+            params={"q": title, "embed": "episodes"},
+            timeout=15,
+        )
+        if r.status_code != 200:
+            _tvmaze_cache[title] = (now, None)
+            return None
+        data = r.json()
+    except requests.RequestException:
+        _tvmaze_cache[title] = (now, None)
+        return None
+    eps = {}
+    for ep in data.get("_embedded", {}).get("episodes", []):
+        air = ep.get("airstamp")
+        season = ep.get("season")
+        number = ep.get("number")
+        if air and season is not None and number is not None:
+            try:
+                dt = datetime.datetime.fromisoformat(air.replace("Z", "+00:00"))
+                eps[(season, number)] = int(dt.timestamp())
+            except ValueError:
+                continue
+    _tvmaze_cache[title] = (now, eps)
+    return eps
 
 
 ANILIST_URL = "https://graphql.anilist.co"
@@ -1109,6 +1153,12 @@ def releases():
     follow_id = follow["id"] if follow else None
 
     items = []
+    tvmaze_times = None
+    for t in (data.get("original_name"), data.get("name"), title):
+        if t:
+            tvmaze_times = _tvmaze_episode_times(t)
+            if tvmaze_times is not None:
+                break
     for season in data.get("seasons", []):
         season_number = season.get("season_number")
         if season_number is None or season_number == 0:
@@ -1127,16 +1177,34 @@ def releases():
                     (follow_id, season_number, ep_num),
                 ).fetchone()
                 watched = wrow["watched"] if wrow else 0
+            air_time = None
+            if tvmaze_times is not None:
+                air_time = tvmaze_times.get((season_number, ep_num))
+            date_val = ep.get("air_date")
+            if air_time:
+                try:
+                    date_val = datetime.datetime.fromtimestamp(
+                        air_time, datetime.timezone.utc
+                    ).date().isoformat()
+                except (ValueError, OSError, OverflowError):
+                    date_val = ep.get("air_date")
+            if date_val and follow_id is not None and date_val != ep.get("air_date"):
+                conn.execute(
+                    "UPDATE episodes SET air_date=? WHERE follow_id=? AND season=? AND episode=?",
+                    (date_val, follow_id, season_number, ep_num),
+                )
             items.append(
                 {
                     "label": f"Sezon {season_number} · Bölüm {ep_num}",
                     "episode_name": ep_name,
                     "season": season_number,
                     "episode": ep_num,
-                    "date": ep.get("air_date"),
+                    "date": date_val,
                     "watched": watched,
+                    "air_time": air_time,
                 }
             )
+    conn.commit()
 
     conn.close()
     return jsonify(
@@ -1202,15 +1270,53 @@ def season_watch():
         conn.close()
         return jsonify({"error": "Sezon bilgisi alınamadı"}), 400
 
-    today = today_str()
+    show_data = tmdb_request(f"/tv/{tmdb_id}")
+    utc_today = datetime.datetime.now(datetime.timezone.utc).date()
+    tvmaze_times = None
+    if watched:
+        for t in (
+            (show_data or {}).get("original_name"),
+            (show_data or {}).get("name"),
+        ):
+            if t:
+                tvmaze_times = _tvmaze_episode_times(t)
+                if tvmaze_times is not None:
+                    break
     count = 0
     for ep in season_data.get("episodes", []):
         ep_num = ep.get("episode_number")
         if not ep_num:
             continue
         air_date = ep.get("air_date")
-        if watched and (not air_date or air_date > today):
-            continue
+        if watched:
+            air_time = None
+            if tvmaze_times is not None:
+                air_time = tvmaze_times.get((season, ep_num))
+            if air_time:
+                # yayın günü UTC bugünden küçükse (en az 1 gün önce) seçilebilir
+                try:
+                    air_day = datetime.datetime.fromtimestamp(
+                        air_time, datetime.timezone.utc
+                    ).date()
+                except (ValueError, OSError, OverflowError):
+                    air_day = None
+                if air_day is None or air_day >= utc_today:
+                    continue
+            else:
+                # air_time yok: UTC günü olarak en az bir gün önce yayınlanmış olmalı
+                try:
+                    air_day = datetime.date.fromisoformat(air_date) if air_date else None
+                except ValueError:
+                    air_day = None
+                if air_day is None or air_day >= utc_today:
+                    continue
+            if air_time:
+                try:
+                    air_date = datetime.datetime.fromtimestamp(
+                        air_time, datetime.timezone.utc
+                    ).date().isoformat()
+                except (ValueError, OSError, OverflowError):
+                    pass
         conn.execute(
             "INSERT INTO episodes (follow_id, season, episode, air_date, watched) "
             "VALUES (?, ?, ?, ?, ?) "
@@ -1426,6 +1532,8 @@ def get_settings():
             "timezone": get_setting("timezone") or "Europe/Istanbul",
             "language": get_setting("language") or "tr-TR",
             "ntfy_topic": get_setting("ntfy_topic") or "",
+            "telegram_enabled": get_setting("telegram_enabled") or "1",
+            "ntfy_enabled": get_setting("ntfy_enabled") or "1",
         }
     )
 
@@ -1441,6 +1549,8 @@ def save_settings():
         "timezone",
         "language",
         "ntfy_topic",
+        "telegram_enabled",
+        "ntfy_enabled",
     ):
         if key in body:
             set_setting(key, str(body[key] or ""))
@@ -1486,6 +1596,8 @@ def test_settings():
 
 
 def send_telegram(text, poster_url=None):
+    if get_setting("telegram_enabled") == "0":
+        return False
     token = get_setting("telegram_bot_token")
     chat_id = get_setting("telegram_chat_id")
     if not token or not chat_id:
@@ -1522,6 +1634,8 @@ def ntfy_topic_clean(topic):
 
 
 def send_ntfy(text, poster_url=None):
+    if get_setting("ntfy_enabled") == "0":
+        return False
     topic = ntfy_topic_clean(get_setting("ntfy_topic"))
     if not topic:
         return False

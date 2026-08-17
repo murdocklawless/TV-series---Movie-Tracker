@@ -144,6 +144,15 @@ const I18N = {
   fav_actor: { tr: "Favori oyuncu", en: "Favorite actor", de: "Lieblingsschauspieler", fr: "Acteur favori", es: "Actor favorito", it: "Attore preferito", ru: "Любимый актёр", ar: "ممثل مفضل", pt: "Ator favorito", nl: "Favoriete acteur", pl: "Ulubiony aktor", ja: "お気に入りの俳優", ko: "즐겨찾는 배우", zh: "最喜欢的演员" },
   fav_actor_added: { tr: "Favori oyunculara eklendi", en: "Added to favorite actors", de: "Zu Lieblingsschauspielern hinzugefügt", fr: "Ajouté aux acteurs favoris", es: "Añadido a actores favoritos", it: "Aggiunto agli attori preferiti", ru: "Добавлен в любимые актёры", ar: "تمت الإضافة إلى الممثلين المفضلين", pt: "Adicionado aos atores favoritos", nl: "Toegevoegd aan favoriete acteurs", pl: "Dodano do ulubionych aktorów", ja: "お気に入りの俳優に追加しました", ko: "즐겨찾는 배우에 추가했습니다", zh: "已添加到最喜欢的演员" },
   fav_actor_removed: { tr: "Favori oyunculardan çıkarıldı", en: "Removed from favorite actors", de: "Aus Lieblingsschauspielern entfernt", fr: "Retiré des acteurs favoris", es: "Eliminado de actores favoritos", it: "Rimosso dagli attori preferiti", ru: "Удалён из любимых актёров", ar: "تمت الإزالة من الممثلين المفضلين", pt: "Removido dos atores favoritos", nl: "Verwijderd uit favoriete acteurs", pl: "Usunięto z ulubionych aktorów", ja: "お気に入りの俳優から削除しました", ko: "즐겨찾는 배우에서 제거했습니다", zh: "已从最喜欢的演员中移除" },
+  fav_genre_removed: { tr: "Favori türlerden çıkarıldı", en: "Removed from favorite genres", de: "Aus Lieblingsgenres entfernt", fr: "Retiré des genres favoris", es: "Eliminado de géneros favoritos", it: "Rimosso dai generi preferiti", ru: "Удалён из любимых жанров", ar: "تمت الإزالة من الأنواع المفضلة", pt: "Removido dos gêneros favoritos", nl: "Verwijderd uit favoriete genres", pl: "Usunięto z ulubionych gatunków", ja: "お気に入りのジャンルから削除しました", ko: "즐겨찾는 장르에서 제거했습니다", zh: "已从最喜欢的类型中移除" },
+  settings_menu: { tr: "Menü", en: "Menu", de: "Menü", fr: "Menu", es: "Menú", it: "Menu", ru: "Меню", ar: "القائمة", pt: "Menu", nl: "Menu", pl: "Menu", ja: "メニュー", ko: "메뉴", zh: "菜单" },
+  settings_lang: { tr: "Dil ve Zaman", en: "Language & Time", de: "Sprache & Zeit", fr: "Langue et heure", es: "Idioma y hora", it: "Lingua e ora", ru: "Язык и время", ar: "اللغة والوقت", pt: "Idioma e horário", nl: "Taal en tijd", pl: "Język i czas", ja: "言語と時間", ko: "언어 및 시간", zh: "语言和时间" },
+  settings_tmdb: { tr: "TMDB ve Telegram", en: "TMDB & Telegram", de: "TMDB und Telegram", fr: "TMDB et Telegram", es: "TMDB y Telegram", it: "TMDB e Telegram", ru: "TMDB и Telegram", ar: "TMDB وتيليجرام", pt: "TMDB e Telegram", nl: "TMDB en Telegram", pl: "TMDB i Telegram", ja: "TMDBとTelegram", ko: "TMDB 및 텔레그램", zh: "TMDB和Telegram" },
+  settings_favactors: { tr: "Favori Oyuncular", en: "Favorite Actors", de: "Lieblingsschauspieler", fr: "Acteurs favoris", es: "Actores favoritos", it: "Attori preferiti", ru: "Любимые актёры", ar: "الممثلون المفضلون", pt: "Atores favoritos", nl: "Favoriete acteurs", pl: "Ulubieni aktorzy", ja: "お気に入りの俳優", ko: "즐겨찾는 배우", zh: "最喜欢的演员" },
+  settings_favgenres: { tr: "Favori Türler", en: "Favorite Genres", de: "Lieblingsgenres", fr: "Genres favoris", es: "Géneros favoritos", it: "Generi preferiti", ru: "Любимые жанры", ar: "الأنواع المفضلة", pt: "Gêneros favoritos", nl: "Favoriete genres", pl: "Ulubione gatunki", ja: "お気に入りのジャンル", ko: "즐겨찾는 장르", zh: "最喜欢的类型" },
+  settings_notify: { tr: "Bildirim Ayarları", en: "Notification Settings", de: "Benachrichtigungseinstellungen", fr: "Paramètres de notification", es: "Configuración de notificaciones", it: "Impostazioni notifiche", ru: "Настройки уведомлений", ar: "إعدادات الإشعارات", pt: "Configurações de notificação", nl: "Notificatie-instellingen", pl: "Ustawienia powiadomień", ja: "通知設定", ko: "알림 설정", zh: "通知设置" },
+  fav_actor_remove: { tr: "Favorilerden çıkar", en: "Remove from favorites", de: "Aus Favoriten entfernen", fr: "Retirer des favoris", es: "Quitar de favoritos", it: "Rimuovi dai preferiti", ru: "Удалить из избранного", ar: "إزالة من المفضلة", pt: "Remover dos favoritos", nl: "Uit favorieten verwijderen", pl: "Usuń z ulubionych", ja: "お気に入りから削除", ko: "즐겨찾기에서 제거", zh: "从收藏中移除" },
+  fav_genre_remove: { tr: "Favorilerden çıkar", en: "Remove from favorites", de: "Aus Favoriten entfernen", fr: "Retirer des favoris", es: "Quitar de favoritos", it: "Rimuovi dai preferiti", ru: "Удалить из избранного", ar: "إزالة من المفضلة", pt: "Remover dos favoritos", nl: "Uit favorieten verwijderen", pl: "Usuń z ulubionych", ja: "お気に入りから削除", ko: "즐겨찾기에서 제거", zh: "从收藏中移除" },
 };
 
 function t(key, vars) {
@@ -197,14 +206,12 @@ const views = {
   followed: document.getElementById("view-followed"),
   anime: document.getElementById("view-anime"),
   search: document.getElementById("view-search"),
-  settings: document.getElementById("view-settings"),
 };
 
 const tabs = {
   followed: document.getElementById("tab-followed"),
   anime: document.getElementById("tab-anime"),
   search: document.getElementById("tab-search"),
-  settings: document.getElementById("tab-settings"),
 };
 
 function switchView(name) {
@@ -222,14 +229,11 @@ function switchView(name) {
   } catch (e) {}
   if (name === "followed") loadFollowed();
   if (name === "anime") loadAnime();
-  if (name === "settings") loadSettings();
 }
 
 tabs.followed.onclick = () => switchView("followed");
 tabs.anime.onclick = () => switchView("anime");
 tabs.search.onclick = () => switchView("search");
-tabs.settings.onclick = () => switchView("settings");
-document.getElementById("settings-close").onclick = () => switchView("followed");
 document.getElementById("search-close").onclick = () => switchView("followed");
 
 // ---- Sorting ----
@@ -289,6 +293,7 @@ function updateSortMenu() {
 const sortMenu = document.getElementById("sort-menu");
 document.getElementById("tab-sort").onclick = (e) => {
   e.stopPropagation();
+  closeSettingsMenu();
   const open = sortMenu.classList.contains("open");
   sortMenu.classList.toggle("open", !open);
   updateSortMenu();
@@ -387,6 +392,61 @@ function formatDate(dateStr) {
     day = "";
   }
   return { text, day };
+}
+
+function utcTodayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function utcDayStr(epochSec) {
+  if (!epochSec) return "";
+  const d = new Date(epochSec * 1000);
+  if (isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0, 10);
+}
+
+function utcStateStr(it) {
+  const today = utcTodayStr();
+  if (it.air_time) {
+    const day = utcDayStr(it.air_time);
+    if (!day) return "";
+    if (day < today) return "date-past";
+    if (day > today) return "date-future";
+    return "date-today";
+  }
+  if (!it.date) return "";
+  if (it.date < today) return "date-past";
+  if (it.date > today) return "date-future";
+  return "date-today";
+}
+
+function canSelectAll(it) {
+  const today = utcTodayStr();
+  if (it.air_time) {
+    const day = utcDayStr(it.air_time);
+    return !!day && day < today;
+  }
+  return !!it.date && it.date < today;
+}
+
+function isNewEpisode(it) {
+  if (it.watched) return false;
+  if (it.air_time) {
+    const day = utcDayStr(it.air_time);
+    return !!day && day <= utcTodayStr();
+  }
+  const st = dateState(it.date);
+  return st === "date-past" || st === "date-today";
+}
+
+function isNewTr(tr) {
+  const air = tr.dataset.air ? Number(tr.dataset.air) : null;
+  if (air) {
+    const day = utcDayStr(air);
+    return !!day && day <= utcTodayStr();
+  }
+  const st = dateState(tr.dataset.date);
+  return st === "date-past" || st === "date-today";
 }
 
 function shortDate(dateStr) {
@@ -507,10 +567,7 @@ async function openReleases(mediaType, tmdbId, title) {
           : t("season", { n: seasonKey });
       html += `<div class="season-box">`;
       if (data.media_type === "tv") {
-        const releasedItems = seasonItems.filter((it) => {
-          const st = dateState(it.date);
-          return st === "date-past" || st === "date-today";
-        });
+        const releasedItems = seasonItems.filter((it) => canSelectAll(it));
         const total = seasonItems.length;
         const watched = seasonItems.filter((it) => it.watched).length;
         const pct = total ? Math.round((watched / total) * 100) : 0;
@@ -523,23 +580,26 @@ async function openReleases(mediaType, tmdbId, title) {
       html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
       seasonItems.forEach((it) => {
         const f = formatDate(it.date);
-        const st = dateState(it.date);
+        const st = utcStateStr(it);
         const dateClass = st ? ` class="${st}"` : "";
         const epName = it.episode_name
           ? `<div class="episode-name">${it.episode_name}</div>`
           : "";
         const watchedClass = it.watched ? " watched" : "";
-        const released = st === "date-past" || st === "date-today" ? 1 : 0;
-        const btnDisabled = released === 0 ? " disabled" : "";
+        const aired = isNewEpisode(it); // yayınlandı mı (bold kriteri)
+        const btnDisabled = !aired ? " disabled" : "";
+        const selectable = canSelectAll(it) ? 1 : 0;
         const btnCls = it.watched ? "watch-btn on" : "watch-btn";
         const checkIcon = it.watched ? CHECK_SVG : "";
-        html += `<tr class="${watchedClass}" data-released="${released}">`;
+        const newCls = isNewEpisode(it) ? " new" : "";
+        const dateText = f.text;
+        html += `<tr class="${watchedClass}${newCls}" data-released="${selectable}" data-air="${it.air_time || ""}" data-date="${it.date || ""}">`;
         if (data.media_type === "tv") {
           html += `<td><button class="${btnCls}" data-s="${it.season}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("season_ep", { s: it.season, e: it.episode })}</span>${epName}</span></td>`;
         } else {
           html += `<td><div class="episode-label">${t("release_date")}</div>${epName}</td>`;
         }
-        html += `<td${dateClass}>${f.text}</td></tr>`;
+        html += `<td${dateClass}>${dateText}</td></tr>`;
       });
       html += "</tbody></table></div>";
     });
@@ -566,9 +626,10 @@ async function openReleases(mediaType, tmdbId, title) {
           if (!res.ok) return;
           btn.dataset.w = String(watched);
           btn.classList.toggle("on", watched === 1);
-          btn.textContent = watched ? CHECK_SVG : "";
+          btn.innerHTML = watched ? CHECK_SVG : "";
           const tr = btn.closest("tr");
           tr.classList.toggle("watched", watched === 1);
+          tr.classList.toggle("new", watched === 0 && isNewTr(tr));
 
           const seasonBox = btn.closest(".season-box");
           const allRows = seasonBox.querySelectorAll("tbody tr");
@@ -616,8 +677,9 @@ async function openReleases(mediaType, tmdbId, title) {
             tr.classList.toggle("watched", watched === 1);
             b.dataset.w = String(watched);
             b.classList.toggle("on", watched === 1);
-            b.textContent = watched ? CHECK_SVG : "";
+            b.innerHTML = watched ? CHECK_SVG : "";
             b.disabled = false;
+            tr.classList.toggle("new", watched === 0 && isNewTr(tr));
           });
           const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
           const total = rows.length;
@@ -1769,6 +1831,8 @@ async function loadSettings() {
   currentTz = s.timezone || "Europe/Istanbul";
   document.getElementById("s-tz").value = currentTz;
   document.getElementById("s-lang").value = s.language || "tr-TR";
+  document.getElementById("s-telegram-enabled").checked = (s.telegram_enabled || "1") !== "0";
+  document.getElementById("s-ntfy-enabled").checked = (s.ntfy_enabled || "1") !== "0";
   applyLang((s.language || "tr-TR").split("-")[0]);
 }
 
@@ -1776,7 +1840,126 @@ function showMsg(text, ok) {
   toast(text, !ok);
 }
 
-document.getElementById("save-settings").onclick = async () => {
+function closeSettingsMenu() {
+  const m = document.getElementById("settings-menu");
+  if (m) m.classList.remove("open");
+}
+
+let settingsLoaded = false;
+
+function showSettingsSubmodal(id) {
+  if (!settingsLoaded) {
+    settingsLoaded = true;
+    loadSettings();
+  }
+  document.querySelectorAll(".settings-modal-overlay").forEach((el) => {
+    el.style.display = el.id === id ? "flex" : "none";
+  });
+  if (id === "settings-favactors-modal") renderFavActorsList();
+  if (id === "settings-favgenres-modal") renderFavGenresList();
+  closeSettingsMenu();
+}
+
+function closeSettingsModals() {
+  document.querySelectorAll(".settings-modal-overlay").forEach((el) => {
+    el.style.display = "none";
+  });
+}
+
+async function renderFavActorsList() {
+  const list = document.getElementById("fav-actors-list");
+  if (!list) return;
+  try {
+    const r = await fetch("/api/fav_actors");
+    const j = await r.json();
+    const actors = j.actors || [];
+    if (!actors.length) {
+      list.innerHTML = `<div class="fav-empty">${t("no_fav_actor")}</div>`;
+      return;
+    }
+    list.innerHTML = actors
+      .map(
+        (a) => `<div class="fav-item"><span class="fav-name">${escAttr(a.name)}</span><button class="fav-heart" data-id="${escAttr(a.person_id)}" data-name="${escAttr(a.name)}" data-tip="${t("fav_actor_remove")}">${HEART_SVG}</button></div>`
+      )
+      .join("");
+    list.querySelectorAll(".fav-heart").forEach((btn) => {
+      btn.onclick = async () => {
+        const r = await fetch("/api/fav_actors", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ person_id: btn.dataset.id, name: btn.dataset.name }),
+        });
+        const j = await r.json();
+        if (r.ok) {
+          favActors.delete(String(btn.dataset.id));
+          renderFavActorsList();
+          toast(t("fav_actor_removed"));
+        }
+      };
+    });
+  } catch (e) {}
+}
+
+async function renderFavGenresList() {
+  const list = document.getElementById("fav-genres-list");
+  if (!list) return;
+  try {
+    const r = await fetch("/api/fav_genres");
+    const j = await r.json();
+    const genres = j.genres || [];
+    if (!genres.length) {
+      list.innerHTML = `<div class="fav-empty">${t("no_fav_genre")}</div>`;
+      return;
+    }
+    list.innerHTML = genres
+      .map(
+        (g) => `<div class="fav-item"><span class="fav-name">${escAttr(g)}</span><button class="fav-heart" data-name="${escAttr(g)}" data-tip="${t("fav_genre_remove")}">${HEART_SVG}</button></div>`
+      )
+      .join("");
+    list.querySelectorAll(".fav-heart").forEach((btn) => {
+      btn.onclick = async () => {
+        const r = await fetch("/api/fav_genres", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ genre: btn.dataset.name }),
+        });
+        const j = await r.json();
+        if (r.ok) {
+          favGenres.delete(btn.dataset.name);
+          renderFavGenresList();
+          toast(t("fav_genre_removed"));
+        }
+      };
+    });
+  } catch (e) {}
+}
+
+document.getElementById("tab-settings").addEventListener("click", (e) => {
+  e.stopPropagation();
+  sortMenu.classList.remove("open");
+  document.getElementById("settings-menu").classList.toggle("open");
+});
+document.querySelectorAll(".settings-menu-item").forEach((btn) => {
+  btn.addEventListener("click", () => showSettingsSubmodal(btn.dataset.target));
+});
+document.addEventListener("click", (e) => {
+  const wrap = document.querySelector(".settings-wrap");
+  if (wrap && !wrap.contains(e.target)) closeSettingsMenu();
+});
+document.querySelectorAll(".settings-modal-close").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const ov = btn.closest(".settings-modal-overlay");
+    if (ov) ov.style.display = "none";
+  });
+});
+document.querySelectorAll(".settings-modal-overlay").forEach((ov) => {
+  ov.addEventListener("click", (e) => {
+    if (e.target === ov) ov.style.display = "none";
+  });
+});
+
+async function saveSettings() {
   const body = {
     tmdb_api_key: document.getElementById("s-tmdb").value.trim(),
     telegram_bot_token: document.getElementById("s-token").value.trim(),
@@ -1785,6 +1968,8 @@ document.getElementById("save-settings").onclick = async () => {
     timezone: document.getElementById("s-tz").value,
     language: document.getElementById("s-lang").value,
     ntfy_topic: document.getElementById("s-ntfy").value.trim(),
+    telegram_enabled: document.getElementById("s-telegram-enabled").checked ? "1" : "0",
+    ntfy_enabled: document.getElementById("s-ntfy-enabled").checked ? "1" : "0",
   };
   const r = await fetch("/api/settings", {
     method: "POST",
@@ -1798,7 +1983,10 @@ document.getElementById("save-settings").onclick = async () => {
   } else {
     showMsg(t("save_failed"), false);
   }
-};
+}
+
+document.getElementById("save-settings").onclick = saveSettings;
+document.getElementById("save-notify").onclick = saveSettings;
 
 document.getElementById("test-settings").onclick = async () => {
   const body = {
