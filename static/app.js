@@ -699,8 +699,11 @@ async function loadFollowed() {
 }
 
 // ---- Anime ----
-function animeNextText(next) {
-  if (!next) return "";
+function animeNextText(next, status) {
+  if (!next) {
+    if (status === "FINISHED") return `<div class="next-ep muted">${t("anime_status_finished")}</div>`;
+    return "";
+  }
   const d = new Date(next.airing_at * 1000);
   const now = Date.now();
   const diffDays = Math.floor((d.getTime() - now) / 86400000);
@@ -741,7 +744,7 @@ async function loadAnime() {
         <div class="meta">
           <span class="badge badge-anime">${t("tab_anime")}</span>
           ${item.score ? scoreTag(item.score / 10) : ""}
-          ${animeNextText(item.next_episode)}
+          ${animeNextText(item.next_episode, item.status)}
         </div>
       </div>
       <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
