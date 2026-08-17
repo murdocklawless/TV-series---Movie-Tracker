@@ -1,0 +1,20 @@
+services:
+  takip:
+    build: .
+    image: ${DOCKER_IMAGE:-takip}
+    container_name: takip
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8050}:8050"
+    environment:
+      - PORT=8050
+      - DB_PATH=/app/data/takip.db
+      - TMDB_API_KEY=${TMDB_API_KEY:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - NOTIFY_HOUR=${NOTIFY_HOUR:-}
+    volumes:
+      - takip-data:/app/data
+
+volumes:
+  takip-data:

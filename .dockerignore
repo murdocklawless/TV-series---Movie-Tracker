@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+data.db
+backup_pre_calendar/
+venv/
+.git/
+README.md
+setup.sh
+run.sh
+takip.service
+Dockerfile
+docker-compose.yml
+.dockerignore

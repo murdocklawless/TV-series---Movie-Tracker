@@ -1,29 +1,37 @@
 #!/usr/bin/env bash
-# /etc/tracker kurulum betiği (Raspberry Pi)
+# Dizi/Film Takip - tek betik kurulum (Raspberry Pi)
+# Kullanım: sudo bash setup.sh   (isteğe bağlı: sudo PORT=8050 bash setup.sh)
 set -e
 
 APP_DIR="/etc/tracker"
+PORT="${PORT:-8050}"
 
-echo "==> /etc/tracker klasörü hazırlanıyor..."
+echo "==> Kök yetkisi kontrol ediliyor..."
 if [ "$(id -u)" -ne 0 ]; then
   echo "Lütfen sudo ile çalıştırın: sudo bash setup.sh"
   exit 1
 fi
 
-mkdir -p "$APP_DIR"
-
-# Betik çalıştırılan dizinde dosyalar varsa kopyala
+# Betik çalıştırılan dizinden dosyaları kopyala
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ "$SCRIPT_DIR" != "$APP_DIR" ]; then
-  echo "==> Dosyalar $APP_DIR içine kopyalanıyor..."
-  cp -r "$SCRIPT_DIR"/app.py "$SCRIPT_DIR"/static "$SCRIPT_DIR"/requirements.txt "$SCRIPT_DIR"/run.sh "$SCRIPT_DIR"/takip.service "$APP_DIR"/ 2>/dev/null || true
+echo "==> $APP_DIR klasörü hazırlanıyor..."
+mkdir -p "$APP_DIR/static"
+if [ -f "$SCRIPT_DIR/app.py" ]; then
+  cp -f "$SCRIPT_DIR/app.py" "$APP_DIR/"
+  cp -f "$SCRIPT_DIR/requirements.txt" "$APP_DIR/" 2>/dev/null || true
+  cp -f "$SCRIPT_DIR/static/app.js" "$APP_DIR/static/" 2>/dev/null || true
+  cp -f "$SCRIPT_DIR/static/style.css" "$APP_DIR/static/" 2>/dev/null || true
+  cp -f "$SCRIPT_DIR/static/index.html" "$APP_DIR/static/" 2>/dev/null || true
+  echo "==> Kaynak dosyalar kopyalandı."
+else
+  echo "==> app.py bu dizinde bulunamadı; mevcut $APP_DIR dosyaları kullanılacak."
 fi
 
 cd "$APP_DIR"
 
 echo "==> Python3 ve bağımlılıklar kuruluyor..."
 apt-get update
-apt-get install -y python3 python3-pip python3-venv
+apt-get install -y python3 python3-pip python3-venv curl
 
 echo "==> Sanal ortam oluşturuluyor..."
 if [ ! -d "venv" ]; then
@@ -31,16 +39,40 @@ if [ ! -d "venv" ]; then
 fi
 
 echo "==> Bağımlılıklar yükleniyor..."
-./venv/bin/pip install --upgrade pip
+./venv/bin/pip install --upgrade pip >/dev/null
 ./venv/bin/pip install -r requirements.txt
 
-# /etc klasörü okuma/yazma izni
-chmod -R a+rw "$APP_DIR" 2>/dev/null || true
+echo "==> Systemd servisi kuruluyor (port: $PORT)..."
+cat > /etc/systemd/system/takip.service <<EOF
+[Unit]
+Description=Takip Listesi - Dizi/Film Takip Uygulamasi
+After=network.target
 
-echo ""
-echo "Kurulum tamamlandı."
-echo "Uygulamayı başlat:       cd /etc/tracker && ./run.sh"
-echo "Ya da systemd servisi:"
-echo "  sudo cp /etc/tracker/takip.service /etc/systemd/system/"
-echo "  sudo systemctl daemon-reload"
-echo "  sudo systemctl enable --now takip"
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$APP_DIR
+Environment=PORT=$PORT
+ExecStart=$APP_DIR/venv/bin/python $APP_DIR/app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now takip
+
+echo "==> Servis başlatılıyor..."
+for i in $(seq 1 15); do
+  if curl -sf -o /dev/null "http://127.0.0.1:$PORT/"; then
+    echo "==> Kurulum tamamlandı! Uygulama http://$(hostname -I | awk '{print $1}'):$PORT adresinde çalışıyor."
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "!! Servis başladı ama yanıt vermedi. Durum:"
+systemctl status takip --no-pager || true
+exit 1

@@ -30,6 +30,66 @@ nav {
   font-weight: 700;
 }
 
+@media (min-width: 601px) {
+  .logo {
+    font-size: 1.7rem;
+  }
+
+  .search-area {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin-top: 24px;
+    margin-bottom: 18px;
+  }
+
+  .search-type-row {
+    order: 0;
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 0;
+  }
+
+  .search-bar {
+    order: 1;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    gap: 0;
+    margin-bottom: 0;
+  }
+
+  .search-type-row select {
+    flex-shrink: 0;
+    margin-right: 10px;
+    padding: 14px 36px 14px 16px;
+    font-size: 1rem;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .search-bar input {
+    flex: 1;
+    min-width: 0;
+    padding: 14px 18px;
+    font-size: 1.1rem;
+    border-radius: 0;
+  }
+
+  .search-bar button {
+    flex-shrink: 0;
+    padding: 0 26px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+
+  /* Desktop: arama kutusu sola yanaşık */
+  #view-search.active {
+    align-items: flex-start;
+  }
+}
+
 .logo-sub {
   font-size: 0.6rem;
   font-weight: 400;
@@ -135,6 +195,7 @@ main {
   font-weight: 600;
   font-size: 0.9rem;
   line-height: 1.3;
+  min-height: 2.6em;
   margin-bottom: 4px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -149,22 +210,40 @@ main {
 
 .card .info .meta .badge {
   display: inline-block;
-  background: rgba(59, 130, 246, 0.75);
-  color: #fff;
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
   font-size: 0.7rem;
-  padding: 2px 8px;
+  font-weight: 600;
+  padding: 1px 8px;
   border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.4);
   margin-bottom: 4px;
 }
 
 .card .info .meta .badge.badge-movie {
-  background: rgba(34, 197, 94, 0.75);
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.card .info .meta .badge.badge-anime {
+  background: rgba(236, 72, 153, 0.15);
+  color: #f472b6;
+  border-color: rgba(236, 72, 153, 0.4);
+}
+
+.card .info .meta .badge.badge-anime-status {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border-color: rgba(139, 92, 246, 0.4);
+  margin-left: 4px;
 }
 
 .card .info .meta .badge.badge-score {
-  background: rgba(194, 120, 8, 0.95);
+  background: rgba(194, 120, 8, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(194, 120, 8, 0.4);
   margin-left: 4px;
-  font-weight: 600;
 }
 
 .card .info .meta .next-ep {
@@ -172,6 +251,50 @@ main {
   font-size: 0.75rem;
   font-weight: 600;
   margin-top: 3px;
+}
+
+.card .info .meta .next-ep .next-ep-days {
+  display: inline-block;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  font-weight: 600;
+  font-size: 0.68rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  padding: 1px 6px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.card .info .meta .next-ep.anime-ep {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  text-align: center;
+}
+
+.card .info .meta .next-ep.anime-ep .next-ep-days {
+  margin-top: 0;
+}
+
+.card .info .meta .next-ep.anime-ep .next-ep-sep {
+  color: #22c55e;
+}
+
+.season-count-badge {
+  display: inline-block;
+  margin-top: 4px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.4);
 }
 
 .card .info .meta .next-ep.muted {
@@ -249,6 +372,39 @@ main {
   font-size: 1.1rem;
 }
 
+.search-type-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.search-type-row select {
+  padding: 10px 34px 10px 14px;
+  background: #171a23;
+  border: 1px solid #2a2f3d;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.95rem;
+  color-scheme: dark;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+}
+
+.search-type-row select option {
+  background: #171a23;
+  color: #fff;
+}
+
+.search-type-row select:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
 .empty {
   text-align: center;
   padding: 80px 20px;
@@ -260,12 +416,95 @@ main {
 }
 
 /* Settings */
-#view-settings h2 {
+#view-settings.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  min-height: calc(100vh - 140px);
+  padding: 24px 0;
+}
+
+/* Search */
+#view-search.active {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-direction: column;
+  min-height: calc(100vh - 140px);
+  padding: 24px 0;
+}
+
+/* Anime */
+#view-anime.active {
+  display: block;
+  padding: 24px 0;
+}
+
+#view-anime .poster-grid {
+  justify-content: center;
+}
+
+.search-card {
+  width: 100%;
+  max-width: 800px;
+  background: #171a23;
+  border: 1px solid #262a36;
+  border-radius: 14px;
+  padding: 24px 28px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+#view-search .poster-grid {
+  gap: 12px;
+}
+
+#view-search .poster-grid .card {
+  width: 132px;
+}
+
+.search-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+#view-search h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #f59e0b;
+}
+
+#view-search .search-bar {
+  margin-bottom: 18px;
+}
+
+.settings-card {
+  width: 100%;
+  max-width: 480px;
+  background: #171a23;
+  border: 1px solid #262a36;
+  border-radius: 14px;
+  padding: 28px 32px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.settings-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 20px;
 }
 
+#view-settings h2 {
+  margin: 0;
+  text-align: center;
+  font-size: 1.05rem;
+  color: #f59e0b;
+}
+
 .settings-form {
-  max-width: 480px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -280,19 +519,82 @@ main {
   font-size: 0.9rem;
 }
 
-.settings-form input {
+.settings-form input,
+.settings-form select {
   padding: 12px 14px;
   background: #171a23;
   border: 1px solid #2a2f3d;
   border-radius: 8px;
   color: #fff;
   font-size: 0.95rem;
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.settings-form select#s-lang {
+  padding: 12px 30px 12px 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+}
+
+.settings-form select option {
+  background: #171a23;
+  color: #fff;
+}
+
+.tz-combobox {
+  position: relative;
+}
+
+.tz-combobox input {
+  width: 100%;
+  cursor: text;
+}
+
+.tz-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #171a23;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  margin-top: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.tz-list div {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  color: #ddd;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tz-list div:hover,
+.tz-list div.selected {
+  background: #262a36;
+  color: #fff;
+}
+
+.settings-form input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
 }
 
 .settings-actions {
   display: flex;
   gap: 10px;
   margin-top: 8px;
+  justify-content: center;
 }
 
 .btn {
@@ -346,6 +648,7 @@ main {
   border-radius: 8px;
   display: none;
   font-size: 0.9rem;
+  text-align: center;
 }
 
 .msg.success {
@@ -378,6 +681,30 @@ main {
 .toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* Custom tooltip */
+.app-tip {
+  position: fixed;
+  z-index: 300;
+  background: #1e2230;
+  color: #f0f2f7;
+  border: 1px solid #3a4050;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  max-width: 280px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.app-tip.show {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Releases modal */
@@ -434,6 +761,26 @@ main {
   cursor: pointer;
 }
 
+.details-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+#details-calendar {
+  color: #7dd3fc;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+#details-calendar:hover {
+  color: #bae6fd;
+}
+
 .modal-close:hover {
   color: #f87171;
 }
@@ -456,7 +803,11 @@ main {
 
 .details-poster-col {
   display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 12px;
+  width: 190px;
+  flex-shrink: 0;
 }
 
 .details-poster {
@@ -522,20 +873,16 @@ main {
 
 .detail-calendar-btn {
   margin-top: 24px;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
   padding: 7px 14px;
   font-size: 0.8rem;
   border-radius: 7px;
 }
 
 .details-cast {
-  margin-top: 18px;
-}
-
-.details-cast-title {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #e5e9f0;
-  margin-bottom: 10px;
+  width: 100%;
 }
 
 .details-cast-list {
@@ -617,6 +964,10 @@ main {
   .details-poster {
     width: 140px;
     height: 210px;
+  }
+
+  .details-poster-col {
+    width: 100%;
   }
 
   .details-main {
@@ -883,18 +1234,22 @@ main {
 
   .tabs {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 6px;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 4px;
     width: 100%;
   }
 
   .tab {
-    padding: 10px 6px;
-    font-size: 0.85rem;
+    padding: 8px 4px;
+    font-size: 0.8rem;
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  #tab-settings {
+    padding: 8px 12px;
   }
 
   main {
@@ -924,6 +1279,14 @@ main {
   .settings-actions .btn {
     width: 100%;
   }
+
+  .settings-card {
+    padding: 20px 18px;
+  }
+
+  .search-card {
+    padding: 18px 14px;
+  }
 }
 
 /* Telefon (dar ekran) */
@@ -933,6 +1296,14 @@ main {
   }
 
   .poster-grid .card {
+    width: calc((100% - 16px) / 3);
+  }
+
+  #view-search .poster-grid .card {
+    width: calc((100% - 16px) / 3);
+  }
+
+  #view-anime .poster-grid .card {
     width: calc((100% - 16px) / 3);
   }
 
@@ -953,6 +1324,12 @@ main {
 
   .card .remove {
     right: 6px;
+  }
+
+  #view-search h2,
+  #view-settings h2,
+  .modal-header h3 {
+    font-size: 0.95rem;
   }
 }
 
@@ -1043,7 +1420,38 @@ main {
     font-size: 0.85rem;
   }
 
-  .card .info .meta .next-ep {
+  .card .info .meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .card .info .meta .badge {
+    font-size: 0.6rem;
+    padding: 1px 6px;
+    margin: 0 2px 3px 0;
+  }
+
+.card .info .meta .next-ep {
+    font-size: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    flex-basis: 100%;
+  }
+
+  .card .info .meta .next-ep.anime-ep {
+    flex-direction: column;
+  }
+
+  .card .info .meta .next-ep.anime-ep .next-ep-sep {
+    display: none;
+  }
+
+  .card .info .meta .next-ep .next-ep-days {
     font-size: 0.6rem;
   }
 }

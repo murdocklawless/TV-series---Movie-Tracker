@@ -5,9 +5,11 @@ import threading
 import requests
 from flask import Flask, jsonify, request, send_from_directory
 from apscheduler.schedulers.background import BackgroundScheduler
+from zoneinfo import ZoneInfo
+import zoneinfo
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "data.db")
+DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "data.db"))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
@@ -59,15 +61,65 @@ def init_db():
     ecols = [r["name"] for r in conn.execute("PRAGMA table_info(episodes)").fetchall()]
     if "watched" not in ecols:
         conn.execute("ALTER TABLE episodes ADD COLUMN watched INTEGER DEFAULT 0")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS anime (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            anilist_id INTEGER UNIQUE,
+            title TEXT,
+            cover_url TEXT,
+            episodes INTEGER DEFAULT 0,
+            status TEXT,
+            score REAL,
+            notified INTEGER DEFAULT 0
+        )"""
+    )
+    acols = [r["name"] for r in conn.execute("PRAGMA table_info(anime)").fetchall()]
+    if "score" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN score REAL")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS anime_episodes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            anime_id INTEGER,
+            episode INTEGER,
+            air_at INTEGER,
+            notified INTEGER DEFAULT 0,
+            watched INTEGER DEFAULT 0,
+            UNIQUE(anime_id, episode)
+        )"""
+    )
     conn.commit()
     conn.close()
 
 
+ENV_KEYS = {
+    "tmdb_api_key": "TMDB_API_KEY",
+    "telegram_bot_token": "TELEGRAM_BOT_TOKEN",
+    "telegram_chat_id": "TELEGRAM_CHAT_ID",
+    "notify_hour": "NOTIFY_HOUR",
+    "timezone": "TIMEZONE",
+    "language": "LANGUAGE",
+    "ntfy_topic": "NTFY_TOPIC",
+}
+
+
 def get_setting(key):
+    env_name = ENV_KEYS.get(key)
+    if env_name and os.environ.get(env_name):
+        return os.environ.get(env_name)
     conn = get_db()
     row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
     conn.close()
     return row["value"] if row else None
+
+
+def today_str():
+    """Seçili zaman diliminde bugünün tarihi (YYYY-MM-DD)."""
+    tz_name = get_setting("timezone") or "Europe/Istanbul"
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = ZoneInfo("Europe/Istanbul")
+    return datetime.datetime.now(tz).strftime("%Y-%m-%d")
 
 
 def set_setting(key, value):
@@ -86,13 +138,191 @@ def tmdb_request(path, params=None):
     if not api_key:
         return None
     url = "https://api.themoviedb.org/3/" + path.lstrip("/")
-    p = {"api_key": api_key, "language": "tr-TR"}
-    if params:
-        p.update(params)
-    r = requests.get(url, params=p, timeout=15)
+    selected = get_setting("language") or "tr-TR"
+    langs = ["en-US"]
+    if selected != "en-US":
+        langs.insert(0, selected)
+    for lang in langs:
+        p = {"api_key": api_key, "language": lang}
+        if params:
+            p.update(params)
+        try:
+            r = requests.get(url, params=p, timeout=15)
+        except requests.RequestException:
+            continue
+        if r.status_code != 200:
+            return None
+        data = r.json()
+        if _has_content(data):
+            return data
+    return None
+
+
+ANILIST_URL = "https://graphql.anilist.co"
+
+
+def anilist_query(query, variables=None):
+    """AniList GraphQL isteği yapar."""
+    try:
+        r = requests.post(
+            ANILIST_URL,
+            json={"query": query, "variables": variables or {}},
+            timeout=15,
+        )
+    except requests.RequestException:
+        return None
     if r.status_code != 200:
         return None
-    return r.json()
+    data = r.json()
+    return data.get("data")
+
+
+ANIME_SEARCH_QUERY = """
+query ($q: String) {
+  Page(page: 1, perPage: 20) {
+    media(search: $q, type: ANIME) {
+      id
+      title { romaji english native }
+      coverImage { large }
+      format
+      status
+      episodes
+      nextAiringEpisode { episode airingAt }
+      averageScore
+      startDate { year month day }
+      genres
+    }
+  }
+}
+"""
+
+
+def anilist_search(q):
+    data = anilist_query(ANIME_SEARCH_QUERY, {"q": q})
+    if not data or not data.get("Page"):
+        return []
+    return data["Page"].get("media") or []
+
+
+ANIME_DETAIL_QUERY = """
+query ($id: Int) {
+  Media(id: $id, type: ANIME) {
+    id
+    title { romaji english native }
+    coverImage { large }
+    bannerImage
+    description
+    format
+    status
+    episodes
+    duration
+    genres
+    averageScore
+    nextAiringEpisode { episode airingAt }
+    startDate { year month day }
+    endDate { year month day }
+    studios(isMain: true) {
+      nodes { name }
+    }
+    characters(sort: ROLE, perPage: 12) {
+      nodes {
+        id
+        name { full }
+        image { large }
+      }
+    }
+  }
+}
+"""
+
+
+def anilist_detail(anime_id):
+    data = anilist_query(ANIME_DETAIL_QUERY, {"id": anime_id})
+    if not data:
+        return None
+    return data.get("Media")
+
+
+ANIME_SCHEDULE_QUERY = """
+query ($id: Int, $now: Int) {
+  Media(id: $id, type: ANIME) {
+    id
+    episodes
+    status
+    nextAiringEpisode {
+      episode airingAt
+    }
+  }
+  future: Page(perPage: 50) {
+    airingSchedules(mediaId: $id, airingAt_greater: $now, sort: TIME) {
+      episode airingAt
+    }
+  }
+  past: Page(perPage: 50) {
+    airingSchedules(mediaId: $id, airingAt_lesser: $now, sort: TIME_DESC) {
+      episode airingAt
+    }
+  }
+}
+"""
+
+
+def anilist_schedule(anime_id):
+    now = int(datetime.datetime.now().timestamp())
+    data = anilist_query(ANIME_SCHEDULE_QUERY, {"id": anime_id, "now": now})
+    if not data or not data.get("Media"):
+        return None
+    media = data["Media"]
+    nodes = []
+    seen = set()
+
+    nxt = media.get("nextAiringEpisode")
+    if nxt and nxt.get("episode") is not None:
+        key = (nxt.get("episode"), nxt.get("airingAt"))
+        seen.add(key)
+        nodes.append(nxt)
+
+    for group_key in ("future", "past"):
+        group = (data.get(group_key) or {}).get("airingSchedules") or []
+        for node in group:
+            key = (node.get("episode"), node.get("airingAt"))
+            if key not in seen:
+                seen.add(key)
+                nodes.append(node)
+    media["airingSchedule"] = {"nodes": sorted(nodes, key=lambda n: n.get("episode") or 0)}
+    return media
+
+
+def _anime_title(m):
+    if not m:
+        return ""
+    t = m.get("title") or {}
+    return t.get("romaji") or t.get("english") or t.get("native") or ""
+
+
+def _anime_cover(m):
+    c = (m.get("coverImage") or {}).get("large")
+    return c or ""
+
+
+def _anime_next_ep(m):
+    nea = m.get("nextAiringEpisode") or {}
+    return nea.get("episode"), nea.get("airingAt")
+
+
+def _has_content(data):
+    """TMDB yanıtında kullanılabilir içerik olup olmadığını kontrol eder."""
+    if not data:
+        return False
+    if isinstance(data, list):
+        return bool(data)
+    if "results" in data:
+        return bool(data.get("results"))
+    if data.get("title") or data.get("name") or data.get("overview"):
+        return True
+    if data.get("cast") or data.get("crew") or data.get("episodes"):
+        return True
+    return False
 
 
 @app.route("/")
@@ -115,6 +345,11 @@ def search():
     for item in data.get("results", []):
         if item.get("media_type") not in ("movie", "tv"):
             continue
+        num_seasons = None
+        if item.get("media_type") == "tv":
+            detail = tmdb_request(f"/tv/{item.get('id')}")
+            if detail:
+                num_seasons = detail.get("number_of_seasons")
         results.append(
             {
                 "tmdb_id": item.get("id"),
@@ -124,9 +359,207 @@ def search():
                 "release_date": item.get("release_date") or item.get("first_air_date"),
                 "vote_average": item.get("vote_average") or 0,
                 "overview": item.get("overview"),
+                "number_of_seasons": num_seasons,
             }
         )
     return jsonify(results)
+
+
+@app.route("/api/anime/search")
+def anime_search():
+    q = request.args.get("q", "")
+    if not q:
+        return jsonify([])
+    items = anilist_search(q)
+    results = []
+    for m in items:
+        ep, air_at = _anime_next_ep(m)
+        results.append(
+            {
+                "anilist_id": m.get("id"),
+                "title": _anime_title(m),
+                "cover_url": _anime_cover(m),
+                "format": m.get("format"),
+                "status": m.get("status"),
+                "episodes": m.get("episodes"),
+                "next_episode": ep,
+                "airing_at": air_at,
+                "score": m.get("averageScore"),
+                "start_date": (
+                    (m.get("startDate") or {}).get("year")
+                    if (m.get("startDate") or {}).get("year")
+                    else None
+                ),
+                "genres": m.get("genres") or [],
+            }
+        )
+    return jsonify(results)
+
+
+@app.route("/api/anime/details")
+def anime_details():
+    anilist_id = request.args.get("anilist_id")
+    if not anilist_id:
+        return jsonify({"error": "anilist_id gereklidir"}), 400
+    d = anilist_detail(anilist_id)
+    if not d:
+        return jsonify({"error": "AniList'ten veri alınamadı"}), 404
+    return jsonify(
+        {
+            "anilist_id": d.get("id"),
+            "title": _anime_title(d),
+            "cover_url": _anime_cover(d),
+            "banner_url": d.get("bannerImage"),
+            "description": d.get("description"),
+            "format": d.get("format"),
+            "status": d.get("status"),
+            "episodes": d.get("episodes"),
+            "duration": d.get("duration"),
+            "genres": d.get("genres") or [],
+            "score": d.get("averageScore"),
+            "start_date": (
+                (d.get("startDate") or {}).get("year")
+                if (d.get("startDate") or {}).get("year")
+                else None
+            ),
+            "studios": [s.get("name") for s in (d.get("studios") or {}).get("nodes") or [] if s.get("name")],
+            "characters": [
+                {
+                    "name": c.get("name", {}).get("full") if c.get("name") else "",
+                    "image": (c.get("image") or {}).get("large") if c.get("image") else None,
+                }
+                for c in (d.get("characters") or {}).get("nodes") or []
+            ],
+        }
+    )
+
+
+@app.route("/api/anime/followed")
+def anime_followed():
+    conn = get_db()
+    rows = conn.execute("SELECT * FROM anime ORDER BY id DESC").fetchall()
+    result = []
+    for r in rows:
+        score = r["score"]
+        if score is None:
+            detail = anilist_detail(r["anilist_id"])
+            if detail and detail.get("averageScore") is not None:
+                score = detail.get("averageScore")
+                conn.execute(
+                    "UPDATE anime SET score=? WHERE id=?",
+                    (score, r["id"]),
+                )
+                conn.commit()
+        result.append(
+            {
+                "id": r["id"],
+                "anilist_id": r["anilist_id"],
+                "title": r["title"],
+                "cover_url": r["cover_url"],
+                "episodes": r["episodes"],
+                "status": r["status"],
+                "score": score,
+                "next_episode": _anime_followed_next(conn, r["id"]),
+            }
+        )
+    conn.close()
+    return jsonify(result)
+
+
+def _anime_followed_next(conn, anime_id):
+    now = int(datetime.datetime.now().timestamp())
+    row = conn.execute(
+        "SELECT episode, air_at FROM anime_episodes "
+        "WHERE anime_id=? AND watched=0 AND air_at IS NOT NULL AND air_at > ? "
+        "ORDER BY episode LIMIT 1",
+        (anime_id, now),
+    ).fetchone()
+    if row:
+        return {"episode": row["episode"], "airing_at": row["air_at"]}
+    return None
+
+
+@app.route("/api/anime/follow", methods=["POST"])
+def anime_follow():
+    body = request.get_json()
+    anilist_id = body.get("anilist_id")
+    if not anilist_id:
+        return jsonify({"error": "anilist_id gereklidir"}), 400
+    detail = anilist_detail(anilist_id)
+    if not detail:
+        return jsonify({"error": "AniList'ten veri alınamadı"}), 400
+    title = _anime_title(detail)
+    cover = _anime_cover(detail)
+    episodes = detail.get("episodes") or 0
+    status = detail.get("status")
+    score = detail.get("averageScore")
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO anime (anilist_id, title, cover_url, episodes, status, score) "
+        "VALUES (?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(anilist_id) DO UPDATE SET "
+        "title=excluded.title, cover_url=excluded.cover_url, "
+        "episodes=excluded.episodes, status=excluded.status, score=excluded.score",
+        (anilist_id, title, cover, episodes, status, score),
+    )
+    conn.commit()
+    row = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+    anime_db_id = row["id"]
+
+    schedule = anilist_schedule(anilist_id)
+    if schedule and schedule.get("airingSchedule"):
+        for node in schedule["airingSchedule"].get("nodes") or []:
+            conn.execute(
+                "INSERT INTO anime_episodes (anime_id, episode, air_at) "
+                "VALUES (?, ?, ?) "
+                "ON CONFLICT(anime_id, episode) DO UPDATE SET air_at=excluded.air_at",
+                (anime_db_id, node.get("episode"), node.get("airingAt")),
+            )
+        conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/anime/unfollow/<int:anime_id>", methods=["DELETE"])
+def anime_unfollow(anime_id):
+    conn = get_db()
+    conn.execute("DELETE FROM anime_episodes WHERE anime_id=?", (anime_id,))
+    conn.execute("DELETE FROM anime WHERE id=?", (anime_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/anime/schedule")
+def anime_schedule():
+    anime_id = request.args.get("anime_id")
+    if not anime_id:
+        return jsonify({"error": "anime_id gereklidir"}), 400
+    conn = get_db()
+    arow = conn.execute("SELECT * FROM anime WHERE id=?", (anime_id,)).fetchone()
+    if not arow:
+        return jsonify({"error": "Anime bulunamadı"}), 404
+    rows = conn.execute(
+        "SELECT episode, air_at, watched, notified FROM anime_episodes "
+        "WHERE anime_id=? ORDER BY episode",
+        (anime_id,),
+    ).fetchall()
+    conn.close()
+    return jsonify(
+        {
+            "title": arow["title"],
+            "anilist_id": arow["anilist_id"],
+            "items": [
+                {
+                    "episode": r["episode"],
+                    "airing_at": r["air_at"],
+                    "watched": r["watched"],
+                    "notified": r["notified"],
+                }
+                for r in rows
+            ],
+        }
+    )
 
 
 def get_tmdb_info(media_type, tmdb_id):
@@ -212,7 +645,7 @@ def follow():
 def followed():
     conn = get_db()
     rows = conn.execute("SELECT * FROM followed ORDER BY id DESC").fetchall()
-    today = datetime.date.today().isoformat()
+    today = today_str()
     items = []
     for r in rows:
         item = dict(r)
@@ -373,7 +806,7 @@ def season_watch():
         conn.close()
         return jsonify({"error": "Sezon bilgisi alınamadı"}), 400
 
-    today = datetime.date.today().isoformat()
+    today = today_str()
     count = 0
     for ep in season_data.get("episodes", []):
         ep_num = ep.get("episode_number")
@@ -457,6 +890,76 @@ def details():
     return jsonify(result)
 
 
+@app.route("/api/timezones")
+def list_timezones():
+    zones = sorted(z for z in zoneinfo.available_timezones() if "/" in z or z == "UTC")
+    tz_country = {}
+    try:
+        with open("/usr/share/zoneinfo/zone.tab") as f:
+            for line in f:
+                if line.startswith("#") or not line.strip():
+                    continue
+                parts = line.split()
+                if len(parts) >= 3:
+                    tz_country[parts[2]] = parts[0]
+    except OSError:
+        pass
+
+    cc_lang = _country_languages()
+
+    out = []
+    for z in zones:
+        cc = tz_country.get(z, "")
+        locale = ""
+        if cc:
+            lang = cc_lang.get(cc.upper(), "")
+            if lang:
+                locale = f"{lang}-{cc.upper()}"
+        out.append({"value": z, "country": cc, "locale": locale})
+    return jsonify(out)
+
+
+def _country_languages():
+    """glibc locale dosyalarından ülke kodu -> birincil dil (örn. US -> en)."""
+    locales_dir = "/usr/share/i18n/locales"
+    cc_lang = {}
+    try:
+        names = sorted(os.listdir(locales_dir))
+    except OSError:
+        return cc_lang
+    preferred = {
+        "TR": "tr", "FR": "fr", "ES": "es", "IT": "it", "DE": "de",
+        "US": "en", "GB": "en", "CA": "en", "AU": "en", "NZ": "en",
+        "BR": "pt", "PT": "pt", "BE": "nl", "CH": "de", "AT": "de",
+        "MX": "es", "AR": "es", "CO": "es", "PE": "es", "CL": "es",
+        "MY": "ms", "SG": "en", "HK": "zh-Hant", "TW": "zh-TW", "CN": "zh",
+        "IN": "hi", "PK": "ur", "BD": "bn", "LK": "si", "NP": "ne",
+        "AE": "ar", "SA": "ar", "EG": "ar", "MA": "ar", "IQ": "ar",
+        "IL": "he", "IR": "fa", "AZ": "az", "KZ": "kk", "UZ": "uz",
+        "BY": "be", "UA": "uk", "MD": "ro", "BA": "bs", "RS": "sr",
+        "HR": "hr", "SI": "sl", "SK": "sk", "CZ": "cs", "HU": "hu",
+        "RO": "ro", "BG": "bg", "GR": "el", "CY": "el", "MT": "mt",
+        "IS": "is", "NO": "nb", "SE": "sv", "FI": "fi", "DK": "da",
+        "NL": "nl", "IE": "en", "LU": "lb", "EE": "et", "LV": "lv",
+        "LT": "lt", "PL": "pl", "RU": "ru", "AM": "hy", "GE": "ka",
+        "MN": "mn", "KH": "km", "LA": "lo", "TH": "th", "VN": "vi",
+        "ID": "id", "PH": "fil", "MM": "my", "KR": "ko", "JP": "ja",
+        "TR": "tr",
+    }
+    for name in names:
+        if name.startswith(".") or "_" not in name:
+            continue
+        lang, cc = name.split("_", 1)
+        cc = cc.upper()
+        if len(cc) != 2 or not cc.isalpha():
+            continue
+        if cc in preferred:
+            cc_lang[cc] = preferred[cc]
+        elif cc not in cc_lang:
+            cc_lang[cc] = lang
+    return cc_lang
+
+
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
     return jsonify(
@@ -465,6 +968,9 @@ def get_settings():
             "telegram_bot_token": get_setting("telegram_bot_token") or "",
             "telegram_chat_id": get_setting("telegram_chat_id") or "",
             "notify_hour": get_setting("notify_hour") or "09:00",
+            "timezone": get_setting("timezone") or "Europe/Istanbul",
+            "language": get_setting("language") or "tr-TR",
+            "ntfy_topic": get_setting("ntfy_topic") or "",
         }
     )
 
@@ -477,6 +983,9 @@ def save_settings():
         "telegram_bot_token",
         "telegram_chat_id",
         "notify_hour",
+        "timezone",
+        "language",
+        "ntfy_topic",
     ):
         if key in body:
             set_setting(key, str(body[key] or ""))
@@ -488,41 +997,117 @@ def test_settings():
     body = request.get_json()
     token = body.get("telegram_bot_token")
     chat_id = body.get("telegram_chat_id")
-    if not token or not chat_id:
-        return jsonify({"error": "Bot token ve chat id gereklidir"}), 400
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    r = requests.post(
-        url,
-        json={
-            "chat_id": chat_id,
-            "text": "Takip uygulaması test mesajı ✅",
-        },
-        timeout=15,
-    )
-    if r.status_code == 200:
-        return jsonify({"ok": True})
-    try:
-        err = r.json().get("description", "Bilinmeyen hata")
-    except Exception:
-        err = "Bilinmeyen hata"
-    return jsonify({"error": f"Telegram hatası: {err}"}), 400
+    ntfy_topic = body.get("ntfy_topic")
+    if not ((token and chat_id) or ntfy_topic):
+        return jsonify({"error": "Telegram veya ntfy bilgisi gereklidir"}), 400
+    errors = []
+    if token and chat_id:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        r = requests.post(
+            url,
+            json={
+                "chat_id": chat_id,
+                "text": "Takip uygulaması test mesajı ✅",
+            },
+            timeout=15,
+        )
+        if r.status_code != 200:
+            try:
+                err = r.json().get("description", "Bilinmeyen hata")
+            except Exception:
+                err = "Bilinmeyen hata"
+            errors.append(f"Telegram hatası: {err}")
+    if ntfy_topic:
+        r = requests.post(
+            f"https://ntfy.sh/{ntfy_topic_clean(ntfy_topic)}",
+            data="Takip uygulaması test mesajı ✅",
+            timeout=15,
+        )
+        if r.status_code != 200:
+            errors.append(f"ntfy hatası: HTTP {r.status_code}")
+    if errors:
+        return jsonify({"error": "; ".join(errors)}), 400
+    return jsonify({"ok": True})
 
 
-def send_telegram(text):
+def send_telegram(text, poster_url=None):
     token = get_setting("telegram_bot_token")
     chat_id = get_setting("telegram_chat_id")
     if not token or not chat_id:
         return False
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
+        if poster_url:
+            r = requests.post(
+                f"https://api.telegram.org/bot{token}/sendPhoto",
+                json={
+                    "chat_id": chat_id,
+                    "photo": poster_url,
+                    "caption": text,
+                    "parse_mode": "Markdown",
+                },
+                timeout=20,
+            )
+        else:
+            r = requests.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"},
+                timeout=15,
+            )
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+def ntfy_topic_clean(topic):
+    """Konu adından ntfy.sh/ vb. önekleri temizler, sadece konu adını döndürür."""
+    topic = (topic or "").strip()
+    topic = topic.replace("https://ntfy.sh/", "").replace("http://ntfy.sh/", "")
+    topic = topic.replace("ntfy.sh/", "")
+    return topic.strip("/").strip()
+
+
+def send_ntfy(text, poster_url=None):
+    topic = ntfy_topic_clean(get_setting("ntfy_topic"))
+    if not topic:
+        return False
+    try:
+        if poster_url:
+            img = requests.get(poster_url, timeout=20)
+            if img.status_code == 200:
+                content_type = img.headers.get("Content-Type", "image/jpeg")
+                r = requests.post(
+                    f"https://ntfy.sh/{topic}",
+                    data=img.content,
+                    headers={
+                        "Content-Type": content_type,
+                        "X-ntfy-filename": "poster.jpg",
+                    },
+                    timeout=30,
+                )
+                # Ek ile birlikte metni de ayrı bir bildirim olarak gönder
+                requests.post(
+                    f"https://ntfy.sh/{topic}",
+                    data=text.encode("utf-8"),
+                    timeout=15,
+                )
+                return r.status_code == 200
         r = requests.post(
-            url,
-            json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown"},
+            f"https://ntfy.sh/{topic}",
+            data=text.encode("utf-8"),
             timeout=15,
         )
         return r.status_code == 200
     except Exception:
         return False
+
+
+def notify_all(text, poster_url=None):
+    ok = False
+    if send_telegram(text, poster_url):
+        ok = True
+    if send_ntfy(text, poster_url):
+        ok = True
+    return ok
 
 
 def sync_episodes(conn, follow):
@@ -554,21 +1139,27 @@ def sync_episodes(conn, follow):
     conn.commit()
 
 
-def build_episode_message(title, media_type, season, episode, date):
+def build_episode_message(title, media_type, season, episode, date, poster_path=None):
     media_label = "Dizi" if media_type == "tv" else "Film"
-    return (
+    text = (
         f"🎬 *{title}* yeni bölüm yayında!\n\n"
         f"{media_label} - Sezon {season} · Bölüm {episode}\n"
         f"Tarih: {date}"
     )
+    if poster_path:
+        return text, TMDB_IMAGE_BASE + poster_path
+    return text, None
 
 
-def build_movie_message(title, date):
-    return f"🎬 *{title}* bugün yayında!\n\nFilm - Tarih: {date}"
+def build_movie_message(title, date, poster_path=None):
+    text = f"🎬 *{title}* bugün yayında!\n\nFilm - Tarih: {date}"
+    if poster_path:
+        return text, TMDB_IMAGE_BASE + poster_path
+    return text, None
 
 
 def check_releases():
-    today = datetime.date.today().isoformat()
+    today = today_str()
     conn = get_db()
 
     follows = conn.execute("SELECT * FROM followed").fetchall()
@@ -579,16 +1170,16 @@ def check_releases():
     conn.commit()
 
     rows = conn.execute(
-        "SELECT e.*, f.title, f.media_type FROM episodes e "
+        "SELECT e.*, f.title, f.media_type, f.poster_path FROM episodes e "
         "JOIN followed f ON f.id = e.follow_id "
         "WHERE e.notified=0 AND e.air_date=?",
         (today,),
     ).fetchall()
     for row in rows:
-        msg = build_episode_message(
-            row["title"], row["media_type"], row["season"], row["episode"], row["air_date"]
+        msg, poster = build_episode_message(
+            row["title"], row["media_type"], row["season"], row["episode"], row["air_date"], row["poster_path"]
         )
-        if send_telegram(msg):
+        if notify_all(msg, poster):
             conn.execute("UPDATE episodes SET notified=1 WHERE id=?", (row["id"],))
             conn.commit()
 
@@ -597,8 +1188,8 @@ def check_releases():
         (today,),
     ).fetchall()
     for movie in movies:
-        msg = build_movie_message(movie["title"], movie["release_date"])
-        if send_telegram(msg):
+        msg, poster = build_movie_message(movie["title"], movie["release_date"], movie["poster_path"])
+        if notify_all(msg, poster):
             conn.execute("UPDATE followed SET notified=1 WHERE id=?", (movie["id"],))
             conn.commit()
 
