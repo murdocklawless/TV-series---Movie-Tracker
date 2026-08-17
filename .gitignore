@@ -5,3 +5,4 @@ data.db
 *.db
 *.log
 backup_pre_calendar/
+.env
