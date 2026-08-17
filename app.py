@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import json
 import datetime
 import threading
 import requests
@@ -204,6 +205,64 @@ def anilist_search(q):
     return data["Page"].get("media") or []
 
 
+ANIME_ADV_SEARCH_QUERY = """
+query ($year: Int, $score: Int, $genres: [String], $q: String) {
+  Page(page: 1, perPage: 20) {
+    media(type: ANIME, seasonYear: $year, averageScore_greater: $score, genre_in: $genres, search: $q) {
+      id
+      title { romaji english native }
+      coverImage { large }
+      format
+      status
+      episodes
+      nextAiringEpisode { episode airingAt }
+      averageScore
+      startDate { year month day }
+      genres
+    }
+  }
+}
+"""
+
+
+def _anime_adv_results(year=None, score=None, genres=None, q=None):
+    variables = {}
+    if year is not None:
+        variables["year"] = int(year)
+    if score is not None:
+        variables["score"] = int(round(float(score) * 10))
+    if genres:
+        variables["genres"] = [g.strip() for g in genres.split(",") if g.strip()]
+    if q:
+        variables["q"] = q
+    data = anilist_query(ANIME_ADV_SEARCH_QUERY, variables)
+    if not data or not data.get("Page"):
+        return []
+    results = []
+    for m in data["Page"].get("media") or []:
+        ep, air_at = _anime_next_ep(m)
+        results.append(
+            {
+                "anilist_id": m.get("id"),
+                "title": _anime_title(m),
+                "cover_url": _anime_cover(m),
+                "format": m.get("format"),
+                "status": m.get("status"),
+                "episodes": m.get("episodes"),
+                "next_episode": ep,
+                "airing_at": air_at,
+                "score": m.get("averageScore"),
+                "start_date": (
+                    (m.get("startDate") or {}).get("year")
+                    if (m.get("startDate") or {}).get("year")
+                    else None
+                ),
+                "genres": m.get("genres") or [],
+            }
+        )
+    return results
+
+
 ANIME_DETAIL_QUERY = """
 query ($id: Int) {
   Media(id: $id, type: ANIME) {
@@ -322,6 +381,8 @@ def _has_content(data):
         return True
     if data.get("cast") or data.get("crew") or data.get("episodes"):
         return True
+    if data.get("genres"):
+        return True
     return False
 
 
@@ -350,6 +411,9 @@ def search():
             detail = tmdb_request(f"/tv/{item.get('id')}")
             if detail:
                 num_seasons = detail.get("number_of_seasons")
+                num_episodes = detail.get("number_of_episodes")
+        else:
+            num_episodes = None
         results.append(
             {
                 "tmdb_id": item.get("id"),
@@ -360,9 +424,341 @@ def search():
                 "vote_average": item.get("vote_average") or 0,
                 "overview": item.get("overview"),
                 "number_of_seasons": num_seasons,
+                "number_of_episodes": num_episodes,
             }
         )
     return jsonify(results)
+
+
+def _tmdb_tv_by_people(params, genre_filter=None):
+    """TV'de with_people discover güvenilmez (filtreyi yok sayıyor); bunun yerine
+    her oyuncunun tv_credits'inden şovları toplayıp tür/yıl/puan/başlık filtrelerini
+    kendi tarafımızda uygular."""
+    person_ids = [p for p in (params.get("with_people") or "").split(",") if p]
+    year = params.get("first_air_date_year")
+    score = params.get("vote_average.gte")
+    query = params.get("query")
+    show_ids = []
+    for pid in person_ids:
+        data = tmdb_request(f"/person/{pid}/tv_credits")
+        if data:
+            for item in (data.get("cast") or []):
+                sid = item.get("id")
+                if sid and sid not in show_ids:
+                    show_ids.append(sid)
+    out = []
+    for sid in show_ids:
+        det = tmdb_request(f"/tv/{sid}")
+        if not det:
+            continue
+        genres = set((g or {}).get("id") for g in (det.get("genres") or []))
+        if genre_filter and not (genres & genre_filter):
+            continue
+        first_air = det.get("first_air_date") or ""
+        if year and not first_air.startswith(str(year)):
+            continue
+        va = det.get("vote_average") or 0
+        if score is not None and va < score:
+            continue
+        if query and query.lower() not in (det.get("name") or "").lower():
+            continue
+        out.append(
+            {
+                "tmdb_id": det.get("id"),
+                "media_type": "tv",
+                "title": det.get("name"),
+                "poster_path": det.get("poster_path"),
+                "release_date": det.get("first_air_date"),
+                "vote_average": va,
+                "overview": det.get("overview"),
+                "number_of_seasons": det.get("number_of_seasons"),
+                "number_of_episodes": det.get("number_of_episodes"),
+            }
+        )
+    out.sort(key=lambda x: x["vote_average"], reverse=True)
+    return out[:20]
+
+
+def _tmdb_movie_by_people(params, genre_filter=None):
+    """Movie'de with_people discover limitli (20) ve eksik; aktörün movie_credits
+    uç noktasından tüm filmleri toplayıp tür/yıl/puan/başlık filtrelerini kendi
+    tarafımızda uygular."""
+    person_ids = [p for p in (params.get("with_people") or "").split(",") if p]
+    year = params.get("primary_release_year")
+    score = params.get("vote_average.gte")
+    query = params.get("query")
+    out = []
+    seen = set()
+    for pid in person_ids:
+        data = tmdb_request(f"/person/{pid}/movie_credits")
+        if not data:
+            continue
+        for item in (data.get("cast") or []):
+            mid = item.get("id")
+            if not mid or mid in seen:
+                continue
+            seen.add(mid)
+            if genre_filter:
+                item_genres = set(item.get("genre_ids") or [])
+                if not (item_genres & genre_filter):
+                    continue
+            release = item.get("release_date") or ""
+            if year and not release.startswith(str(year)):
+                continue
+            va = item.get("vote_average") or 0
+            if score is not None and va < score:
+                continue
+            if query and query.lower() not in (item.get("title") or "").lower():
+                continue
+            out.append(
+                {
+                    "tmdb_id": mid,
+                    "media_type": "movie",
+                    "title": item.get("title"),
+                    "poster_path": item.get("poster_path"),
+                    "release_date": release,
+                    "vote_average": va,
+                    "overview": item.get("overview"),
+                    "number_of_seasons": None,
+                    "number_of_episodes": None,
+                }
+            )
+    out.sort(key=lambda x: x["vote_average"], reverse=True)
+    return out
+
+
+def _tmdb_adv_results(params_movie, params_tv, genre_filter=None):
+    """Yıl/puan/oyuncu/tür filtreleriyle TMDB discover araması yapar (movie + tv).
+
+    genre_filter: TMDB genre ID kümesi verilirse sonuçlar bu türlerden en az birini
+    içermesi koşuluyla istemci tarafında filtrelenir (with_people + with_genres
+    birlikte TMDB'de OR döndürdüğü için).
+    """
+    out = []
+    for media_type, base_path, date_key in (
+        ("movie", "/discover/movie", "release_date"),
+        ("tv", "/discover/tv", "first_air_date"),
+    ):
+        params = dict(params_movie if media_type == "movie" else params_tv)
+        params["include_adult"] = "false"
+        if media_type == "movie" and params.get("with_people"):
+            out.extend(_tmdb_movie_by_people(params, genre_filter))
+            continue
+        if media_type == "tv" and params.get("with_people"):
+            out.extend(_tmdb_tv_by_people(params, genre_filter))
+            continue
+        data = tmdb_request(base_path, params)
+        if not data:
+            continue
+        for item in (data.get("results") or [])[:20]:
+            if genre_filter:
+                item_genres = set(item.get("genre_ids") or [])
+                if not (item_genres & genre_filter):
+                    continue
+            num_seasons = None
+            num_episodes = None
+            if media_type == "tv":
+                detail = tmdb_request(f"/tv/{item.get('id')}")
+                if detail:
+                    num_seasons = detail.get("number_of_seasons")
+                    num_episodes = detail.get("number_of_episodes")
+            out.append(
+                {
+                    "tmdb_id": item.get("id"),
+                    "media_type": media_type,
+                    "title": item.get("title") or item.get("name"),
+                    "poster_path": item.get("poster_path"),
+                    "release_date": item.get(date_key),
+                    "vote_average": item.get("vote_average") or 0,
+                    "overview": item.get("overview"),
+                    "number_of_seasons": num_seasons,
+                    "number_of_episodes": num_episodes,
+                }
+            )
+    return out
+
+
+@app.route("/api/adv-search")
+def adv_search():
+    mode = request.args.get("mode", "")  # actor | genre | year | score
+    media = request.args.get("media", "show")  # show | anime
+    value = request.args.get("value", "").strip()
+
+    if mode == "year":
+        if not (value.isdigit() and len(value) == 4):
+            return jsonify({"error": "Yıl 4 haneli olmalı"}), 400
+        y = int(value)
+        if not (1900 <= y <= 2100):
+            return jsonify({"error": "Yıl 1900-2100 arasında olmalı"}), 400
+        if media == "anime":
+            return jsonify(_anime_adv_results(year=y))
+        return jsonify(_tmdb_adv_results(
+            {"primary_release_year": y},
+            {"first_air_date_year": y},
+        ))
+
+    if mode == "score":
+        norm = value.replace(",", ".")
+        try:
+            s = float(norm)
+        except ValueError:
+            return jsonify({"error": "Puan formatı geçersiz"}), 400
+        if not (0 <= s <= 10):
+            return jsonify({"error": "Puan 0-10 arasında olmalı"}), 400
+        if media == "anime":
+            return jsonify(_anime_adv_results(score=s))
+        return jsonify(_tmdb_adv_results(
+            {"vote_average.gte": s},
+            {"vote_average.gte": s},
+        ))
+
+    if mode == "actor":
+        parts = [x.strip() for x in value.split(",") if x.strip()]
+        if not parts:
+            return jsonify({"error": "Oyuncu girilmedi"}), 400
+        ids = []
+        for p in parts:
+            if p.isdigit():
+                ids.append(p)
+            else:
+                data = tmdb_request("/search/person", {"query": p})
+                if data and (data.get("results") or []):
+                    first = data["results"][0]
+                    if first.get("id"):
+                        ids.append(str(first["id"]))
+        if not ids:
+            return jsonify({"error": "Oyuncu bulunamadı"}), 400
+        people = ",".join(ids)
+        return jsonify(_tmdb_adv_results(
+            {"with_people": people},
+            {"with_people": people},
+        ))
+
+    if mode == "genre":
+        names = [x.strip() for x in value.split(",") if x.strip()]
+        if not names:
+            return jsonify({"error": "Tür seçilmedi"}), 400
+        genres = []
+        for gid in _genre_names_to_ids(names):
+            if gid not in genres:
+                genres.append(gid)
+        if not genres:
+            return jsonify({"error": "Türler TMDB'de bulunamadı"}), 400
+        joined = ",".join(str(g) for g in genres)
+        return jsonify(_tmdb_adv_results(
+            {"with_genres": joined},
+            {"with_genres": joined},
+        ))
+
+    return jsonify({"error": "Geçersiz arama modu"}), 400
+
+
+def _resolve_actor_ids(parts):
+    ids = []
+    for p in parts:
+        if p.isdigit():
+            ids.append(p)
+        else:
+            data = tmdb_request("/search/person", {"query": p})
+            if data and (data.get("results") or []):
+                first = data["results"][0]
+                if first.get("id"):
+                    ids.append(str(first["id"]))
+    return ids
+
+
+@app.route("/api/combo-search")
+def combo_search():
+    """Çoklu kriter araması: actors+genres+year+score+q (hepsi AND)."""
+    media = request.args.get("media", "show")  # show | anime
+    actors = request.args.get("actors", "").strip()
+    genres = request.args.get("genres", "").strip()
+    year = request.args.get("year", "").strip()
+    score = request.args.get("score", "").strip()
+    q = request.args.get("q", "").strip()
+
+    if not (actors or genres or year or score or q):
+        return jsonify({"error": "En az bir kriter gerekli"}), 400
+
+    year_i = None
+    if year:
+        if not (year.isdigit() and len(year) == 4):
+            return jsonify({"error": "Yıl 4 haneli olmalı"}), 400
+        year_i = int(year)
+        if not (1900 <= year_i <= 2100):
+            return jsonify({"error": "Yıl 1900-2100 arasında olmalı"}), 400
+
+    score_f = None
+    if score:
+        norm = score.replace(",", ".")
+        try:
+            score_f = float(norm)
+        except ValueError:
+            return jsonify({"error": "Puan formatı geçersiz"}), 400
+        if not (0 <= score_f <= 10):
+            return jsonify({"error": "Puan 0-10 arasında olmalı"}), 400
+
+    if media == "anime":
+        return jsonify(_anime_adv_results(year=year_i, score=score_f, genres=genres or None, q=q or None))
+
+    params_movie = {}
+    params_tv = {}
+    genre_filter = None
+    if actors:
+        ids = _resolve_actor_ids([x.strip() for x in actors.split(",") if x.strip()])
+        if not ids:
+            return jsonify({"error": "Oyuncu bulunamadı"}), 400
+        people = ",".join(ids)
+        params_movie["with_people"] = people
+        params_tv["with_people"] = people
+    if genres:
+        gnames = [x.strip() for x in genres.split(",") if x.strip()]
+        gids = []
+        for gid in _genre_names_to_ids(gnames):
+            if gid not in gids:
+                gids.append(gid)
+        if not gids:
+            return jsonify({"error": "Türler TMDB'de bulunamadı"}), 400
+        if actors:
+            # TMDB with_people + with_genres birlikte OR döndürür; AND için
+            # oyuncu sonuçlarını tür ID'leriyle kendi tarafımızda filtrele.
+            genre_filter = set(gids)
+        else:
+            joined = ",".join(str(g) for g in gids)
+            params_movie["with_genres"] = joined
+            params_tv["with_genres"] = joined
+    if year_i:
+        params_movie["primary_release_year"] = year_i
+        params_tv["first_air_date_year"] = year_i
+    if score_f:
+        params_movie["vote_average.gte"] = score_f
+        params_tv["vote_average.gte"] = score_f
+    if q:
+        params_movie["query"] = q
+        params_tv["query"] = q
+    return jsonify(_tmdb_adv_results(params_movie, params_tv, genre_filter))
+
+
+_genre_cache = None
+
+
+def _genre_names_to_ids(names):
+    """Favori tür isimlerini TMDB genre ID'lerine çevirir (dil duyarlı)."""
+    global _genre_cache
+    if _genre_cache is None:
+        _genre_cache = {}
+        selected = get_setting("language") or "tr-TR"
+        for lang in ({selected, "en-US"} if selected != "en-US" else {"en-US"}):
+            for gpath in ("genre/movie/list", "genre/tv/list"):
+                data = tmdb_request(gpath, {"language": lang})
+                if data:
+                    for g in (data.get("genres") or []):
+                        gid = g.get("id")
+                        gname = (g.get("name") or "").strip().lower()
+                        if gid and gname:
+                            _genre_cache.setdefault(gname, gid)
+    wanted = {n.lower() for n in names}
+    return [_genre_cache[n] for n in wanted if n in _genre_cache]
 
 
 @app.route("/api/anime/search")
@@ -844,11 +1240,20 @@ def details():
     cast = []
     credits = tmdb_request(f"/{media_type}/{tmdb_id}/credits")
     if credits:
-        for c in (credits.get("cast") or [])[:8]:
+        full_cast = credits.get("cast") or []
+        highlight = (request.args.get("highlight_person") or "").strip().lower()
+        hpid = (request.args.get("highlight_person_id") or "").strip()
+        for i, c in enumerate(full_cast):
+            nm = (c.get("name") or c.get("original_name") or "").strip().lower()
+            if (highlight and nm == highlight) or (hpid and str(c.get("id")) == hpid):
+                full_cast.insert(0, full_cast.pop(i))
+                break
+        for c in full_cast[:8]:
             name = c.get("name") or c.get("original_name")
             if name:
                 cast.append(
                     {
+                        "id": c.get("id"),
                         "name": name,
                         "character": c.get("character"),
                         "profile_path": c.get("profile_path"),
@@ -888,6 +1293,56 @@ def details():
         }
 
     return jsonify(result)
+
+
+@app.route("/api/person/<int:person_id>")
+def person_credits(person_id):
+    data = tmdb_request(f"/person/{person_id}/combined_credits")
+    if not data:
+        return jsonify({"error": "TMDB'den veri alınamadı"}), 400
+    results = []
+    for item in (data.get("cast") or []):
+        media_type = item.get("media_type")
+        if media_type not in ("movie", "tv"):
+            continue
+        title = item.get("title") or item.get("name")
+        if not title:
+            continue
+        results.append(
+            {
+                "tmdb_id": item.get("id"),
+                "media_type": media_type,
+                "title": title,
+                "poster_path": item.get("poster_path"),
+                "release_date": item.get("release_date") or item.get("first_air_date"),
+                "vote_average": item.get("vote_average") or 0,
+                "character": item.get("character"),
+            }
+        )
+    return jsonify(results)
+
+
+@app.route("/api/fav_actors", methods=["GET", "POST"])
+def fav_actors():
+    if request.method == "GET":
+        raw = get_setting("fav_actors")
+        actors = json.loads(raw) if raw else []
+        return jsonify({"actors": actors})
+    body = request.get_json(silent=True) or {}
+    person_id = body.get("person_id")
+    name = (body.get("name") or "").strip()
+    if not person_id:
+        return jsonify({"error": "Oyuncu id gerekli"}), 400
+    raw = get_setting("fav_actors")
+    actors = json.loads(raw) if raw else []
+    if any(a.get("person_id") == person_id for a in actors):
+        actors = [a for a in actors if a.get("person_id") != person_id]
+        added = False
+    else:
+        actors.append({"person_id": person_id, "name": name})
+        added = True
+    set_setting("fav_actors", json.dumps(actors, ensure_ascii=False))
+    return jsonify({"ok": True, "added": added, "actors": actors})
 
 
 @app.route("/api/timezones")
@@ -1007,7 +1462,7 @@ def test_settings():
             url,
             json={
                 "chat_id": chat_id,
-                "text": "Takip uygulaması test mesajı ✅",
+                "text": "Takip uygulaması test mesajı",
             },
             timeout=15,
         )
@@ -1020,7 +1475,7 @@ def test_settings():
     if ntfy_topic:
         r = requests.post(
             f"https://ntfy.sh/{ntfy_topic_clean(ntfy_topic)}",
-            data="Takip uygulaması test mesajı ✅",
+            data="Takip uygulaması test mesajı",
             timeout=15,
         )
         if r.status_code != 200:
@@ -1142,7 +1597,7 @@ def sync_episodes(conn, follow):
 def build_episode_message(title, media_type, season, episode, date, poster_path=None):
     media_label = "Dizi" if media_type == "tv" else "Film"
     text = (
-        f"🎬 *{title}* yeni bölüm yayında!\n\n"
+        f"*{title}* yeni bölüm yayında!\n\n"
         f"{media_label} - Sezon {season} · Bölüm {episode}\n"
         f"Tarih: {date}"
     )
@@ -1152,7 +1607,7 @@ def build_episode_message(title, media_type, season, episode, date, poster_path=
 
 
 def build_movie_message(title, date, poster_path=None):
-    text = f"🎬 *{title}* bugün yayında!\n\nFilm - Tarih: {date}"
+    text = f"*{title}* bugün yayında!\n\nFilm - Tarih: {date}"
     if poster_path:
         return text, TMDB_IMAGE_BASE + poster_path
     return text, None
@@ -1194,6 +1649,28 @@ def check_releases():
             conn.commit()
 
     conn.close()
+
+
+@app.route("/api/fav_genres", methods=["GET", "POST"])
+def fav_genres():
+    if request.method == "GET":
+        raw = get_setting("fav_genres")
+        genres = json.loads(raw) if raw else []
+        return jsonify({"genres": genres})
+    body = request.get_json(silent=True) or {}
+    genre = (body.get("genre") or "").strip()
+    if not genre:
+        return jsonify({"error": "Tür adı gerekli"}), 400
+    raw = get_setting("fav_genres")
+    genres = json.loads(raw) if raw else []
+    if genre in genres:
+        genres.remove(genre)
+        added = False
+    else:
+        genres.append(genre)
+        added = True
+    set_setting("fav_genres", json.dumps(genres, ensure_ascii=False))
+    return jsonify({"ok": True, "added": added, "genres": genres})
 
 
 def start_scheduler():

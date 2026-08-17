@@ -1,9 +1,25 @@
 const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
+let favGenres = new Set();
+let favActors = new Map();
+
+const HEART_SVG = `
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+  </svg>`;
+
+const CHECK_SVG = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+const FILM_SVG = `<svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="7" y1="3" x2="7" y2="21"></line><line x1="17" y1="3" x2="17" y2="21"></line><line x1="3" y1="7" x2="21" y2="7"></line><line x1="3" y1="17" x2="21" y2="17"></line></svg>`;
+
+window.noPosterFallback = function () {
+  return `<div class="no-poster">${FILM_SVG}</div>`;
+};
+
 let currentLang = "tr";
 const I18N = {
   app_title: { tr: "Takip Listesi", en: "Watchlist", de: "Watchlist", fr: "Ma liste", es: "Mi lista", it: "Watchlist", ru: "Список просмотра", ar: "قائمة المشاهدة", pt: "Minha lista", nl: "Watchlist", pl: "Lista śledzenia", ja: "ウォッチリスト", ko: "시청 목록", zh: "观看列表" },
-  logo_title: { tr: "Dizi / Film Takip", en: "TV / Movie Tracker", de: "Serien / Film Tracker", fr: "Suivi Séries / Films", es: "Seguimiento de Series / Pelis", it: "Tracker Serie / Film", ru: "Трекер сериалов и фильмов", ar: "متابعة المسلسلات والأفلام", pt: "Acompanhamento de Séries / Filmes", nl: "Serie / Film Tracker", pl: "Śledzenie seriali / filmów", ja: "ドラマ・映画追跡", ko: "드라마·영화 추적", zh: "剧集 / 电影追踪" },
+  logo_title: { tr: "Dizi · Film · Anime Takip", en: "TV · Movie · Anime Tracker", de: "Serien · Film · Anime Tracker", fr: "Suivi Séries · Films · Anime", es: "Seguimiento Series · Pelis · Anime", it: "Tracker Serie · Film · Anime", ru: "Трекер сериалов · фильмов · аниме", ar: "متابعة المسلسلات · الأفلام · الأنمي", pt: "Acompanhamento Séries · Filmes · Anime", nl: "Serie · Film · Anime Tracker", pl: "Śledzenie seriali · filmów · anime", ja: "ドラマ・映画・アニメ追跡", ko: "드라마·영화·애니메 추적", zh: "剧集·电影·动漫追踪" },
   tab_followed: { tr: "Dizi & Film", en: "Shows & Movies", de: "Serien & Filme", fr: "Séries & Films", es: "Series y Películas", it: "Serie e Film", ru: "Сериалы и фильмы", ar: "مسلسلات وأفلام", pt: "Séries e Filmes", nl: "Series en Films", pl: "Seriale i filmy", ja: "アニメと映画", ko: "시리즈 및 영화", zh: "剧集和电影" },
   tab_search: { tr: "Ara & Ekle", en: "Search & Add", de: "Suchen & Hinzufügen", fr: "Rechercher & Ajouter", es: "Buscar & Añadir", it: "Cerca & Aggiungi", ru: "Поиск и добавление", ar: "بحث وإضافة", pt: "Pesquisar & Adicionar", nl: "Zoeken & Toevoegen", pl: "Szukaj i dodaj", ja: "検索と追加", ko: "검색 및 추가", zh: "搜索和添加" },
   tab_anime: { tr: "Anime", en: "Anime", de: "Anime", fr: "Anime", es: "Anime", it: "Anime", ru: "Аниме", ar: "أنمي", pt: "Anime", nl: "Anime", pl: "Anime", ja: "アニメ", ko: "애니메", zh: "动漫" },
@@ -13,11 +29,53 @@ const I18N = {
   anime_status_releasing: { tr: "Yayında", en: "Airing", de: "Läuft", fr: "En cours", es: "En emisión", it: "In onda", ru: "Идёт", ar: "يُعرض", pt: "No ar", nl: "Wordt uitgezonden", pl: "W emisji", ja: "放送中", ko: "방영 중", zh: "播出中" },
   anime_status_finished: { tr: "Bitti", en: "Finished", de: "Abgeschlossen", fr: "Terminé", es: "Terminado", it: "Finito", ru: "Завершено", ar: "منتهي", pt: "Finalizado", nl: "Voltooid", pl: "Zakończone", ja: "完結", ko: "완결", zh: "已完结" },
   anime_status_upcoming: { tr: "Yakında", en: "Upcoming", de: "Demnächst", fr: "À venir", es: "Próximamente", it: "In arrivo", ru: "Скоро", ar: "قريبًا", pt: "Em breve", nl: "Binnenkort", pl: "Wkrótce", ja: "近日", ko: "곧", zh: "即将" },
+  sort_title: { tr: "Sırala", en: "Sort", de: "Sortieren", fr: "Trier", es: "Ordenar", it: "Ordina", ru: "Сортировать", ar: "ترتيب", pt: "Ordenar", nl: "Sorteren", pl: "Sortuj", ja: "並べ替え", ko: "정렬", zh: "排序" },
+  sort_added: { tr: "Ekleme sırası", en: "Recently added", de: "Zuletzt hinzugefügt", fr: "Ajoutés récemment", es: "Añadidos recientes", it: "Aggiunti di recente", ru: "Недавно добавленные", ar: "أضيف مؤخرًا", pt: "Adicionados recentemente", nl: "Recent toegevoegd", pl: "Ostatnio dodane", ja: "最近追加順", ko: "최근 추가순", zh: "最近添加" },
+  sort_alpha: { tr: "Alfabetik", en: "Alphabetical", de: "Alphabetisch", fr: "Alphabétique", es: "Alfabético", it: "Alfabetico", ru: "По алфавиту", ar: "أبجدي", pt: "Alfabético", nl: "Alfabetisch", pl: "Alfabetycznie", ja: "アルファベット順", ko: "가나다순", zh: "按字母顺序" },
+  sort_score: { tr: "Puana göre", en: "By score", de: "Nach Bewertung", fr: "Par note", es: "Por puntuación", it: "Per voto", ru: "По рейтингу", ar: "حسب التقييم", pt: "Por nota", nl: "Op score", pl: "Według oceny", ja: "スコア順", ko: "평점순", zh: "按评分" },
+  sort_date: { tr: "Yaklaşan tarih", en: "Upcoming date", de: "Nächster Termin", fr: "Date à venir", es: "Próxima fecha", it: "Prossima data", ru: "Ближайшая дата", ar: "الموعد القادم", pt: "Próxima data", nl: "Aanstaande datum", pl: "Najbliższy termin", ja: "予定日順", ko: "다가오는 날짜순", zh: "即将上线" },
+  sort_type: { tr: "Türe göre", en: "By type", de: "Nach Typ", fr: "Par type", es: "Por tipo", it: "Per tipo", ru: "По типу", ar: "حسب النوع", pt: "Por tipo", nl: "Op type", pl: "Według typu", ja: "タイプ順", ko: "유형순", zh: "按类型" },
+  no_credits: { tr: "Bu oyuncunun film/dizi kaydı bulunamadı.", en: "No movie/TV credits found for this actor.", de: "Keine Film-/Serien-Credits für diesen Schauspieler gefunden.", fr: "Aucun crédit film/série trouvé pour cet acteur.", es: "No se encontraron créditos de películas/series para este actor.", it: "Nessun credito film/serie trovato per questo attore.", ru: "Актёрские работы не найдены.", ar: "لم يتم العثور على أعمال لهذا الممثل.", pt: "Nenhum trabalho de filme/série encontrado para este ator.", nl: "Geen film-/seriecredits gevonden voor deze acteur.", pl: "Nie znaleziono filmów/seriali dla tego aktora.", ja: "この俳優の映画・ドラマ作品は見つかりませんでした。", ko: "이 배우의 영화/드라마 작품을 찾을 수 없습니다.", zh: "未找到该演员的电影/剧集作品。" },
+  person_char: { tr: "{char} rolünde", en: "as {char}", de: "als {char}", fr: "dans le rôle de {char}", es: "como {char}", it: "nel ruolo di {char}", ru: "в роли {char}", ar: "بدور {char}", pt: "como {char}", nl: "als {char}", pl: "jako {char}", ja: "{char} 役", ko: "{char} 역", zh: "饰演 {char}" },
   search_type_show: { tr: "Dizi & Film", en: "Shows & Movies", de: "Serien & Filme", fr: "Séries & Films", es: "Series y Películas", it: "Serie e Film", ru: "Сериалы и фильмы", ar: "مسلسلات وأفلام", pt: "Séries e Filmes", nl: "Series en Films", pl: "Seriale i filmy", ja: "アニメと映画", ko: "시리즈 및 영화", zh: "剧集和电影" },
   search_type_anime: { tr: "Anime", en: "Anime", de: "Anime", fr: "Anime", es: "Anime", it: "Anime", ru: "Аниме", ar: "أنمي", pt: "Anime", nl: "Anime", pl: "Anime", ja: "アニメ", ko: "애니메", zh: "动漫" },
+  search_type_actor: { tr: "Oyuncu", en: "Actor", de: "Schauspieler", fr: "Acteur", es: "Actor", it: "Attore", ru: "Актёр", ar: "ممثل", pt: "Ator", nl: "Acteur", pl: "Aktor", ja: "俳優", ko: "배우", zh: "演员" },
+  filter_actor: { tr: "Oyuncu", en: "Actor", de: "Schauspieler", fr: "Acteur", es: "Actor", it: "Attore", ru: "Актёр", ar: "ممثل", pt: "Ator", nl: "Acteur", pl: "Aktor", ja: "俳優", ko: "배우", zh: "演员" },
+  filter_genre: { tr: "Tür", en: "Genre", de: "Genre", fr: "Genre", es: "Género", it: "Genere", ru: "Жанр", ar: "نوع", pt: "Gênero", nl: "Genre", pl: "Gatunek", ja: "ジャンル", ko: "장르", zh: "类型" },
+  search_basic: { tr: "Ara", en: "Search", de: "Suchen", fr: "Rechercher", es: "Buscar", it: "Cerca", ru: "Поиск", ar: "بحث", pt: "Pesquisar", nl: "Zoeken", pl: "Szukaj", ja: "検索", ko: "검색", zh: "搜索" },
+  search_combo: { tr: "Çoklu Ara", en: "Multi Search", de: "Multi-Suche", fr: "Recherche multiple", es: "Búsqueda múltiple", it: "Ricerca multipla", ru: "Мультипоиск", ar: "بحث متعدد", pt: "Pesquisa múltipla", nl: "Multi-zoeken", pl: "Wyszukiwanie wielokrotne", ja: "複合検索", ko: "다중 검색", zh: "多重搜索" },
+  cancel: { tr: "İptal", en: "Cancel", de: "Abbrechen", fr: "Annuler", es: "Cancelar", it: "Annulla", ru: "Отмена", ar: "إلغاء", pt: "Cancelar", nl: "Annuleren", pl: "Anuluj", ja: "キャンセル", ko: "취소", zh: "取消" },
+  chip_actor: { tr: "Oyuncu", en: "Actor", de: "Schauspieler", fr: "Acteur", es: "Actor", it: "Attore", ru: "Актёр", ar: "ممثل", pt: "Ator", nl: "Acteur", pl: "Aktor", ja: "俳優", ko: "배우", zh: "演员" },
+  chip_genre: { tr: "Tür", en: "Genre", de: "Genre", fr: "Genre", es: "Género", it: "Genere", ru: "Жанр", ar: "نوع", pt: "Gênero", nl: "Genre", pl: "Gatunek", ja: "ジャンル", ko: "장르", zh: "类型" },
+  chip_year: { tr: "Yıl", en: "Year", de: "Jahr", fr: "Année", es: "Año", it: "Anno", ru: "Год", ar: "سنة", pt: "Ano", nl: "Jaar", pl: "Rok", ja: "年", ko: "연도", zh: "年份" },
+  chip_score: { tr: "Puan", en: "Score", de: "Bewertung", fr: "Note", es: "Puntuación", it: "Voto", ru: "Рейтинг", ar: "تقييم", pt: "Nota", nl: "Score", pl: "Ocena", ja: "スコア", ko: "평점", zh: "评分" },
+  search_type_genre: { tr: "Tür", en: "Genre", de: "Genre", fr: "Genre", es: "Género", it: "Genere", ru: "Жанр", ar: "نوع", pt: "Gênero", nl: "Genre", pl: "Gatunek", ja: "ジャンル", ko: "장르", zh: "类型" },
+  search_type_fav_actor: { tr: "Favori Oyuncu", en: "Favorite Actor", de: "Lieblingsschauspieler", fr: "Acteur favori", es: "Actor favorito", it: "Attore preferito", ru: "Любимый актёр", ar: "ممثل مفضل", pt: "Ator favorito", nl: "Favoriete acteur", pl: "Ulubiony aktor", ja: "お気に入りの俳優", ko: "즐겨찾는 배우", zh: "最喜欢的演员" },
+  search_type_fav_genre: { tr: "Favori Tür", en: "Favorite Genre", de: "Lieblingsgenre", fr: "Genre favori", es: "Género favorito", it: "Genere preferito", ru: "Любимый жанр", ar: "نوع مفضل", pt: "Gênero favorito", nl: "Favoriete genre", pl: "Ulubiony gatunek", ja: "お気に入りのジャンル", ko: "즐겨찾는 장르", zh: "最喜欢的类型" },
+  search_type_year: { tr: "Yıl", en: "Year", de: "Jahr", fr: "Année", es: "Año", it: "Anno", ru: "Год", ar: "سنة", pt: "Ano", nl: "Jaar", pl: "Rok", ja: "年", ko: "연도", zh: "年份" },
+  search_type_score: { tr: "Puan", en: "Score", de: "Bewertung", fr: "Note", es: "Puntuación", it: "Voto", ru: "Рейтинг", ar: "تقييم", pt: "Nota", nl: "Score", pl: "Ocena", ja: "スコア", ko: "평점", zh: "评分" },
+  picker_add: { tr: "Ekle", en: "Add", de: "Hinzufügen", fr: "Ajouter", es: "Añadir", it: "Aggiungi", ru: "Добавить", ar: "إضافة", pt: "Adicionar", nl: "Toevoegen", pl: "Dodaj", ja: "追加", ko: "추가", zh: "添加" },
+  picker_actor_title: { tr: "Favori Oyuncular", en: "Favorite Actors", de: "Lieblingsschauspieler", fr: "Acteurs favoris", es: "Actores favoritos", it: "Attori preferiti", ru: "Любимые актёры", ar: "الممثلون المفضلون", pt: "Atores favoritos", nl: "Favoriete acteurs", pl: "Ulubieni aktorzy", ja: "お気に入りの俳優", ko: "즐겨찾는 배우", zh: "最喜欢的演员" },
+  picker_actor_search: { tr: "Oyuncu Ara", en: "Search Actor", de: "Schauspieler suchen", fr: "Rechercher un acteur", es: "Buscar actor", it: "Cerca attore", ru: "Поиск актёра", ar: "ابحث عن ممثل", pt: "Pesquisar ator", nl: "Acteur zoeken", pl: "Szukaj aktora", ja: "俳優を検索", ko: "배우 검색", zh: "搜索演员" },
+  picker_fav_actor_search: { tr: "Favori Oyuncu Ara", en: "Search Favorite Actor", de: "Lieblingsschauspieler suchen", fr: "Rechercher un acteur favori", es: "Buscar actor favorito", it: "Cerca attore preferito", ru: "Поиск любимого актёра", ar: "ابحث عن ممثل مفضل", pt: "Pesquisar ator favorito", nl: "Favoriete acteur zoeken", pl: "Szukaj ulubionego aktora", ja: "お気に入りの俳優を検索", ko: "즐겨찾는 배우 검색", zh: "搜索最喜欢的演员" },
+  picker_genre_title: { tr: "Favori Türler", en: "Favorite Genres", de: "Lieblingsgenres", fr: "Genres favoris", es: "Géneros favoritos", it: "Generi preferiti", ru: "Любимые жанры", ar: "الأنواع المفضلة", pt: "Gêneros favoritos", nl: "Favoriete genres", pl: "Ulubione gatunki", ja: "お気に入りのジャンル", ko: "즐겨찾는 장르", zh: "最喜欢的类型" },
+  picker_genre_search: { tr: "Tür Ara", en: "Search Genre", de: "Genre suchen", fr: "Rechercher un genre", es: "Buscar género", it: "Cerca genere", ru: "Поиск жанра", ar: "ابحث عن نوع", pt: "Pesquisar gênero", nl: "Genre zoeken", pl: "Szukaj gatunku", ja: "ジャンルを検索", ko: "장르 검색", zh: "搜索类型" },
+  picker_fav_genre_search: { tr: "Favori Tür Ara", en: "Search Favorite Genre", de: "Lieblingsgenre suchen", fr: "Rechercher un genre favori", es: "Buscar género favorito", it: "Cerca genere preferito", ru: "Поиск любимого жанра", ar: "ابحث عن نوع مفضل", pt: "Pesquisar gênero favorito", nl: "Favoriete genre zoeken", pl: "Szukaj ulubionego gatunku", ja: "お気に入りのジャンルを検索", ko: "즐겨찾는 장르 검색", zh: "搜索最喜欢的类型" },
+  ask_title: { tr: "Nerede aransın?", en: "Where to search?", de: "Wo suchen?", fr: "Où chercher ?", es: "¿Dónde buscar?", it: "Dove cercare?", ru: "Где искать?", ar: "أين تبحث؟", pt: "Onde pesquisar?", nl: "Waar zoeken?", pl: "Gdzie szukać?", ja: "どこを検索しますか？", ko: "어디서 검색할까요?", zh: "在哪里搜索？" },
+  year_placeholder: { tr: "Yıl girin (örn. 2020)", en: "Enter a year (e.g. 2020)", de: "Jahr eingeben (z.B. 2020)", fr: "Entrez une année (ex. 2020)", es: "Ingresa un año (ej. 2020)", it: "Inserisci un anno (es. 2020)", ru: "Введите год (напр. 2020)", ar: "أدخل سنة (مثال 2020)", pt: "Digite um ano (ex. 2020)", nl: "Voer een jaar in (bijv. 2020)", pl: "Wpisz rok (np. 2020)", ja: "年を入力（例：2020）", ko: "연도를 입력하세요 (예: 2020)", zh: "输入年份（例如 2020）" },
+  score_placeholder: { tr: "Puan girin (örn. 7.4)", en: "Enter a score (e.g. 7.4)", de: "Bewertung eingeben (z.B. 7.4)", fr: "Entrez une note (ex. 7.4)", es: "Ingresa una puntuación (ej. 7.4)", it: "Inserisci un voto (es. 7.4)", ru: "Введите рейтинг (напр. 7.4)", ar: "أدخل تقييم (مثال 7.4)", pt: "Digite uma nota (ex. 7.4)", nl: "Voer een score in (bijv. 7.4)", pl: "Wpisz ocenę (np. 7.4)", ja: "スコアを入力（例：7.4）", ko: "평점을 입력하세요 (예: 7.4)", zh: "输入评分（例如 7.4）" },
+  year_invalid: { tr: "Yıl 4 haneli ve 1900-{max} arasında olmalı (örn. 2020)", en: "Year must be 4 digits between 1900 and {max} (e.g. 2020)", de: "Jahr muss 4-stellig zwischen 1900 und {max} sein (z.B. 2020)", fr: "L'année doit avoir 4 chiffres entre 1900 et {max} (ex. 2020)", es: "El año debe tener 4 dígitos entre 1900 y {max} (ej. 2020)", it: "L'anno deve avere 4 cifre tra 1900 e {max} (es. 2020)", ru: "Год должен быть 4-значным от 1900 до {max} (напр. 2020)", ar: "يجب أن تكون السنة 4 أرقام بين 1900 و{max} (مثال 2020)", pt: "O ano deve ter 4 dígitos entre 1900 e {max} (ex. 2020)", nl: "Jaar moet 4 cijfers hebben tussen 1900 en {max} (bijv. 2020)", pl: "Rok musi mieć 4 cyfry od 1900 do {max} (np. 2020)", ja: "年は1900〜{max}の4桁で入力してください（例：2020）", ko: "연도는 1900~{max} 사이의 4자리여야 합니다 (예: 2020)", zh: "年份必须是1900到{max}之间的4位数字（例如2020）" },
+  score_invalid: { tr: "Puan 7, 7.4 veya 7,4 formatında olmalı", en: "Score must be like 7, 7.4 or 7,4", de: "Bewertung muss wie 7, 7.4 oder 7,4 sein", fr: "La note doit être comme 7, 7.4 ou 7,4", es: "La puntuación debe ser como 7, 7.4 o 7,4", it: "Il voto deve essere come 7, 7.4 o 7,4", ru: "Рейтинг должен быть как 7, 7.4 или 7,4", ar: "يجب أن يكون التقييم مثل 7 أو 7.4 أو 7,4", pt: "A nota deve ser como 7, 7.4 ou 7,4", nl: "Score moet zijn zoals 7, 7.4 of 7,4", pl: "Ocena musi być jak 7, 7.4 lub 7,4", ja: "スコアは7、7.4、7,4のような形式で入力してください", ko: "평점은 7, 7.4 또는 7,4 형식이어야 합니다", zh: "评分格式应为7、7.4或7,4" },
+  no_fav_actor: { tr: "Henüz favori oyuncunuz yok. Oyuncu detayında kalbe tıklayın.", en: "No favorite actors yet. Click the heart on an actor's details.", de: "Noch keine Lieblingsschauspieler. Klicken Sie auf das Herz in den Details.", fr: "Aucun acteur favori. Cliquez sur le cœur dans les détails.", es: "Aún no hay actores favoritos. Toca el corazón en los detalles.", it: "Nessun attore preferito. Tocca il cuore nei dettagli.", ru: "Нет любимых актёров. Нажмите на сердце в деталях.", ar: "لا يوجد ممثلون مفضلون بعد. اضغط على القلب في التفاصيل.", pt: "Nenhum ator favorito ainda. Toque no coração nos detalhes.", nl: "Nog geen favoriete acteurs. Klik op het hart in de details.", pl: "Brak ulubionych aktorów. Kliknij serce w szczegółach.", ja: "お気に入りの俳優がいません。詳細でハートをクリックしてください。", ko: "즐겨찾는 배우가 없습니다. 상세에서 하트를 클릭하세요.", zh: "还没有喜欢的演员。在详情中点击心形。" },
+  no_fav_genre: { tr: "Henüz favori türünüz yok. Tür etiketine tıklayın.", en: "No favorite genres yet. Click a genre tag.", de: "Noch keine Lieblingsgenres. Klicken Sie auf ein Genre-Tag.", fr: "Aucun genre favori. Cliquez sur une étiquette de genre.", es: "Aún no hay géneros favoritos. Toca una etiqueta de género.", it: "Nessun genere preferito. Tocca un'etichetta di genere.", ru: "Нет любимых жанров. Нажмите на метку жанра.", ar: "لا توجد أنواع مفضلة بعد. اضغط على علامة النوع.", pt: "Nenhum gênero favorito ainda. Toque em uma etiqueta de gênero.", nl: "Nog geen favoriete genres. Klik op een genre-tag.", pl: "Brak ulubionych gatunków. Kliknij etykietę gatunku.", ja: "お気に入りのジャンルがありません。ジャンルのタグをクリックしてください。", ko: "즐겨찾는 장르가 없습니다. 장르 태그를 클릭하세요.", zh: "还没有喜欢的类型。点击类型标签。" },
   empty_1: { tr: "Henüz takip ettiğiniz bir şey yok.", en: "Nothing in your list yet.", de: "Noch nichts in Ihrer Liste.", fr: "Rien dans votre liste pour l'instant.", es: "Aún no hay nada en tu lista.", it: "Non c'è ancora nulla nella tua lista.", ru: "В вашем списке пока ничего нет.", ar: "لا يوجد شيء في قائمتك بعد.", pt: "Nada na sua lista ainda.", nl: "Nog niets in uw lijst.", pl: "Na razie nic nie masz na liście.", ja: "リストにはまだ何もありません。", ko: "아직 목록에 아무것도 없습니다.", zh: "列表中还没有任何内容。" },
   empty_2: { tr: "Yayınlanmasını istediğiniz dizi ve filmleri ekleyin.", en: "Add the shows and movies you want to track.", de: "Fügen Sie die Serien und Filme hinzu, die Sie verfolgen möchten.", fr: "Ajoutez les séries et films que vous souhaitez suivre.", es: "Añade las series y películas que quieras seguir.", it: "Aggiungi le serie e i film che vuoi seguire.", ru: "Добавьте сериалы и фильмы, за которыми хотите следить.", ar: "أضف المسلسلات والأفلام التي تريد متابعتها.", pt: "Adicione as séries e filmes que deseja acompanhar.", nl: "Voeg de series en films toe die u wilt volgen.", pl: "Dodaj seriale i filmy, które chcesz śledzić.", ja: "追跡したいドラマや映画を追加してください。", ko: "추적하고 싶은 시리즈와 영화를 추가하세요.", zh: "添加您想关注的剧集和电影。" },
   search_placeholder: { tr: "Film veya dizi ara...", en: "Search movies or shows...", de: "Filme oder Serien suchen...", fr: "Rechercher des films ou séries...", es: "Buscar películas o series...", it: "Cerca film o serie...", ru: "Поиск фильмов или сериалов...", ar: "ابحث عن أفلام أو مسلسلات...", pt: "Pesquisar filmes ou séries...", nl: "Zoek films of series...", pl: "Szukaj filmów lub seriali...", ja: "映画やドラマを検索...", ko: "영화나 시리즈 검색...", zh: "搜索电影或剧集..." },
+  actor_placeholder: { tr: "Oyuncu adı girin...", en: "Enter actor name...", de: "Schauspielername eingeben...", fr: "Entrez un nom d'acteur...", es: "Ingresa nombre de actor...", it: "Inserisci nome attore...", ru: "Введите имя актёра...", ar: "أدخل اسم الممثل...", pt: "Digite o nome do ator...", nl: "Voer acteernaam in...", pl: "Wpisz nazwisko aktora...", ja: "俳優名を入力...", ko: "배우 이름 입력...", zh: "输入演员姓名..." },
+  genre_placeholder: { tr: "Tür adı girin...", en: "Enter genre name...", de: "Genrenamen eingeben...", fr: "Entrez un nom de genre...", es: "Ingresa nombre de género...", it: "Inserisci nome genere...", ru: "Введите название жанра...", ar: "أدخل اسم النوع...", pt: "Digite o nome do gênero...", nl: "Voer genrenaam in...", pl: "Wpisz nazwę gatunku...", ja: "ジャンル名を入力...", ko: "장르 이름 입력...", zh: "输入类型名称..." },
+  no_actor_results: { tr: "Oyuncu bulunamadı", en: "No actor found", de: "Kein Schauspieler gefunden", fr: "Aucun acteur trouvé", es: "No se encontró actor", it: "Nessun attore trovato", ru: "Актёр не найден", ar: "لم يتم العثور على ممثل", pt: "Nenhum ator encontrado", nl: "Geen acteur gevonden", pl: "Nie znaleziono aktora", ja: "俳優が見つかりません", ko: "배우를 찾을 수 없습니다", zh: "未找到演员" },
+  no_genre_results: { tr: "Tür bulunamadı", en: "No genre found", de: "Kein Genre gefunden", fr: "Aucun genre trouvé", es: "No se encontró género", it: "Nessun genere trovato", ru: "Жанр не найден", ar: "لم يتم العثور على نوع", pt: "Nenhum gênero encontrado", nl: "Geen genre gevonden", pl: "Nie znaleziono gatunku", ja: "ジャンルが見つかりません", ko: "장르를 찾을 수 없습니다", zh: "未找到类型" },
+  no_show_results: { tr: "Sonuç bulunamadı", en: "No results found", de: "Keine Ergebnisse gefunden", fr: "Aucun résultat trouvé", es: "No se encontraron resultados", it: "Nessun risultato trovato", ru: "Результаты не найдены", ar: "لا توجد نتائج", pt: "Nenhum resultado encontrado", nl: "Geen resultaten gevonden", pl: "Nie znaleziono wyników", ja: "結果が見つかりません", ko: "결과를 찾을 수 없습니다", zh: "未找到结果" },
   settings_title: { tr: "Ayarlar", en: "Settings", de: "Einstellungen", fr: "Paramètres", es: "Ajustes", it: "Impostazioni", ru: "Настройки", ar: "الإعدادات", pt: "Configurações", nl: "Instellingen", pl: "Ustawienia", ja: "設定", ko: "설정", zh: "设置" },
   label_tmdb: { tr: "TMDB API Key", en: "TMDB API Key", de: "TMDB-API-Schlüssel", fr: "Clé API TMDB", es: "Clave API de TMDB", it: "Chiave API TMDB", ru: "Ключ API TMDB", ar: "مفتاح TMDB API", pt: "Chave da API TMDB", nl: "TMDB API-sleutel", pl: "Klucz API TMDB", ja: "TMDB APIキー", ko: "TMDB API 키", zh: "TMDB API 密钥" },
   label_token: { tr: "Telegram Bot Token", en: "Telegram Bot Token", de: "Telegram-Bot-Token", fr: "Jeton du bot Telegram", es: "Token del bot de Telegram", it: "Token del bot Telegram", ru: "Токен бота Telegram", ar: "رمز بوت تيليجرام", pt: "Token do bot do Telegram", nl: "Telegram-bot-token", pl: "Token bota Telegram", ja: "Telegramボットトークン", ko: "텔레그램 봇 토큰", zh: "Telegram 机器人令牌" },
@@ -68,7 +126,7 @@ const I18N = {
   today_airing: { tr: "Bugün Yayında", en: "Airing Today", de: "Läuft heute", fr: "Diffusé aujourd'hui", es: "Se emite hoy", it: "In onda oggi", ru: "Сегодня в эфире", ar: "يُعرض اليوم", pt: "No ar hoje", nl: "Vandaag op tv", pl: "Emisja dzisiaj", ja: "今日放送", ko: "오늘 방영", zh: "今日播出" },
   new_season: { tr: "Yeni Sezon Bekleniyor", en: "New Season Coming", de: "Neue Staffel erwartet", fr: "Nouvelle saison à venir", es: "Nueva temporada próxima", it: "Nuova stagione in arrivo", ru: "Ожидается новый сезон", ar: "موسم جديد قادم", pt: "Nova temporada a caminho", nl: "Nieuw seizoen verwacht", pl: "Nowy sezon nadchodzi", ja: "新シーズン予定", ko: "새 시즌 예정", zh: "新季即将推出" },
   today_theaters: { tr: "Bugün Vizyonda", en: "In Theaters Today", de: "Heute im Kino", fr: "En salles aujourd'hui", es: "En cines hoy", it: "Oggi al cinema", ru: "Сегодня в прокате", ar: "في الصالات اليوم", pt: "Nos cinemas hoje", nl: "Vandaag in de bioscoop", pl: "Dziś w kinach", ja: "今日公開", ko: "오늘 개봉", zh: "今日上映" },
-  notified: { tr: "✓ Bildirildi", en: "✓ Notified", de: "✓ Benachrichtigt", fr: "✓ Notifié", es: "✓ Notificado", it: "✓ Notificato", ru: "✓ Уведомлено", ar: "✓ تم الإشعار", pt: "✓ Notificado", nl: "✓ Gemeld", pl: "✓ Powiadomiono", ja: "✓ 通知済み", ko: "✓ 알림됨", zh: "✓ 已通知" },
+  notified: { tr: "Bildirildi", en: "Notified", de: "Benachrichtigt", fr: "Notifié", es: "Notificado", it: "Notificato", ru: "Уведомлено", ar: "تم الإشعار", pt: "Notificado", nl: "Gemeld", pl: "Powiadomiono", ja: "通知済み", ko: "알림됨", zh: "已通知" },
   unfollow_title: { tr: "Takibi bırak", en: "Unfollow", de: "Nicht mehr verfolgen", fr: "Ne plus suivre", es: "Dejar de seguir", it: "Smetti di seguire", ru: "Отписаться", ar: "إلغاء المتابعة", pt: "Deixar de seguir", nl: "Ontvolgen", pl: "Przestań obserwować", ja: "フォロー解除", ko: "팔로우 해제", zh: "取消关注" },
   unfollow_confirm: { tr: '"{title}" takibini bırakmak istiyor musunuz?', en: 'Are you sure you want to unfollow "{title}"?', de: 'Möchten Sie "{title}" wirklich nicht mehr verfolgen?', fr: 'Voulez-vous vraiment ne plus suivre "{title}" ?', es: '¿Seguro que quieres dejar de seguir "{title}"?', it: 'Vuoi davvero smettere di seguire "{title}"?', ru: 'Вы уверены, что хотите отписаться от «{title}»?', ar: 'هل أنت متأكد من إلغاء متابعة "{title}"؟', pt: 'Tem certeza de que deseja deixar de seguir "{title}"?', nl: 'Weet u zeker dat u "{title}" wilt ontvolgen?', pl: 'Czy na pewno chcesz przestać obserwować „{title}"?', ja: '「{title}」のフォローを解除しますか？', ko: '"{title}" 팔로우를 해제하시겠습니까?', zh: '确定要取消关注"{title}"吗？' },
   unfollowed: { tr: "Takip bırakıldı", en: "Unfollowed", de: "Nicht mehr verfolgt", fr: "Suivi abandonné", es: "Dejaste de seguir", it: "Non segui più", ru: "Отписка выполнена", ar: "تم إلغاء المتابعة", pt: "Deixou de seguir", nl: "Ontvolgd", pl: "Przestano obserwować", ja: "フォロー解除しました", ko: "팔로우를 해제했습니다", zh: "已取消关注" },
@@ -83,6 +141,9 @@ const I18N = {
   runtime_hm: { tr: "{h} sa {m} dk", en: "{h}h {m}m", de: "{h} Std. {m} Min.", fr: "{h} h {m} min", es: "{h} h {m} min", it: "{h} h {m} min", ru: "{h} ч {m} мин", ar: "{h} س {m} د", pt: "{h} h {m} min", nl: "{h} u {m} min", pl: "{h} godz. {m} min", ja: "{h}時間{m}分", ko: "{h}시간 {m}분", zh: "{h}小时{m}分" },
   runtime_h: { tr: "{h} sa", en: "{h}h", de: "{h} Std.", fr: "{h} h", es: "{h} h", it: "{h} h", ru: "{h} ч", ar: "{h} س", pt: "{h} h", nl: "{h} u", pl: "{h} godz.", ja: "{h}時間", ko: "{h}시간", zh: "{h}小时" },
   runtime_m: { tr: "{m} dk", en: "{m}m", de: "{m} Min.", fr: "{m} min", es: "{m} min", it: "{m} min", ru: "{m} мин", ar: "{m} د", pt: "{m} min", nl: "{m} min", pl: "{m} min", ja: "{m}分", ko: "{m}분", zh: "{m}分" },
+  fav_actor: { tr: "Favori oyuncu", en: "Favorite actor", de: "Lieblingsschauspieler", fr: "Acteur favori", es: "Actor favorito", it: "Attore preferito", ru: "Любимый актёр", ar: "ممثل مفضل", pt: "Ator favorito", nl: "Favoriete acteur", pl: "Ulubiony aktor", ja: "お気に入りの俳優", ko: "즐겨찾는 배우", zh: "最喜欢的演员" },
+  fav_actor_added: { tr: "Favori oyunculara eklendi", en: "Added to favorite actors", de: "Zu Lieblingsschauspielern hinzugefügt", fr: "Ajouté aux acteurs favoris", es: "Añadido a actores favoritos", it: "Aggiunto agli attori preferiti", ru: "Добавлен в любимые актёры", ar: "تمت الإضافة إلى الممثلين المفضلين", pt: "Adicionado aos atores favoritos", nl: "Toegevoegd aan favoriete acteurs", pl: "Dodano do ulubionych aktorów", ja: "お気に入りの俳優に追加しました", ko: "즐겨찾는 배우에 추가했습니다", zh: "已添加到最喜欢的演员" },
+  fav_actor_removed: { tr: "Favori oyunculardan çıkarıldı", en: "Removed from favorite actors", de: "Aus Lieblingsschauspielern entfernt", fr: "Retiré des acteurs favoris", es: "Eliminado de actores favoritos", it: "Rimosso dagli attori preferiti", ru: "Удалён из любимых актёров", ar: "تمت الإزالة من الممثلين المفضلين", pt: "Removido dos atores favoritos", nl: "Verwijderd uit favoriete acteurs", pl: "Usunięto z ulubionych aktorów", ja: "お気に入りの俳優から削除しました", ko: "즐겨찾는 배우에서 제거했습니다", zh: "已从最喜欢的演员中移除" },
 };
 
 function t(key, vars) {
@@ -147,6 +208,11 @@ const tabs = {
 };
 
 function switchView(name) {
+  if (name !== "search" && views.search.classList.contains("active")) {
+    chips.length = 0;
+    renderChips();
+    closeResultsModal();
+  }
   Object.keys(views).forEach((k) => views[k].classList.remove("active"));
   Object.keys(tabs).forEach((k) => tabs[k].classList.remove("active"));
   views[name].classList.add("active");
@@ -166,11 +232,88 @@ tabs.settings.onclick = () => switchView("settings");
 document.getElementById("settings-close").onclick = () => switchView("followed");
 document.getElementById("search-close").onclick = () => switchView("followed");
 
+// ---- Sorting ----
+let sortKey = "added";
+try {
+  sortKey = localStorage.getItem("sortKey") || "added";
+} catch (e) {}
+
+function sortValue(item) {
+  if (sortKey === "alpha") return (item.title || "").toLocaleLowerCase();
+  if (sortKey === "score") return item.score != null ? item.score : item.vote_average || 0;
+  if (sortKey === "date") {
+    if (item.media_type) {
+      if (item.media_type === "tv") return item.next_episode ? item.next_episode.air_date || "" : "";
+      return item.release_date || "";
+    }
+    return item.next_episode ? new Date(item.next_episode.airing_at * 1000).toISOString() : "";
+  }
+  if (sortKey === "type") return item.media_type || item.format || "";
+  return item.id;
+}
+
+function compareItems(a, b) {
+  let av = sortValue(a);
+  let bv = sortValue(b);
+  if (sortKey === "added") return bv - av;
+  if (sortKey === "score") return (bv || 0) - (av || 0);
+  if (sortKey === "date") {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const aPast = !av || av < today;
+    const bPast = !bv || bv < today;
+    if (aPast && !bPast) return 1;
+    if (!aPast && bPast) return -1;
+    if (av === bv) return 0;
+    if (!av) return 1;
+    if (!bv) return -1;
+    return av < bv ? -1 : 1;
+  }
+  av = String(av).toLocaleLowerCase();
+  bv = String(bv).toLocaleLowerCase();
+  return av < bv ? -1 : av > bv ? 1 : 0;
+}
+
+function applySort(items) {
+  const arr = items.slice();
+  arr.sort(compareItems);
+  return arr;
+}
+
+function updateSortMenu() {
+  document.querySelectorAll(".sort-item").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.sort === sortKey);
+  });
+}
+
+const sortMenu = document.getElementById("sort-menu");
+document.getElementById("tab-sort").onclick = (e) => {
+  e.stopPropagation();
+  const open = sortMenu.classList.contains("open");
+  sortMenu.classList.toggle("open", !open);
+  updateSortMenu();
+};
+document.querySelectorAll(".sort-item").forEach((btn) => {
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    sortKey = btn.dataset.sort;
+    try {
+      localStorage.setItem("sortKey", sortKey);
+    } catch (e2) {}
+    sortMenu.classList.remove("open");
+    if (views.followed.classList.contains("active")) loadFollowed();
+    if (views.anime.classList.contains("active")) loadAnime();
+  };
+});
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".sort-wrap")) sortMenu.classList.remove("open");
+});
+
 function posterHTML(posterPath, title) {
   if (posterPath) {
-    return `<img src="${IMAGE_BASE}${posterPath}" alt="${title}" onerror="this.outerHTML='<div class=&quot;no-poster&quot;>🎬</div>'" />`;
+    return `<img src="${IMAGE_BASE}${posterPath}" alt="${title}" onerror="this.outerHTML=noPosterFallback()" />`;
   }
-  return `<div class="no-poster">🎬</div>`;
+  return `<div class="no-poster">${FILM_SVG}</div>`;
 }
 
 function scoreTag(v) {
@@ -182,11 +325,12 @@ function typeLabel(mediaType) {
   return mediaType === "tv" ? t("type_tv") : t("type_movie");
 }
 
-function toast(msg) {
+function toast(msg, isErr) {
   const t = document.getElementById("toast");
   t.textContent = msg;
-  t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 2500);
+  t.className = "toast show" + (isErr ? " err" : "");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => (t.className = "toast"), 2500);
 }
 
 function escAttr(s) {
@@ -388,7 +532,7 @@ async function openReleases(mediaType, tmdbId, title) {
         const released = st === "date-past" || st === "date-today" ? 1 : 0;
         const btnDisabled = released === 0 ? " disabled" : "";
         const btnCls = it.watched ? "watch-btn on" : "watch-btn";
-        const checkIcon = it.watched ? "✓" : "";
+        const checkIcon = it.watched ? CHECK_SVG : "";
         html += `<tr class="${watchedClass}" data-released="${released}">`;
         if (data.media_type === "tv") {
           html += `<td><button class="${btnCls}" data-s="${it.season}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("season_ep", { s: it.season, e: it.episode })}</span>${epName}</span></td>`;
@@ -422,7 +566,7 @@ async function openReleases(mediaType, tmdbId, title) {
           if (!res.ok) return;
           btn.dataset.w = String(watched);
           btn.classList.toggle("on", watched === 1);
-          btn.textContent = watched ? "✓" : "";
+          btn.textContent = watched ? CHECK_SVG : "";
           const tr = btn.closest("tr");
           tr.classList.toggle("watched", watched === 1);
 
@@ -472,7 +616,7 @@ async function openReleases(mediaType, tmdbId, title) {
             tr.classList.toggle("watched", watched === 1);
             b.dataset.w = String(watched);
             b.classList.toggle("on", watched === 1);
-            b.textContent = watched ? "✓" : "";
+            b.textContent = watched ? CHECK_SVG : "";
             b.disabled = false;
           });
           const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
@@ -553,7 +697,7 @@ function fmtScore(v) {
   return Number(v).toFixed(1);
 }
 
-async function openDetails(mediaType, tmdbId, title) {
+async function openDetails(mediaType, tmdbId, title, highlightPerson, highlightPersonId, highlightGenre) {
   const modal = document.getElementById("details-modal");
   const body = document.getElementById("details-body");
   const calBtn = document.getElementById("details-calendar");
@@ -567,7 +711,7 @@ async function openDetails(mediaType, tmdbId, title) {
   };
 
   try {
-    const res = await fetch(`/api/details?media_type=${encodeURIComponent(mediaType)}&tmdb_id=${encodeURIComponent(tmdbId)}`);
+    const res = await fetch(`/api/details?media_type=${encodeURIComponent(mediaType)}&tmdb_id=${encodeURIComponent(tmdbId)}${highlightPerson ? `&highlight_person=${encodeURIComponent(highlightPerson)}` : ""}${highlightPersonId ? `&highlight_person_id=${encodeURIComponent(highlightPersonId)}` : ""}`);
     const data = await res.json();
     if (!res.ok) {
       body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;
@@ -593,7 +737,6 @@ async function openDetails(mediaType, tmdbId, title) {
       if (data.release_date) badges.push(formatDate(data.release_date).text);
     }
     if (data.runtime) badges.push(fmtRuntime(data.runtime));
-    if (data.genres && data.genres.length) badges.push(data.genres.join(", "));
 
     html += '<div class="details-meta">';
     badges.forEach((b) => {
@@ -601,8 +744,18 @@ async function openDetails(mediaType, tmdbId, title) {
     });
     html += "</div>";
 
+    if (data.genres && data.genres.length) {
+      html += '<div class="genre-tags">';
+      const hg = highlightGenre ? highlightGenre.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) : [];
+      data.genres.forEach((g) => {
+        const fav = favGenres.has(g) || hg.includes(g.toLowerCase());
+        html += `<span class="detail-badge genre-tag${fav ? " fav" : ""}" data-genre="${g.replace(/"/g, "&quot;")}">${g}</span>`;
+      });
+      html += "</div>";
+    }
+
     if (data.vote_average != null) {
-      html += `<div class="details-rating">⭐ ${fmtScore(data.vote_average)} / 10 <span class="details-votes">${t("votes", { n: data.vote_count || 0 })}</span></div>`;
+      html += `<div class="details-rating">${fmtScore(data.vote_average)} / 10 <span class="details-votes">${t("votes", { n: data.vote_count || 0 })}</span></div>`;
     }
     html += "</div>";
 
@@ -622,7 +775,10 @@ async function openDetails(mediaType, tmdbId, title) {
         const img = c.profile_path
           ? `<img class="cast-avatar" src="${IMAGE_BASE}${c.profile_path}" alt="${c.name}" />`
           : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
-        html += `<div class="cast-item">${img}<div class="cast-info"><div class="cast-name">${c.name}</div><div class="cast-char">${c.character || ""}</div></div></div>`;
+        const fav = c.id && favActors.has(String(c.id)) ? " fav" : "";
+        html += `<div class="cast-item" data-person-id="${c.id || ""}" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${c.name}</div><div class="cast-char">${c.character || ""}</div></div>${
+          c.id ? `<button class="cast-fav${fav}" data-person-id="${c.id}" data-person-name="${c.name.replace(/"/g, "&quot;")}" data-tip="${t("fav_actor")}">${HEART_SVG}</button>` : ""
+        }</div>`;
       });
       html += "</div></div>";
     }
@@ -630,15 +786,136 @@ async function openDetails(mediaType, tmdbId, title) {
     html += "</div></div>";
 
     body.innerHTML = html;
+    body.querySelectorAll(".cast-item").forEach((el) => {
+      const pid = el.dataset.personId;
+      if (!pid) return;
+      el.onclick = () => openPerson(pid, el.querySelector(".cast-name").textContent);
+    });
+    body.querySelectorAll(".cast-fav").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        toggleFavActor(btn);
+      };
+    });
   } catch (e) {
     body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
   }
 }
 
+async function toggleFavActor(btn) {
+  const personId = btn.dataset.personId;
+  const name = btn.dataset.personName || "";
+  const prevFav = favActors.has(personId);
+  try {
+    const r = await fetch("/api/fav_actors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ person_id: personId, name }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    if (j.added) favActors.set(personId, name);
+    else favActors.delete(personId);
+    btn.classList.toggle("fav", j.added);
+    toast(j.added ? t("fav_actor_added") : t("fav_actor_removed"));
+  } catch (err) {
+    if (prevFav) favActors.delete(personId);
+    else favActors.delete(personId);
+    btn.classList.toggle("fav", prevFav);
+    toast(errText(err.message) || t("error"));
+  }
+}
+
+async function openPerson(personId, name) {
+  const modal = document.getElementById("person-modal");
+  const body = document.getElementById("person-body");
+  document.getElementById("person-title").textContent = name || "";
+  body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  modal.style.display = "flex";
+  try {
+    const res = await fetch(`/api/person/${encodeURIComponent(personId)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;
+      return;
+    }
+if (!data.length) {
+    grid.innerHTML = "";
+    toast(mode === "actor" ? t("no_actor_results") : mode === "genre" ? t("no_genre_results") : t("no_show_results"));
+    return;
+  }
+    const grid = document.createElement("div");
+    grid.className = "poster-grid person-grid";
+data.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+<div class="meta">
+          <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
+          ${scoreTag(item.vote_average)}
+          ${item.media_type === "tv" && item.number_of_seasons ? `<div class="season-line"><span class="season-count-badge">${t("seasons", { n: item.number_of_seasons })}</span>${item.number_of_episodes ? `<span class="episode-count">${t("episodes", { n: item.number_of_episodes })}</span>` : ""}</div>` : `<div class="season-line"></div>`}
+          ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
+        </div>
+        </div>
+        ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ""}
+        <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+      `;
+      div.querySelector(".remove").onclick = async (e) => {
+        e.stopPropagation();
+        const r = await fetch("/api/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tmdb_id: item.tmdb_id,
+            media_type: item.media_type,
+            title: item.title,
+            poster_path: item.poster_path,
+          }),
+        });
+        const j = await r.json();
+        toast(r.ok ? t("added") : j.error || t("error"));
+        if (r.ok) {
+          loadFollowed();
+          switchView("followed");
+          modal.style.display = "none";
+        }
+      };
+      const calBtn = div.querySelector(".calendar-btn");
+      if (calBtn) {
+        calBtn.onclick = (e) => {
+          e.stopPropagation();
+          openReleases(item.media_type, item.tmdb_id, item.title);
+        };
+      }
+      div.onclick = () => {
+        openDetails(item.media_type, item.tmdb_id, item.title);
+        modal.style.display = "none";
+      };
+      grid.appendChild(div);
+      applyTitleHint(div);
+    });
+    body.innerHTML = "";
+    body.appendChild(grid);
+  } catch (e) {
+    body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
+  }
+}
+
+document.getElementById("person-close").onclick = () => {
+  document.getElementById("person-modal").style.display = "none";
+};
+document.getElementById("person-modal").onclick = (e) => {
+  if (e.target === e.currentTarget) document.getElementById("person-modal").style.display = "none";
+};
+
 // ---- Followed ----
 async function loadFollowed() {
   const res = await fetch("/api/followed");
-  const items = await res.json();
+  let items = await res.json();
+  items = applySort(items);
   const grid = document.getElementById("poster-grid");
   const empty = document.getElementById("empty-followed");
   grid.innerHTML = "";
@@ -728,7 +1005,8 @@ function animeStatusLabel(status) {
 
 async function loadAnime() {
   const res = await fetch("/api/anime/followed");
-  const items = await res.json();
+  let items = await res.json();
+  items = applySort(items);
   const grid = document.getElementById("anime-grid");
   const empty = document.getElementById("empty-anime");
   grid.innerHTML = "";
@@ -738,7 +1016,7 @@ async function loadAnime() {
     const div = document.createElement("div");
     div.className = "card";
     div.innerHTML = `
-      ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML='<div class=&quot;no-poster&quot;>🎬</div>'" />` : `<div class="no-poster">🎬</div>`}
+      ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -811,7 +1089,6 @@ async function openAnimeDetails(dbId, anilistId, title) {
     if (data.duration) badges.push(fmtRuntime(data.duration));
     if (data.start_date) badges.push(String(data.start_date));
     if (data.studios && data.studios.length) badges.push(data.studios.join(", "));
-    if (data.genres && data.genres.length) badges.push(data.genres.join(", "));
 
     html += '<div class="details-meta">';
     badges.forEach((b) => {
@@ -819,8 +1096,16 @@ async function openAnimeDetails(dbId, anilistId, title) {
     });
     html += "</div>";
 
+    if (data.genres && data.genres.length) {
+      html += '<div class="genre-tags">';
+      data.genres.forEach((g) => {
+        html += `<span class="detail-badge genre-tag${favGenres.has(g) ? " fav" : ""}" data-genre="${g.replace(/"/g, "&quot;")}">${g}</span>`;
+      });
+      html += "</div>";
+    }
+
     if (data.score != null) {
-      html += `<div class="details-rating">⭐ ${fmtScore(data.score / 10)} / 10</div>`;
+      html += `<div class="details-rating">${fmtScore(data.score / 10)} / 10</div>`;
     }
     html += "</div>";
 
@@ -847,58 +1132,6 @@ async function openAnimeDetails(dbId, anilistId, title) {
   } catch (e) {
     body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
   }
-}
-
-async function doAnimeSearch() {
-  const q = document.getElementById("search-input").value.trim();
-  if (!q) return;
-  const res = await fetch("/api/anime/search?q=" + encodeURIComponent(q));
-  const data = await res.json();
-  const grid = document.getElementById("anime-results");
-  grid.innerHTML = "";
-  grid.style.display = "";
-  if (!res.ok) {
-    toast(errText(data.error) || t("search_error"));
-    return;
-  }
-  if (!data.length) {
-    grid.innerHTML = `<div class="empty">${t("no_results")}</div>`;
-    return;
-  }
-  data.forEach((item) => {
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
-      ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML='<div class=&quot;no-poster&quot;>🎬</div>'" />` : `<div class="no-poster">🎬</div>`}
-      <div class="info">
-        <div class="title">${item.title}</div>
-        <div class="meta">
-          <span class="badge badge-anime">${t("tab_anime")}</span>
-          ${item.score ? scoreTag(item.score / 10) : ""}
-          ${item.status ? `<span class="badge badge-anime-status">${animeStatusLabel(item.status)}</span>` : ""}
-          ${animeNextText(item.next_episode ? { episode: item.next_episode, airing_at: item.airing_at } : null)}
-        </div>
-      </div>
-      <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
-    `;
-    div.querySelector(".remove").onclick = async (e) => {
-      e.stopPropagation();
-      const r = await fetch("/api/anime/follow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ anilist_id: item.anilist_id }),
-      });
-      const j = await r.json();
-      toast(r.ok ? t("added") : j.error || t("error"));
-      if (r.ok) {
-        doAnimeSearch();
-        loadAnime();
-      }
-    };
-    div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
-    grid.appendChild(div);
-    applyTitleHint(div);
-  });
 }
 
 async function openAnimeSchedule(id, title) {
@@ -948,50 +1181,113 @@ async function openAnimeSchedule(id, title) {
   }
 }
 
-document.getElementById("search-btn").onclick = () => {
-  const type = document.getElementById("search-type").value;
-  if (type === "anime") doAnimeSearch();
-  else doSearch();
-};
-document.getElementById("search-input").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    const type = document.getElementById("search-type").value;
-    if (type === "anime") doAnimeSearch();
-    else doSearch();
-  }
-});
+// ---- Combo search (chips) ----
+let searchMedia = "show"; // show | anime
+const chips = []; // {type: "actor"|"genre"|"year"|"score", label, value}
 
-function setSearchType(type) {
-  const isAnime = type === "anime";
-  const input = document.getElementById("search-input");
-  const resGrid = document.getElementById("search-results");
-  const animeGrid = document.getElementById("anime-results");
-  if (isAnime) {
-    input.dataset.i18n = "anime_placeholder";
-    input.placeholder = t("anime_placeholder");
-    resGrid.style.display = "none";
-    animeGrid.style.display = "";
-  } else {
-    input.dataset.i18n = "search_placeholder";
-    input.placeholder = t("search_placeholder");
-    resGrid.style.display = "";
-    animeGrid.style.display = "none";
-  }
-  resGrid.innerHTML = "";
-  animeGrid.innerHTML = "";
+function currentMedia() {
+  return searchMedia;
 }
 
-document.getElementById("search-type").onchange = (e) => setSearchType(e.target.value);
-setSearchType("show");
+function setMedia(media) {
+  searchMedia = media;
+  document.getElementById("media-show").classList.toggle("active", media === "show");
+  document.getElementById("media-anime").classList.toggle("active", media === "anime");
+  const ph = media === "anime" ? "anime_placeholder" : "search_placeholder";
+  const comboInput = document.getElementById("search-input");
+  const normalInput = document.getElementById("normal-search-input");
+  if (comboInput) {
+    comboInput.dataset.i18n = ph;
+    comboInput.placeholder = t(ph);
+  }
+  if (normalInput) {
+    normalInput.dataset.i18n = ph;
+    normalInput.placeholder = t(ph);
+  }
+}
 
-// ---- Search ----
-async function doSearch() {
-  const q = document.getElementById("search-input").value.trim();
+document.getElementById("media-show").onclick = () => setMedia("show");
+document.getElementById("media-anime").onclick = () => setMedia("anime");
+
+function renderChips() {
+  const box = document.getElementById("filter-chips");
+  box.innerHTML = chips
+    .map(
+      (c, i) => `<span class="chip">${c.label}<button class="chip-x" data-i="${i}">✕</button></span>`
+    )
+    .join("");
+  box.querySelectorAll(".chip-x").forEach((btn) => {
+    btn.onclick = () => {
+      chips.splice(Number(btn.dataset.i), 1);
+      renderChips();
+    };
+  });
+  if (!chips.length) {
+    document.getElementById("search-results").innerHTML = "";
+    document.getElementById("anime-results").innerHTML = "";
+    setResultsTitle("");
+    closeResultsModal();
+  }
+}
+
+function openValueModal(kind) {
+  const title = document.getElementById("value-title");
+  const input = document.getElementById("value-input");
+  title.textContent = t(kind === "year" ? "search_type_year" : "search_type_score");
+  input.dataset.filter = kind;
+  input.value = "";
+  input.maxLength = kind === "year" ? 4 : 3;
+  input.placeholder = t(kind === "year" ? "year_placeholder" : "score_placeholder");
+  document.getElementById("value-modal").style.display = "flex";
+  input.focus();
+}
+
+function setSearchBtnLoading(btn, loading) {
+  if (!btn) return;
+  if (loading) {
+    if (!btn.dataset.orig) btn.dataset.orig = btn.innerHTML;
+    btn.innerHTML = '<span class="btn-spinner"></span>';
+    btn.disabled = true;
+  } else {
+    if (btn.dataset.orig) btn.innerHTML = btn.dataset.orig;
+    btn.disabled = false;
+  }
+}
+
+function runSearch() {
+  const q = (document.getElementById("search-input")?.value || "").trim();
+  const media = currentMedia();
+  if (!q && !chips.length) return;
+  const btn = document.getElementById("search-btn");
+  setSearchBtnLoading(btn, true);
+  doComboSearch(q, chips, media).finally(() => setSearchBtnLoading(btn, false));
+}
+
+document.getElementById("search-btn")?.addEventListener("click", runSearch);
+document.getElementById("search-input")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") runSearch();
+});
+
+function runNormalSearch() {
+  const q = document.getElementById("normal-search-input").value.trim();
   if (!q) return;
+  const btn = document.getElementById("normal-search-btn");
+  setSearchBtnLoading(btn, true);
+  const media = currentMedia();
+  const p = media === "anime" ? doAnimeTitleSearch(q) : doTitleSearch(q);
+  p.finally(() => setSearchBtnLoading(btn, false));
+}
+
+async function doTitleSearch(q) {
   const res = await fetch("/api/search?q=" + encodeURIComponent(q));
   const data = await res.json();
   const grid = document.getElementById("search-results");
+  const animeGrid = document.getElementById("anime-results");
   grid.innerHTML = "";
+  animeGrid.style.display = "none";
+  grid.style.display = "";
+  setResultsTitle(q);
+  openResultsModal();
   if (!res.ok) {
     toast(errText(data.error) || t("search_error"));
     return;
@@ -1010,24 +1306,8 @@ async function doSearch() {
         <div class="meta">
           <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
           ${scoreTag(item.vote_average)}
-          ${
-            item.media_type === "tv"
-              ? item.release_date
-                ? dateState(item.release_date) === "date-past"
-                  ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
-                  : dateState(item.release_date) === "date-today"
-                    ? `<div class="next-ep today">${formatDate(item.release_date).text} ${t("today_theaters")}</div>`
-                    : `<div class="next-ep">${formatDate(item.release_date).text} <span class="next-ep-days">${daysUntil(item.release_date)}</span></div>`
-                : `<div class="next-ep muted">${t("date_unknown")}</div>`
-              : item.release_date
-                ? dateState(item.release_date) === "date-past"
-                  ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
-                  : dateState(item.release_date) === "date-today"
-                    ? `<div class="next-ep today">${formatDate(item.release_date).text} ${t("today_theaters")}</div>`
-                    : `<div class="next-ep">${formatDate(item.release_date).text} <span class="next-ep-days">${daysUntil(item.release_date)}</span></div>`
-                : `<div class="next-ep muted">${t("date_unknown")}</div>`
-          }
-          ${item.media_type === "tv" && item.number_of_seasons ? `<div class="season-count-badge">${t("seasons", { n: item.number_of_seasons })}</div>` : ""}
+          ${item.media_type === "tv" && item.number_of_seasons ? `<div class="season-line"><span class="season-count-badge">${t("seasons", { n: item.number_of_seasons })}</span>${item.number_of_episodes ? `<span class="episode-count">${t("episodes", { n: item.number_of_episodes })}</span>` : ""}</div>` : `<div class="season-line"></div>`}
+          ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
         </div>
       </div>
       ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ""}
@@ -1056,14 +1336,380 @@ async function doSearch() {
         openReleases(item.media_type, item.tmdb_id, item.title);
       };
     }
-    div.onclick = () => {
-      openDetails(item.media_type, item.tmdb_id, item.title);
-    };
+    div.onclick = () => openDetails(item.media_type, item.tmdb_id, item.title);
     grid.appendChild(div);
     applyTitleHint(div);
   });
 }
 
+async function doAnimeTitleSearch(q) {
+  const res = await fetch("/api/anime/search?q=" + encodeURIComponent(q));
+  const data = await res.json();
+  const grid = document.getElementById("search-results");
+  const animeGrid = document.getElementById("anime-results");
+  grid.style.display = "none";
+  animeGrid.innerHTML = "";
+  animeGrid.style.display = "";
+  setResultsTitle(q);
+  openResultsModal();
+  if (!res.ok) {
+    toast(errText(data.error) || t("search_error"));
+    return;
+  }
+  if (!data.length) {
+    animeGrid.innerHTML = `<div class="empty">${t("no_results")}</div>`;
+    return;
+  }
+  data.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-anime">${t("tab_anime")}</span>
+          ${item.score ? scoreTag(item.score / 10) : ""}
+          ${item.status ? `<span class="badge badge-anime-status">${animeStatusLabel(item.status)}</span>` : ""}
+          ${animeNextText(item.next_episode ? { episode: item.next_episode, airing_at: item.airing_at } : null)}
+        </div>
+      </div>
+      <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+    `;
+    div.querySelector(".remove").onclick = async (e) => {
+      e.stopPropagation();
+      const r = await fetch("/api/anime/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anilist_id: item.anilist_id }),
+      });
+      const j = await r.json();
+      toast(r.ok ? t("added") : j.error || t("error"));
+      if (r.ok) switchView("anime");
+    };
+    div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
+    animeGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+}
+
+document.getElementById("normal-search-btn").onclick = runNormalSearch;
+document.getElementById("normal-search-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") runNormalSearch();
+});
+document.getElementById("search-input")?.addEventListener("input", (e) => {
+  const filter = e.target.dataset.filter;
+  if (!filter) return;
+  const cleaned = filter === "year" ? e.target.value.replace(/[^0-9]/g, "") : e.target.value.replace(/[^0-9.,]/g, "");
+  if (cleaned !== e.target.value) {
+    const pos = e.target.selectionStart;
+    e.target.value = cleaned;
+    e.target.setSelectionRange(pos - 1, pos - 1);
+  }
+});
+
+document.getElementById("filter-actor").onclick = () => openPicker("fav_actor");
+document.getElementById("filter-genre").onclick = () => openPicker("fav_genre");
+document.getElementById("filter-year").onclick = () => openValueModal("year");
+document.getElementById("filter-score").onclick = () => openValueModal("score");
+
+// Value modal
+document.getElementById("value-close").onclick = () => {
+  document.getElementById("value-modal").style.display = "none";
+};
+document.getElementById("value-modal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) document.getElementById("value-modal").style.display = "none";
+});
+document.getElementById("value-cancel").onclick = () => {
+  document.getElementById("value-modal").style.display = "none";
+};
+document.getElementById("value-go").onclick = () => {
+  const kind = document.getElementById("value-input").dataset.filter;
+  const val = document.getElementById("value-input").value.trim();
+  const nowYear = new Date().getFullYear();
+  if (kind === "year") {
+    if (!/^\d{4}$/.test(val)) {
+      toast(t("year_invalid", { max: nowYear }));
+      return;
+    }
+    const y = parseInt(val, 10);
+    if (y < 1900 || y > nowYear) {
+      toast(t("year_invalid", { max: nowYear }));
+      return;
+    }
+  } else {
+    const norm = val.replace(",", ".");
+    if (!/^(10|\d(\.\d)?)$/.test(norm)) {
+      toast(t("score_invalid"));
+      return;
+    }
+    const s = parseFloat(norm);
+    if (s < 0 || s > 10) {
+      toast(t("score_invalid"));
+      return;
+    }
+  }
+  chips.push({ type: kind, label: val, value: val });
+  document.getElementById("value-modal").style.display = "none";
+  renderChips();
+};
+
+function setResultsTitle(text) {
+  const el = document.getElementById("results-title");
+  if (el) el.textContent = text || "";
+}
+
+function openResultsModal() {
+  document.getElementById("search-results-modal").style.display = "flex";
+}
+
+function closeResultsModal() {
+  document.getElementById("search-results-modal").style.display = "none";
+}
+
+function comboTitle(chipsArr) {
+  const parts = [];
+  const q = (document.getElementById("search-input")?.value || "").trim();
+  if (q) parts.push(q);
+  chipsArr.forEach((c) => {
+    if (c.type === "actor") parts.push(`${c.label}`);
+    else if (c.type === "genre") parts.push(`${c.label}`);
+    else if (c.type === "year") parts.push(`${c.label}`);
+    else if (c.type === "score") parts.push(`${c.label}`);
+  });
+  return parts.join(" • ");
+}
+
+async function doComboSearch(q, chipsArr, media) {
+  const params = new URLSearchParams();
+  params.set("media", media);
+  if (q) params.set("q", q);
+  const actors = chipsArr.filter((c) => c.type === "actor").map((c) => c.value).join(",");
+  const genres = chipsArr.filter((c) => c.type === "genre").map((c) => c.value).join(",");
+  const year = chipsArr.filter((c) => c.type === "year").map((c) => c.value)[0] || "";
+  const score = chipsArr.filter((c) => c.type === "score").map((c) => c.value)[0] || "";
+  if (actors) params.set("actors", actors);
+  if (genres) params.set("genres", genres);
+  if (year) params.set("year", year);
+  if (score) params.set("score", score);
+  const res = await fetch("/api/combo-search?" + params.toString());
+  const data = await res.json();
+  const grid = document.getElementById("search-results");
+  const animeGrid = document.getElementById("anime-results");
+  grid.innerHTML = "";
+  animeGrid.innerHTML = "";
+  setResultsTitle(comboTitle(chipsArr));
+  openResultsModal();
+  if (!res.ok) {
+    grid.style.display = "";
+    animeGrid.style.display = "none";
+    toast(errText(data.error) || t("search_error"));
+    return;
+  }
+  const actorLabel = actors
+    ? chipsArr.filter((c) => c.type === "actor").map((c) => c.label).join(", ")
+    : "";
+  const genreLabel = genres ? chipsArr.filter((c) => c.type === "genre").map((c) => c.label).join(", ") : "";
+  if (media === "anime") {
+    grid.style.display = "none";
+    animeGrid.style.display = "";
+    if (!data.length) {
+      animeGrid.innerHTML = `<div class="empty">${t("no_results")}</div>`;
+      return;
+    }
+    data.forEach((item) => {
+      const div = document.createElement("div");
+      div.className = "card";
+      div.innerHTML = `
+        ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
+        <div class="info">
+          <div class="title">${item.title}</div>
+          <div class="meta">
+            <span class="badge badge-anime">${t("tab_anime")}</span>
+            ${item.score ? scoreTag(item.score / 10) : ""}
+            ${item.status ? `<span class="badge badge-anime-status">${animeStatusLabel(item.status)}</span>` : ""}
+          </div>
+        </div>
+        <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+      `;
+      div.querySelector(".remove").onclick = async (e) => {
+        e.stopPropagation();
+        const r = await fetch("/api/anime/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ anilist_id: item.anilist_id }),
+        });
+        const j = await r.json();
+        toast(r.ok ? t("added") : j.error || t("error"));
+        if (r.ok) doComboSearch(q, chipsArr, media);
+      };
+      div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
+      animeGrid.appendChild(div);
+    });
+    return;
+  }
+  grid.style.display = "";
+  animeGrid.style.display = "none";
+  if (!data.length) {
+    grid.innerHTML = `<div class="empty">${t("no_results")}</div>`;
+    return;
+  }
+  const hlActor = chipsArr.filter((c) => c.type === "actor").map((c) => c.value)[0];
+  data.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
+          ${scoreTag(item.vote_average)}
+          ${item.media_type === "tv" && item.number_of_seasons ? `<div class="season-line"><span class="season-count-badge">${t("seasons", { n: item.number_of_seasons })}</span>${item.number_of_episodes ? `<span class="episode-count">${t("episodes", { n: item.number_of_episodes })}</span>` : ""}</div>` : `<div class="season-line"></div>`}
+          ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
+        </div>
+      </div>
+      ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ""}
+      <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+    `;
+    div.querySelector(".remove").onclick = async (e) => {
+      e.stopPropagation();
+      const r = await fetch("/api/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tmdb_id: item.tmdb_id,
+          media_type: item.media_type,
+          title: item.title,
+          poster_path: item.poster_path,
+        }),
+      });
+      const j = await r.json();
+      toast(r.ok ? t("added") : j.error || t("error"));
+      if (r.ok) doComboSearch(q, chipsArr, media);
+    };
+    const calBtn = div.querySelector(".calendar-btn");
+    if (calBtn) {
+      calBtn.onclick = (e) => {
+        e.stopPropagation();
+        openReleases(item.media_type, item.tmdb_id, item.title);
+      };
+    }
+    div.onclick = () => openDetails(
+      item.media_type,
+      item.tmdb_id,
+      item.title,
+      hlActor && /^\d+$/.test(hlActor) ? (favActors.get(hlActor) || "") : hlActor,
+      hlActor && /^\d+$/.test(hlActor) ? hlActor : undefined,
+      genreLabel || undefined
+    );
+    grid.appendChild(div);
+    applyTitleHint(div);
+  });
+}
+
+setMedia("show");
+renderChips();
+
+let pickerMode = "";
+const pickerSelected = new Set();
+
+function openPicker(mode) {
+  pickerMode = mode;
+  pickerSelected.clear();
+  const modal = document.getElementById("picker-modal");
+  const title = document.getElementById("picker-title");
+  const body = document.getElementById("picker-body");
+  if (mode === "fav_actor") {
+    title.textContent = t("picker_actor_search");
+    const favItems = favActors.size
+      ? `<div class="picker-grid actor-grid">${[...favActors.entries()]
+          .map(
+            ([id, name]) => `<div class="picker-item actor" data-id="${escAttr(id)}" data-name="${escAttr(name)}">
+              <span class="picker-name">${escAttr(name)}</span>
+              <span class="picker-check">${CHECK_SVG}</span>
+            </div>`
+          )
+          .join("")}</div>`
+      : `<div class="picker-empty">${t("no_fav_actor")}</div>`;
+    body.innerHTML = `
+      <div class="picker-section">
+        <div class="picker-section-title">${t("picker_actor_search")}</div>
+        <div class="picker-free">
+          <input id="picker-free-input" type="text" placeholder="${t("actor_placeholder")}" />
+        </div>
+      </div>
+      <div class="picker-section">
+        <div class="picker-section-title">${t("picker_fav_actor_search")}</div>
+        ${favItems}
+      </div>`;
+  } else {
+    title.textContent = t("picker_genre_search");
+    const favItems = favGenres.size
+      ? `<div class="picker-grid genre-grid">${[...favGenres]
+          .map(
+            (g) => `<div class="picker-item genre" data-id="${escAttr(g)}" data-name="${escAttr(g)}">
+              <span class="picker-name">${escAttr(g)}</span>
+              <span class="picker-check">${CHECK_SVG}</span>
+            </div>`
+          )
+          .join("")}</div>`
+      : `<div class="picker-empty">${t("no_fav_genre")}</div>`;
+    body.innerHTML = `
+      <div class="picker-section">
+        <div class="picker-section-title">${t("picker_genre_search")}</div>
+        <div class="picker-free">
+          <input id="picker-free-input" type="text" placeholder="${t("genre_placeholder")}" />
+        </div>
+      </div>
+      <div class="picker-section">
+        <div class="picker-section-title">${t("picker_fav_genre_search")}</div>
+        ${favItems}
+      </div>`;
+  }
+  body.querySelectorAll(".picker-item").forEach((el) => {
+    el.onclick = () => {
+      el.classList.toggle("sel");
+      const id = el.dataset.id;
+      if (pickerSelected.has(id)) pickerSelected.delete(id);
+      else pickerSelected.add(id);
+    };
+  });
+  modal.style.display = "flex";
+  document.getElementById("picker-free-input").focus();
+}
+
+document.getElementById("picker-close").onclick = () => {
+  document.getElementById("picker-modal").style.display = "none";
+};
+document.getElementById("picker-modal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) document.getElementById("picker-modal").style.display = "none";
+});
+document.getElementById("search-results-close").onclick = closeResultsModal;
+document.getElementById("search-results-modal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeResultsModal();
+});
+document.getElementById("picker-go").onclick = () => {
+  const freeVal = (document.getElementById("picker-free-input")?.value || "").trim();
+  if (!pickerSelected.size && !freeVal) {
+    toast(pickerMode === "fav_actor" ? t("no_fav_actor") : t("no_fav_genre"));
+    return;
+  }
+  pickerSelected.forEach((id) => {
+    const name = pickerMode === "fav_actor" ? favActors.get(id) || id : id;
+    chips.push({ type: pickerMode === "fav_actor" ? "actor" : "genre", label: name, value: id });
+  });
+  if (freeVal) {
+    freeVal.split(",").forEach((s) => {
+      const v = s.trim();
+      if (v) chips.push({ type: pickerMode === "fav_actor" ? "actor" : "genre", label: v, value: v });
+    });
+  }
+  document.getElementById("picker-modal").style.display = "none";
+  renderChips();
+};
+
+// ---- Search ----
 // ---- Settings ----
 async function loadTimezones() {
   try {
@@ -1127,10 +1773,7 @@ async function loadSettings() {
 }
 
 function showMsg(text, ok) {
-  const el = document.getElementById("settings-msg");
-  el.textContent = text;
-  el.className = "msg " + (ok ? "success" : "error");
-  setTimeout(() => (el.className = "msg"), 4000);
+  toast(text, !ok);
 }
 
 document.getElementById("save-settings").onclick = async () => {
@@ -1191,6 +1834,52 @@ let lastView = "followed";
     /* varsayılan dil */
   }
 })();
+
+(async () => {
+  try {
+    const res = await fetch("/api/fav_genres");
+    const s = await res.json();
+    if (s.genres) favGenres = new Set(s.genres);
+  } catch (e) {
+    /* yoksay */
+  }
+})();
+
+(async () => {
+  try {
+    const res = await fetch("/api/fav_actors");
+    const s = await res.json();
+    if (s.actors) favActors = new Map((s.actors || []).map((a) => [a.person_id, a.name]));
+  } catch (e) {
+    /* yoksay */
+  }
+})();
+
+document.getElementById("details-modal").addEventListener("click", async (e) => {
+  const tag = e.target.closest(".genre-tag");
+  if (!tag) return;
+  e.stopPropagation();
+  const genre = tag.dataset.genre;
+  const prevFav = favGenres.has(genre);
+  favGenres.add(genre);
+  tag.classList.add("fav");
+  try {
+    const r = await fetch("/api/fav_genres", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ genre }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    favGenres = new Set(j.genres);
+    if (!j.added) tag.classList.remove("fav");
+  } catch (err) {
+    if (prevFav) favGenres.delete(genre);
+    else favGenres.delete(genre);
+    if (prevFav) tag.classList.remove("fav");
+    toast(errText(err.message) || t("error"));
+  }
+});
 
 // ---- Custom tooltip ----
 let tipEl = null;
