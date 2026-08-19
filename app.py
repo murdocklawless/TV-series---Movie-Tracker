@@ -1554,6 +1554,8 @@ def save_settings():
     ):
         if key in body:
             set_setting(key, str(body[key] or ""))
+    if any(k in body for k in ("notify_hour", "timezone")):
+        schedule_releases()
     return jsonify({"ok": True})
 
 
@@ -1787,16 +1789,41 @@ def fav_genres():
     return jsonify({"ok": True, "added": added, "genres": genres})
 
 
-def start_scheduler():
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(
+SCHEDULER = BackgroundScheduler()
+
+
+def parse_notify_hour(value):
+    h = m = 0
+    try:
+        parts = (value or "09:00").split(":")
+        h = int(parts[0]) % 24
+        m = int(parts[1]) % 60
+    except (ValueError, IndexError):
+        h, m = 9, 0
+    return h, m
+
+
+def schedule_releases():
+    hour, minute = parse_notify_hour(get_setting("notify_hour"))
+    tz = ZoneInfo(get_setting("timezone") or "Europe/Istanbul")
+    if SCHEDULER.get_job("release_check"):
+        SCHEDULER.remove_job("release_check")
+    SCHEDULER.add_job(
         check_releases,
-        "interval",
-        hours=6,
+        "cron",
+        hour=hour,
+        minute=minute,
+        timezone=tz,
         id="release_check",
         misfire_grace_time=3600,
     )
-    scheduler.start()
+    if not SCHEDULER.running:
+        SCHEDULER.start()
+    print("next release check:", SCHEDULER.get_job("release_check").next_run_time)
+
+
+def start_scheduler():
+    schedule_releases()
 
 
 init_db()

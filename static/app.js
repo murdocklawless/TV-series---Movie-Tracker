@@ -81,6 +81,8 @@ const I18N = {
   label_token: { tr: "Telegram Bot Token", en: "Telegram Bot Token", de: "Telegram-Bot-Token", fr: "Jeton du bot Telegram", es: "Token del bot de Telegram", it: "Token del bot Telegram", ru: "Токен бота Telegram", ar: "رمز بوت تيليجرام", pt: "Token do bot do Telegram", nl: "Telegram-bot-token", pl: "Token bota Telegram", ja: "Telegramボットトークン", ko: "텔레그램 봇 토큰", zh: "Telegram 机器人令牌" },
   label_chat: { tr: "Telegram Chat ID", en: "Telegram Chat ID", de: "Telegram-Chat-ID", fr: "ID de discussion Telegram", es: "ID de chat de Telegram", it: "ID chat Telegram", ru: "ID чата Telegram", ar: "معرف المحادثة في تيليجرام", pt: "ID do chat do Telegram", nl: "Telegram-chat-ID", pl: "ID czatu Telegram", ja: "TelegramチャットID", ko: "텔레그램 채팅 ID", zh: "Telegram 聊天 ID" },
   label_hour: { tr: "Bildirim Saati (günlük)", en: "Notification Time (daily)", de: "Benachrichtigungszeit (täglich)", fr: "Heure de notification (quotidienne)", es: "Hora de notificación (diaria)", it: "Ora di notifica (giornaliera)", ru: "Время уведомлений (ежедневно)", ar: "وقت الإشعار (يوميًا)", pt: "Horário de notificação (diário)", nl: "Meldingstijd (dagelijks)", pl: "Godzina powiadomień (codziennie)", ja: "通知時間（毎日）", ko: "알림 시간 (매일)", zh: "通知时间（每日）" },
+  time_hour: { tr: "Saat", en: "Hour", de: "Stunde", fr: "Heure", es: "Hora", it: "Ora", ru: "Час", ar: "ساعة", pt: "Hora", nl: "Uur", pl: "Godzina", ja: "時間", ko: "시", zh: "时" },
+  time_minute: { tr: "Dakika", en: "Minute", de: "Minute", fr: "Minute", es: "Minuto", it: "Minuto", ru: "Минута", ar: "دقيقة", pt: "Minuto", nl: "Minuut", pl: "Minuta", ja: "分", ko: "분", zh: "分" },
   label_ntfy: { tr: "ntfy Konu", en: "ntfy Topic", de: "ntfy Thema", fr: "Sujet ntfy", es: "Tema ntfy", it: "Argomento ntfy", ru: "Тема ntfy", ar: "موضوع ntfy", pt: "Tópico ntfy", nl: "ntfy onderwerp", pl: "Temat ntfy", ja: "ntfyトピック", ko: "ntfy 토픽", zh: "ntfy 主题" },
   ntfy_placeholder: { tr: "konu-adi", en: "topic-name", de: "thema-name", fr: "nom-du-sujet", es: "nombre-tema", it: "nome-argomento", ru: "имя-темы", ar: "اسم-الموضوع", pt: "nome-topico", nl: "onderwerp-naam", pl: "nazwa-tematu", ja: "トピック名", ko: "토픽 이름", zh: "主题名称" },
   label_tz: { tr: "Zaman Dilimi", en: "Time Zone", de: "Zeitzone", fr: "Fuseau horaire", es: "Zona horaria", it: "Fuso orario", ru: "Часовой пояс", ar: "المنطقة الزمنية", pt: "Fuso horário", nl: "Tijdzone", pl: "Strefa czasowa", ja: "タイムゾーン", ko: "시간대", zh: "时区" },
@@ -137,6 +139,12 @@ const I18N = {
   follow: { tr: "Takip et", en: "Follow", de: "Verfolgen", fr: "Suivre", es: "Seguir", it: "Segui", ru: "Подписаться", ar: "متابعة", pt: "Seguir", nl: "Volgen", pl: "Obserwuj", ja: "フォロー", ko: "팔로우", zh: "关注" },
   saved_ok: { tr: "Ayarlar kaydedildi", en: "Settings saved", de: "Einstellungen gespeichert", fr: "Paramètres enregistrés", es: "Ajustes guardados", it: "Impostazioni salvate", ru: "Настройки сохранены", ar: "تم حفظ الإعدادات", pt: "Configurações salvas", nl: "Instellingen opgeslagen", pl: "Ustawienia zapisano", ja: "設定を保存しました", ko: "설정이 저장되었습니다", zh: "设置已保存" },
   save_failed: { tr: "Ayarlar kaydedilemedi", en: "Could not save settings", de: "Einstellungen konnten nicht gespeichert werden", fr: "Impossible d'enregistrer les paramètres", es: "No se pudieron guardar los ajustes", it: "Impossibile salvare le impostazioni", ru: "Не удалось сохранить настройки", ar: "تعذر حفظ الإعدادات", pt: "Não foi possível salvar as configurações", nl: "Instellingen konden niet worden opgeslagen", pl: "Nie można zapisać ustawień", ja: "設定を保存できませんでした", ko: "설정을 저장할 수 없습니다", zh: "无法保存设置" },
+  saved: { tr: "Kaydedildi", en: "Saved", de: "Gespeichert", fr: "Enregistré", es: "Guardado", it: "Salvato", ru: "Сохранено", ar: "تم الحفظ", pt: "Salvo", nl: "Opgeslagen", pl: "Zapisano", ja: "保存済み", ko: "저장됨", zh: "已保存" },
+  need_bot_token: { tr: "Bot token gerekli", en: "Bot token required", de: "Bot-Token erforderlich", fr: "Jeton de bot requis", es: "Token del bot requerido", it: "Token del bot richiesto", ru: "Требуется токен бота", ar: "مطلوب رمز البوت", pt: "Token do bot obrigatório", nl: "Bot-token vereist", pl: "Token bota wymagany", ja: "ボットトークンが必要です", ko: "봇 토큰 필요", zh: "需要机器人令牌" },
+  need_chat_id: { tr: "Chat ID gerekli", en: "Chat ID required", de: "Chat-ID erforderlich", fr: "ID de chat requise", es: "ID de chat requerida", it: "ID chat richiesta", ru: "Требуется ID чата", ar: "مطلوب معرف الدردشة", pt: "ID do chat obrigatório", nl: "Chat-ID vereist", pl: "ID czatu wymagane", ja: "チャットIDが必要です", ko: "채팅 ID 필요", zh: "需要聊天ID" },
+  need_bot_chat: { tr: "Bot token ve Chat ID gerekli", en: "Bot token and Chat ID required", de: "Bot-Token und Chat-ID erforderlich", fr: "Jeton de bot et ID de chat requis", es: "Token del bot y ID de chat requeridos", it: "Token del bot e ID chat richiesti", ru: "Требуются токен бота и ID чата", ar: "مطلوب رمز البوت ومعرف الدردشة", pt: "Token do bot e ID do chat obrigatórios", nl: "Bot-token en Chat-ID vereist", pl: "Token bota i ID czatu wymagane", ja: "ボットトークンとチャットIDが必要です", ko: "봇 토큰 및 채팅 ID 필요", zh: "需要机器人令牌和聊天ID" },
+  need_ntfy_topic: { tr: "ntfy konusu gerekli", en: "ntfy topic required", de: "ntfy-Thema erforderlich", fr: "Sujet ntfy requis", es: "Tema ntfy requerido", it: "Argomento ntfy richiesto", ru: "Требуется тема ntfy", ar: "مطلوب موضوع ntfy", pt: "Tópico ntfy obrigatório", nl: "ntfy-onderwerp vereist", pl: "Temat ntfy wymagany", ja: "ntfyトピックが必要です", ko: "ntfy 주제 필요", zh: "需要ntfy主题" },
+  tmdb_key_needed: { tr: "Sistem gerekli bilgileri TMDB den {link} çektiği için TMDB'ye üye olup API anahtarı almanız ve TMDB ve Telegram seçeneğinden API anahtarını girmeniz gerekmektedir. TMDB ye üye olduktan sonra {api_link} adresinden API anahtarınızı alabilirsiniz.", en: "Since the system fetches the required information from TMDB {link}, you need to sign up to TMDB, get an API key, and enter it from the TMDB & Telegram option. After signing up to TMDB, you can get your API key at {api_link}.", de: "Da das System die benötigten Informationen von TMDB {link} abruft, müssen Sie sich bei TMDB registrieren, einen API-Schlüssel erhalten und ihn über die Option TMDB und Telegram eingeben. Nach der Registrierung bei TMDB erhalten Sie Ihren API-Schlüssel unter {api_link}.", fr: "Le système récupère les informations nécessaires depuis TMDB {link}, vous devez donc créer un compte TMDB, obtenir une clé API et la saisir depuis l'option TMDB et Telegram. Après votre inscription à TMDB, vous pouvez obtenir votre clé API à l'adresse {api_link}.", es: "Como el sistema obtiene la información necesaria de TMDB {link}, debe registrarse en TMDB, obtener una clave API e introducirla desde la opción TMDB y Telegram. Tras registrarse en TMDB, puede obtener su clave API en {api_link}.", it: "Poiché il sistema recupera le informazioni necessarie da TMDB {link}, devi iscriverti a TMDB, ottenere una chiave API e inserirla dall'opzione TMDB e Telegram. Dopo l'iscrizione a TMDB, puoi ottenere la tua chiave API all'indirizzo {api_link}.", ru: "Поскольку система получает необходимую информацию из TMDB {link}, вам необходимо зарегистрироваться в TMDB, получить API-ключ и ввести его через опцию TMDB и Telegram. После регистрации в TMDB вы можете получить свой API-ключ по адресу {api_link}.", ar: "بما أن النظام يجلب المعلومات اللازمة من TMDB {link}، يجب عليك التسجيل في TMDB والحصول على مفتاح API وإدخاله من خيار TMDB وتيليجرام. بعد التسجيل في TMDB، يمكنك الحصول على مفتاح API الخاص بك من {api_link}.", pt: "Como o sistema obtém as informações necessárias do TMDB {link}, você precisa se cadastrar no TMDB, obter uma chave de API e inseri-la pela opção TMDB e Telegram. Após o cadastro no TMDB, você pode obter sua chave de API em {api_link}.", nl: "Omdat het systeem benodigde informatie van TMDB {link} ophaalt, moet u zich bij TMDB registreren, een API-sleutel verkrijgen en deze invoeren via de optie TMDB en Telegram. Na registratie bij TMDB kunt u uw API-sleutel verkrijgen via {api_link}.", pl: "Ponieważ system pobiera niezbędne informacje z TMDB {link}, musisz zarejestrować się w TMDB, uzyskać klucz API i wprowadzić go z opcji TMDB i Telegram. Po rejestracji w TMDB możesz uzyskać swój klucz API pod adresem {api_link}.", ja: "システムは必要な情報をTMDB {link}から取得するため、TMDBに登録してAPIキーを取得し、「TMDBとTelegram」オプションからAPIキーを入力する必要があります。TMDBに登録後、{api_link} からAPIキーを取得できます。", ko: "시스템이 필요한 정보를 TMDB {link}에서 가져오므로 TMDB에 가입하여 API 키를 받고 TMDB 및 텔레그램 옵션에서 API 키를 입력해야 합니다. TMDB에 가입한 후 {api_link}에서 API 키를 받을 수 있습니다.", zh: "系统需要从 TMDB {link} 获取必要信息，因此您需要注册 TMDB、获取 API 密钥，并从“TMDB和Telegram”选项中输入 API 密钥。注册 TMDB 后，您可以从 {api_link} 获取您的 API 密钥。" },
   test_sent: { tr: "Test mesajı gönderildi", en: "Test message sent", de: "Testnachricht gesendet", fr: "Message test envoyé", es: "Mensaje de prueba enviado", it: "Messaggio di prova inviato", ru: "Тестовое сообщение отправлено", ar: "تم إرسال رسالة الاختبار", pt: "Mensagem de teste enviada", nl: "Testbericht verzonden", pl: "Wysłano wiadomość testową", ja: "テストメッセージを送信しました", ko: "테스트 메시지를 보냈습니다", zh: "测试消息已发送" },
   runtime_hm: { tr: "{h} sa {m} dk", en: "{h}h {m}m", de: "{h} Std. {m} Min.", fr: "{h} h {m} min", es: "{h} h {m} min", it: "{h} h {m} min", ru: "{h} ч {m} мин", ar: "{h} س {m} د", pt: "{h} h {m} min", nl: "{h} u {m} min", pl: "{h} godz. {m} min", ja: "{h}時間{m}分", ko: "{h}시간 {m}분", zh: "{h}小时{m}分" },
   runtime_h: { tr: "{h} sa", en: "{h}h", de: "{h} Std.", fr: "{h} h", es: "{h} h", it: "{h} h", ru: "{h} ч", ar: "{h} س", pt: "{h} h", nl: "{h} u", pl: "{h} godz.", ja: "{h}時間", ko: "{h}시간", zh: "{h}小时" },
@@ -187,6 +195,20 @@ function errText(err) {
   return key ? t(key) : err;
 }
 
+let tmdbKeySet = false;
+function checkTmdbKey(hasKey) {
+  tmdbKeySet = !!hasKey;
+  const banner = document.getElementById("tmdb-key-banner");
+  if (!banner) return;
+  if (tmdbKeySet) {
+    banner.style.display = "none";
+    return;
+  }
+  const msg = document.getElementById("tmdb-key-msg");
+  if (msg) msg.innerHTML = t("tmdb_key_needed", { link: '<a href="https://www.themoviedb.org" target="_blank" rel="noopener">https://www.themoviedb.org</a>', api_link: '<a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">https://www.themoviedb.org/settings/api</a>' });
+  banner.style.display = "flex";
+}
+
 function applyLang(lang) {
   currentLang = lang || "tr";
   document.documentElement.lang = currentLang;
@@ -199,6 +221,7 @@ function applyLang(lang) {
     el.setAttribute("data-tip", t(el.dataset.i18nTitle));
   });
   document.title = t("app_title");
+  checkTmdbKey(tmdbKeySet);
   if (views.followed.classList.contains("active")) loadFollowed();
 }
 
@@ -1794,7 +1817,135 @@ function renderTzList(query) {
     el.onclick = () => {
       document.getElementById("s-tz").value = el.dataset.tz;
       list.style.display = "none";
+      document.getElementById("s-tz").dispatchEvent(new Event("change"));
     };
+  });
+}
+
+function initTimePicker() {
+  const input = document.getElementById("s-hour");
+  const list = document.getElementById("s-time-list");
+  const hourBody = document.getElementById("s-hour-list");
+  const minuteBody = document.getElementById("s-minute-list");
+  let open = false;
+  let lastHourValue = input.value || "09:00";
+
+  function pad(n) {
+    return String(n).padStart(2, "0");
+  }
+
+  function render() {
+    const cur = input.value || "09:00";
+    const parts = cur.split(":");
+    let h = parseInt(parts[0], 10);
+    let m = parseInt(parts[1], 10);
+    if (isNaN(h) || h < 0 || h > 23) h = 9;
+    if (isNaN(m) || m < 0 || m > 59) m = 0;
+
+    hourBody.innerHTML = "";
+    for (let i = 0; i < 24; i++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "time-cell" + (i === h ? " selected" : "");
+      const span = document.createElement("span");
+      span.className = "time-num";
+      span.textContent = pad(i);
+      btn.appendChild(span);
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        pickHour(i);
+      };
+      hourBody.appendChild(btn);
+    }
+    minuteBody.innerHTML = "";
+    for (let i = 0; i < 60; i++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "time-cell" + (i === m ? " selected" : "");
+      const span = document.createElement("span");
+      span.className = "time-num";
+      span.textContent = pad(i);
+      btn.appendChild(span);
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        pickMinute(i);
+      };
+      minuteBody.appendChild(btn);
+    }
+    const sh = hourBody.children[h];
+    if (sh) sh.scrollIntoView({ block: "center" });
+    const sm = minuteBody.children[m];
+    if (sm) sm.scrollIntoView({ block: "center" });
+  }
+
+  let picks = 0;
+
+  function applyPick(val) {
+    input.value = val;
+    lastHourValue = val;
+    picks++;
+    if (picks >= 2) {
+      list.style.display = "none";
+      open = false;
+      input.dispatchEvent(new Event("change"));
+    } else {
+      render();
+    }
+  }
+
+  function pickHour(i) {
+    const parts = input.value.split(":");
+    let m = parseInt(parts[1], 10);
+    if (isNaN(m) || m < 0 || m > 59) m = 0;
+    applyPick(pad(i) + ":" + pad(m));
+  }
+
+  function pickMinute(i) {
+    const parts = input.value.split(":");
+    let h = parseInt(parts[0], 10);
+    if (isNaN(h) || h < 0 || h > 23) h = 9;
+    applyPick(pad(h) + ":" + pad(i));
+  }
+
+  function toggle() {
+    if (!open) {
+      picks = 0;
+      render();
+      list.style.display = "flex";
+      open = true;
+      list.scrollIntoView({ block: "nearest" });
+    } else {
+      list.style.display = "none";
+      open = false;
+    }
+  }
+
+  document.querySelector(".time-clock").addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggle();
+  });
+  input.addEventListener("blur", () => {
+    const v = input.value.trim();
+    const m = v.match(/^(\d{1,2}):(\d{1,2})$/);
+    if (m) {
+      const h = parseInt(m[1], 10);
+      const mn = parseInt(m[2], 10);
+      if (h >= 0 && h <= 23 && mn >= 0 && mn <= 59) {
+        const norm = pad(h) + ":" + pad(mn);
+        if (norm !== input.value) input.value = norm;
+        lastHourValue = norm;
+      } else {
+        input.value = lastHourValue;
+      }
+    } else {
+      input.value = lastHourValue;
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".time-combobox")) {
+      list.style.display = "none";
+      open = false;
+    }
   });
 }
 
@@ -1809,6 +1960,7 @@ function initTzCombo() {
       if (first) {
         input.value = first.dataset.tz;
         list.style.display = "none";
+        input.dispatchEvent(new Event("change"));
         e.preventDefault();
       }
     }
@@ -1828,12 +1980,14 @@ async function loadSettings() {
   document.getElementById("s-ntfy").value = s.ntfy_topic || "";
   await loadTimezones();
   initTzCombo();
+  initTimePicker();
   currentTz = s.timezone || "Europe/Istanbul";
   document.getElementById("s-tz").value = currentTz;
   document.getElementById("s-lang").value = s.language || "tr-TR";
   document.getElementById("s-telegram-enabled").checked = (s.telegram_enabled || "1") !== "0";
   document.getElementById("s-ntfy-enabled").checked = (s.ntfy_enabled || "1") !== "0";
   applyLang((s.language || "tr-TR").split("-")[0]);
+  updateNotifyToggleStates();
 }
 
 function showMsg(text, ok) {
@@ -1847,16 +2001,54 @@ function closeSettingsMenu() {
 
 let settingsLoaded = false;
 
-function showSettingsSubmodal(id) {
+function updateNotifyToggleStates() {
+  const token = (document.getElementById("s-token").value || "").trim();
+  const chat = (document.getElementById("s-chat").value || "").trim();
+  const ntfy = (document.getElementById("s-ntfy").value || "").trim();
+  const tg = document.getElementById("s-telegram-enabled");
+  const nf = document.getElementById("s-ntfy-enabled");
+  const tgWrap = tg.closest(".switch");
+  const nfWrap = nf.closest(".switch");
+  if (!(token && chat)) {
+    if (tg.checked) {
+      tg.checked = false;
+      saveSettingsPartial({ telegram_enabled: "0" });
+    }
+    tg.disabled = true;
+    const tip = !token && !chat ? t("need_bot_chat") : token ? t("need_chat_id") : t("need_bot_token");
+    tgWrap.setAttribute("data-tip", tip);
+  } else {
+    tg.disabled = false;
+    tgWrap.removeAttribute("data-tip");
+  }
+  if (!ntfy) {
+    if (nf.checked) {
+      nf.checked = false;
+      saveSettingsPartial({ ntfy_enabled: "0" });
+    }
+    nf.disabled = true;
+    nfWrap.setAttribute("data-tip", t("need_ntfy_topic"));
+  } else {
+    nf.disabled = false;
+    nfWrap.removeAttribute("data-tip");
+  }
+}
+
+async function showSettingsSubmodal(id) {
   if (!settingsLoaded) {
     settingsLoaded = true;
-    loadSettings();
+    try {
+      await loadSettings();
+    } catch (e) {
+      console.error(e);
+    }
   }
   document.querySelectorAll(".settings-modal-overlay").forEach((el) => {
     el.style.display = el.id === id ? "flex" : "none";
   });
   if (id === "settings-favactors-modal") renderFavActorsList();
   if (id === "settings-favgenres-modal") renderFavGenresList();
+  if (id === "settings-notify-modal") updateNotifyToggleStates();
   closeSettingsMenu();
 }
 
@@ -1959,34 +2151,76 @@ document.querySelectorAll(".settings-modal-overlay").forEach((ov) => {
   });
 });
 
-async function saveSettings() {
-  const body = {
-    tmdb_api_key: document.getElementById("s-tmdb").value.trim(),
-    telegram_bot_token: document.getElementById("s-token").value.trim(),
-    telegram_chat_id: document.getElementById("s-chat").value.trim(),
-    notify_hour: document.getElementById("s-hour").value,
-    timezone: document.getElementById("s-tz").value,
-    language: document.getElementById("s-lang").value,
-    ntfy_topic: document.getElementById("s-ntfy").value.trim(),
-    telegram_enabled: document.getElementById("s-telegram-enabled").checked ? "1" : "0",
-    ntfy_enabled: document.getElementById("s-ntfy-enabled").checked ? "1" : "0",
-  };
-  const r = await fetch("/api/settings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (r.ok) {
-    currentTz = body.timezone || currentTz;
-    applyLang((body.language || "tr-TR").split("-")[0]);
-    showMsg(t("saved_ok"), true);
-  } else {
-    showMsg(t("save_failed"), false);
+function showSavedHint(el) {
+  if (!el) return;
+  clearTimeout(el._savedTimer);
+  el.classList.add("show");
+  el._savedTimer = setTimeout(() => el.classList.remove("show"), 2000);
+}
+
+async function saveSettingsPartial(patch, hintEl) {
+  try {
+    const r = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (r.ok) {
+      showSavedHint(hintEl);
+      if ("tmdb_api_key" in patch) checkTmdbKey(patch.tmdb_api_key);
+      return true;
+    }
+    toast(t("save_failed"), true);
+    return false;
+  } catch (e) {
+    toast(t("save_failed"), true);
+    return false;
   }
 }
 
-document.getElementById("save-settings").onclick = saveSettings;
-document.getElementById("save-notify").onclick = saveSettings;
+function bindAutoSave(id, key, transform) {
+  const el = document.getElementById(id);
+  const hint = el.closest("label").querySelector(".saved-hint");
+  el.addEventListener("blur", () => {
+    const patch = {};
+    patch[key] = transform ? transform(el.value) : el.value;
+    saveSettingsPartial(patch, hint);
+  });
+}
+
+bindAutoSave("s-tmdb", "tmdb_api_key", (v) => v.trim());
+bindAutoSave("s-token", "telegram_bot_token", (v) => v.trim());
+bindAutoSave("s-chat", "telegram_chat_id", (v) => v.trim());
+bindAutoSave("s-ntfy", "ntfy_topic", (v) => v.trim());
+
+document.getElementById("s-lang").addEventListener("change", () => {
+  const el = document.getElementById("s-lang");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ language: el.value }, hint).then((ok) => {
+    if (ok) applyLang(el.value.split("-")[0]);
+  });
+});
+
+document.getElementById("s-tz").addEventListener("change", () => {
+  const el = document.getElementById("s-tz");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ timezone: el.value }, hint).then((ok) => {
+    if (ok) currentTz = el.value;
+  });
+});
+
+document.getElementById("s-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ notify_hour: el.value }, hint);
+});
+
+document.getElementById("s-telegram-enabled").addEventListener("change", (e) => {
+  saveSettingsPartial({ telegram_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+});
+document.getElementById("s-ntfy-enabled").addEventListener("change", (e) => {
+  saveSettingsPartial({ ntfy_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+});
 
 document.getElementById("test-settings").onclick = async () => {
   const body = {
@@ -2014,10 +2248,12 @@ let lastView = "followed";
   try {
     const res = await fetch("/api/settings");
     const s = await res.json();
+    tmdbKeySet = !!s.tmdb_api_key;
     if (s.language) {
       currentTz = s.timezone || currentTz;
       applyLang(s.language.split("-")[0]);
     }
+    checkTmdbKey(tmdbKeySet);
   } catch (e) {
     /* varsayılan dil */
   }
@@ -2091,6 +2327,23 @@ function showTip(text, x, y) {
 function hideTip() {
   if (tipEl) tipEl.classList.remove("show");
 }
+
+const tmdbClose = document.getElementById("tmdb-key-close");
+if (tmdbClose) {
+  tmdbClose.addEventListener("click", () => {
+    const b = document.getElementById("tmdb-key-banner");
+    if (b) b.style.display = "none";
+  });
+}
+
+document.addEventListener("click", (e) => {
+  const sw = e.target.closest(".switch[data-tip]");
+  if (sw) {
+    const r = sw.getBoundingClientRect();
+    showTip(sw.dataset.tip, r.left + r.width / 2, r.top - 6);
+    setTimeout(hideTip, 2500);
+  }
+});
 
 document.addEventListener("mouseover", (e) => {
   const el = e.target.closest("[data-tip]");

@@ -550,7 +550,7 @@ input:-webkit-autofill:focus {
 }
 
 .search-action-btn:hover {
-  background: #262a36;
+  background: transparent;
   border-color: #f97316;
   color: #fff;
 }
@@ -794,13 +794,17 @@ input:-webkit-autofill:focus {
 
 .settings-menu-item:hover {
   background: #262a36;
-  color: #fff;
+  color: #f97316;
 }
 
 .settings-menu-item i {
   width: 16px;
   text-align: center;
   font-size: 0.85rem;
+}
+
+.settings-menu-item:hover i {
+  color: #f97316;
 }
 
 .settings-modal {
@@ -912,9 +916,17 @@ input:-webkit-autofill:focus {
 
 .notify-row {
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 4px;
+  max-width: 250px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 12px 8px;
+}
+
+.notify-row + .notify-row {
+  margin-top: 4px;
 }
 
 .notify-name {
@@ -983,6 +995,56 @@ input:-webkit-autofill:focus {
 
 .switch input:checked + .slider:before {
   transform: translateX(22px);
+}
+
+.switch input:disabled + .slider {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tmdb-key-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 720px;
+  margin: 12px auto 0;
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.55);
+  border-radius: 10px;
+  color: #fecaca;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.tmdb-key-banner i {
+  color: #ef4444;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.tmdb-key-banner a {
+  color: #fca5a5;
+  text-decoration: underline;
+}
+
+.tmdb-key-banner a:hover {
+  color: #fff;
+  background: rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.tmdb-key-close {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  color: #fca5a5;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
 }
 
 .settings-form label {
@@ -1070,6 +1132,159 @@ input:-webkit-autofill:focus {
 
 .settings-form input[type="time"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
+}
+
+.time-combobox {
+  position: relative;
+}
+
+.time-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  bottom: auto;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: #171a23;
+  border: 1px solid #2a2f3d;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  max-height: 260px;
+}
+
+.time-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.time-col-title {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #f97316;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #262a36;
+  margin-bottom: 4px;
+}
+
+.time-col-body {
+  overflow-y: auto;
+  max-height: 210px;
+}
+
+.time-cell {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: #ddd;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.time-cell:hover {
+  background: #262a36;
+  color: #fff;
+}
+
+.time-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 0;
+  color: inherit;
+}
+
+.time-cell:hover .time-num {
+  background: #262a36;
+}
+
+.time-cell.selected .time-num {
+  background: #f97316;
+  color: #fff;
+  font-weight: 600;
+}
+
+.settings-label-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.saved-hint {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #2e7d32;
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.saved-hint.show {
+  opacity: 1;
+}
+
+.notify-saved {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #2e7d32;
+  opacity: 0;
+  transition: opacity 0.2s;
+  margin-top: 14px;
+}
+
+.notify-saved.show {
+  opacity: 1;
+}
+
+.settings-modal .settings-form .time-combobox input {
+  width: 100%;
+  padding-right: 40px;
+  cursor: text;
+}
+
+.time-clock {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.time-col-body,
+.time-list {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.time-col-body::-webkit-scrollbar,
+.time-list::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-modal .modal-body {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.settings-modal .modal-body::-webkit-scrollbar {
+  display: none;
 }
 
 .settings-actions {
@@ -2063,10 +2278,12 @@ input:-webkit-autofill:focus {
 
   .settings-actions {
     flex-direction: column;
+    align-items: center;
   }
 
   .settings-actions .btn {
-    width: 100%;
+    width: auto;
+    min-width: 160px;
   }
 
   .settings-card {
@@ -2093,6 +2310,43 @@ input:-webkit-autofill:focus {
 
   .search-card {
     padding: 18px 14px;
+  }
+
+  .settings-modal .settings-form input,
+  .settings-modal .settings-form select {
+    width: 100%;
+    box-sizing: border-box;
+    height: 33px;
+    padding: 0 16px;
+    border-radius: 10px;
+    font-size: 1rem;
+    color-scheme: dark;
+  }
+
+  .settings-modal .settings-form select {
+    padding-right: 30px;
+  }
+
+  .settings-modal .settings-form select#s-lang {
+    padding: 0 30px 0 16px;
+  }
+
+  .settings-modal .settings-actions .btn {
+    min-height: 33px;
+    padding: 0 22px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .settings-modal .settings-actions .btn.primary {
+    background: #f97316;
+    border: 1px solid #f97316;
+  }
+
+  .settings-modal .settings-actions .btn:not(.primary) {
+    background: transparent;
+    border: 1px solid #2a2f3d;
   }
 }
 
@@ -2177,6 +2431,26 @@ input:-webkit-autofill:focus {
     max-height: 90vh;
   }
 
+  .settings-modal-overlay {
+    padding: 14px;
+  }
+
+  .modal-overlay .settings-modal {
+    width: 100%;
+    max-width: none;
+    max-height: 90vh;
+    height: auto;
+    border-radius: 14px;
+    border: 1px solid #262a36;
+    padding: 0;
+  }
+
+  .settings-modal .modal-header h3 {
+    font-weight: 600;
+    color: #f97316;
+    font-size: 1.05rem;
+  }
+
   .modal-header {
     padding: 14px 16px;
   }
@@ -2197,6 +2471,10 @@ input:-webkit-autofill:focus {
 
   .modal-body {
     padding: 12px 12px;
+  }
+
+  .settings-modal .modal-body {
+    padding: 12px 12px 25px;
   }
 
   .releases-table {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Takip Listesi</title>
-  <link rel="stylesheet" href="/static/style.css?v=220" />
+  <link rel="stylesheet" href="/static/style.css?v=249" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -43,6 +43,11 @@
   </nav>
 
   <main>
+    <div id="tmdb-key-banner" class="tmdb-key-banner" style="display:none">
+      <i class="fa-solid fa-triangle-exclamation"></i>
+      <span id="tmdb-key-msg"></span>
+      <button id="tmdb-key-close" class="tmdb-key-close" data-i18n-title="close">&times;</button>
+    </div>
     <!-- Followed view -->
     <section id="view-followed" class="view active">
       <div id="poster-grid" class="poster-grid"></div>
@@ -123,7 +128,7 @@
         <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div class="modal-body settings-form">
-        <label><span data-i18n="label_lang">Uygulama Dili / TMDB Dili</span>
+        <label><span class="settings-label-head"><span data-i18n="label_lang">Uygulama Dili / TMDB Dili</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
           <select id="s-lang">
             <option value="tr-TR">Türkçe</option>
             <option value="en-US">English</option>
@@ -141,7 +146,7 @@
             <option value="zh-CN">中文</option>
           </select>
         </label>
-        <label><span data-i18n="label_tz">Zaman Dilimi</span>
+        <label><span class="settings-label-head"><span data-i18n="label_tz">Zaman Dilimi</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
           <div class="tz-combobox">
             <input id="s-tz" type="text" placeholder="Yazın ve seçin..." autocomplete="off" data-i18n="tz_placeholder" />
             <div id="s-tz-list" class="tz-list" style="display:none"></div>
@@ -158,24 +163,36 @@
         <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div class="modal-body settings-form">
-        <label><span data-i18n="label_tmdb">TMDB API Key</span>
+        <label><span class="settings-label-head"><span data-i18n="label_tmdb">TMDB API Key</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
           <input id="s-tmdb" type="text" placeholder="tmdb_api_key" />
         </label>
-        <label><span data-i18n="label_token">Telegram Bot Token</span>
+        <label><span class="settings-label-head"><span data-i18n="label_token">Telegram Bot Token</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
           <input id="s-token" type="text" placeholder="123456:ABC-DEF..." />
         </label>
-        <label><span data-i18n="label_chat">Telegram Chat ID</span>
+        <label><span class="settings-label-head"><span data-i18n="label_chat">Telegram Chat ID</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
           <input id="s-chat" type="text" placeholder="-100123456789" />
         </label>
-        <label><span data-i18n="label_ntfy">ntfy Konu</span>
+        <label><span class="settings-label-head"><span data-i18n="label_ntfy">ntfy Konu</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
           <input id="s-ntfy" type="text" placeholder="konu-adi" data-i18n="ntfy_placeholder" />
         </label>
-        <label><span data-i18n="label_hour">Bildirim Saati (günlük)</span>
-          <input id="s-hour" type="time" value="09:00" />
+        <label><span class="settings-label-head"><span data-i18n="label_hour">Bildirim Saati (günlük)</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+          <div class="time-combobox">
+            <input id="s-hour" type="text" value="09:00" />
+            <i class="fa-solid fa-clock time-clock"></i>
+            <div id="s-time-list" class="time-list" style="display:none">
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_hour">Saat</div>
+                <div class="time-col-body" id="s-hour-list"></div>
+              </div>
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_minute">Dakika</div>
+                <div class="time-col-body" id="s-minute-list"></div>
+              </div>
+            </div>
+          </div>
         </label>
         <div class="settings-actions">
-          <button id="save-settings" class="btn primary"><span data-i18n="save">Kaydet</span></button>
-          <button id="test-settings" class="btn"><i class="fa-solid fa-paper-plane"></i> <span data-i18n="test_message">Test Mesajı Gönder</span></button>
+          <button id="test-settings" class="btn"><span data-i18n="test_message">Test Mesajı Gönder</span></button>
         </div>
         <div id="settings-msg" class="msg"></div>
       </div>
@@ -221,9 +238,7 @@
           <span class="notify-name"><i class="fa-solid fa-bell notify-ico-ntfy"></i> ntfy</span>
           <label class="switch"><input type="checkbox" id="s-ntfy-enabled" checked /><span class="slider"></span></label>
         </div>
-        <div class="settings-actions">
-          <button id="save-notify" class="btn primary"><span data-i18n="save">Kaydet</span></button>
-        </div>
+        <div id="notify-saved-hint" class="notify-saved" data-i18n="saved">Kaydedildi</div>
       </div>
     </div>
   </div>
@@ -319,6 +334,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=121"></script>
+  <script src="/static/app.js?v=134"></script>
 </body>
 </html>
