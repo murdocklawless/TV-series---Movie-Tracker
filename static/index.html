@@ -4,12 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Takip Listesi</title>
-  <link rel="stylesheet" href="/static/style.css?v=249" />
+  <link rel="stylesheet" href="/static/style.css?v=303" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
   <nav>
     <div class="logo">
+      <img class="logo-img" src="/static/logo.png" alt="Logo" />
       <div>
         <div class="logo-title" data-i18n="logo_title">Dizi · Film · Anime Takip</div>
         <div class="logo-sub">Powered by DeepSeek V4</div>
@@ -18,6 +19,7 @@
     <div class="tabs">
       <button id="tab-followed" class="tab active" data-i18n="tab_followed">Dizi &amp; Film</button>
       <button id="tab-anime" class="tab" data-i18n="tab_anime">Anime</button>
+      <button id="tab-unwatched" class="tab" data-i18n="tab_unwatched">İzlenmemiş</button>
       <button id="tab-search" class="tab"><i class="fa-solid fa-magnifying-glass"></i> <span data-i18n="tab_search">Ara &amp; Ekle</span></button>
       <div class="sort-wrap">
         <button id="tab-sort" class="tab" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
@@ -34,9 +36,10 @@
         <div id="settings-menu" class="settings-menu">
           <button class="settings-menu-item" data-target="settings-lang-modal"><i class="fa-solid fa-globe"></i><span data-i18n="settings_lang">Dil ve Zaman</span></button>
           <button class="settings-menu-item" data-target="settings-tmdb-modal"><i class="fa-solid fa-key"></i><span data-i18n="settings_tmdb">TMDB ve Telegram</span></button>
-          <button class="settings-menu-item" data-target="settings-favactors-modal"><i class="fa-solid fa-heart"></i><span data-i18n="settings_favactors">Favori Oyuncular</span></button>
-          <button class="settings-menu-item" data-target="settings-favgenres-modal"><i class="fa-solid fa-star"></i><span data-i18n="settings_favgenres">Favori Türler</span></button>
-          <button class="settings-menu-item" data-target="settings-notify-modal"><i class="fa-solid fa-bell"></i><span data-i18n="settings_notify">Bildirim Ayarları</span></button>
+          <button class="settings-menu-item tmdb-locked" data-target="settings-favactors-modal"><i class="fa-solid fa-heart"></i><span data-i18n="settings_favactors">Favori Oyuncular</span></button>
+          <button class="settings-menu-item tmdb-locked" data-target="settings-favgenres-modal"><i class="fa-solid fa-star"></i><span data-i18n="settings_favgenres">Favori Türler</span></button>
+          <button class="settings-menu-item tmdb-locked" data-target="settings-notify-modal"><i class="fa-solid fa-bell"></i><span data-i18n="settings_notify">Bildirim Ayarları</span></button>
+          <button class="settings-menu-item tmdb-locked" data-target="settings-update-modal"><i class="fa-solid fa-rotate"></i><span data-i18n="settings_update">Güncelleme</span></button>
         </div>
       </div>
     </div>
@@ -63,6 +66,21 @@
       <div id="empty-anime" class="empty">
         <p data-i18n="anime_empty_1">Henüz takip ettiğiniz anime yok.</p>
         <p data-i18n="anime_empty_2">Ara &amp; Ekle sekmesinden Anime seçerek ekleyin.</p>
+      </div>
+    </section>
+
+    <!-- Unwatched view -->
+    <section id="view-unwatched" class="view">
+      <div id="unwatched-shows-wrap">
+        <h2 class="unwatched-section-title" data-i18n="unwatched_shows">İzlenmemiş Diziler</h2>
+        <div id="unwatched-shows" class="poster-grid"></div>
+      </div>
+      <div id="unwatched-anime-wrap">
+        <h2 class="unwatched-section-title" data-i18n="unwatched_anime">İzlenmemiş Animeler</h2>
+        <div id="unwatched-anime" class="poster-grid"></div>
+      </div>
+      <div id="empty-unwatched" class="empty">
+        <p data-i18n="empty_unwatched">İzlenmemiş bölüm yok.</p>
       </div>
     </section>
 
@@ -243,6 +261,67 @@
     </div>
   </div>
 
+  <!-- Update settings modal -->
+      <div id="settings-update-modal" class="modal-overlay settings-modal-overlay" style="display:none">
+    <div class="modal settings-modal">
+      <div class="modal-header">
+        <h3 data-i18n="settings_update">Güncelleme</h3>
+        <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div class="modal-body settings-form">
+        <label><span class="settings-label-head"><span data-i18n="label_sync_hour">Bölüm Güncelleme Saati</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+          <div class="time-combobox">
+            <input id="s-sync-hour" type="text" value="09:00" />
+            <i class="fa-solid fa-clock time-clock"></i>
+            <div id="s-sync-time-list" class="time-list" style="display:none">
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_hour">Saat</div>
+                <div class="time-col-body" id="s-sync-hour-list"></div>
+              </div>
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_minute">Dakika</div>
+                <div class="time-col-body" id="s-sync-minute-list"></div>
+              </div>
+            </div>
+          </div>
+        </label>
+        <label><span class="settings-label-head"><span data-i18n="label_genre_hour">Tür Güncelleme Saati</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+          <div class="time-combobox">
+            <input id="s-genre-hour" type="text" value="05:00" />
+            <i class="fa-solid fa-clock time-clock"></i>
+            <div id="s-genre-time-list" class="time-list" style="display:none">
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_hour">Saat</div>
+                <div class="time-col-body" id="s-genre-hour-list"></div>
+              </div>
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_minute">Dakika</div>
+                <div class="time-col-body" id="s-genre-minute-list"></div>
+              </div>
+            </div>
+          </div>
+        </label>
+        <label><span class="settings-label-head"><span data-i18n="label_data_hour">Veri Güncelleme Saati</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+          <div class="time-combobox">
+            <input id="s-data-hour" type="text" value="05:10" />
+            <i class="fa-solid fa-clock time-clock"></i>
+            <div id="s-data-time-list" class="time-list" style="display:none">
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_hour">Saat</div>
+                <div class="time-col-body" id="s-data-hour-list"></div>
+              </div>
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_minute">Dakika</div>
+                <div class="time-col-body" id="s-data-minute-list"></div>
+              </div>
+            </div>
+          </div>
+        </label>
+        <div id="update-saved-hint" class="notify-saved" data-i18n="saved">Kaydedildi</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Releases modal -->
   <div id="releases-modal" class="modal-overlay" style="display:none">
     <div class="modal">
@@ -328,12 +407,22 @@
         <input id="value-input" type="text" />
       </div>
       <div class="modal-footer">
-        <button id="value-cancel" class="btn"><span data-i18n="cancel">İptal</span></button>
         <button id="value-go" class="btn primary"><span data-i18n="picker_add">Ekle</span></button>
       </div>
     </div>
   </div>
 
-  <script src="/static/app.js?v=134"></script>
+  <!-- Unwatched episodes modal -->
+  <div id="unwatched-modal" class="modal-overlay" style="display:none">
+    <div class="modal unwatched-modal">
+      <div class="modal-header">
+        <h3 id="unwatched-title"></h3>
+        <button id="unwatched-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
+      </div>
+      <div id="unwatched-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=305"></script>
 </body>
 </html>

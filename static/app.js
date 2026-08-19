@@ -2,6 +2,26 @@ const IMAGE_BASE = "https://image.tmdb.org/t/p/w500";
 
 let favGenres = new Set();
 let favActors = new Map();
+let favAnimeChars = new Map();
+let favAnimeGenres = new Set();
+
+let tmdbGenresCache = null;
+let anilistGenresCache = null;
+
+async function loadGenres(source) {
+  if (source === "tmdb" && tmdbGenresCache) return tmdbGenresCache;
+  if (source === "anilist" && anilistGenresCache) return anilistGenresCache;
+  try {
+    const r = await fetch(`/api/genres?source=${source}`);
+    const j = await r.json();
+    const genres = j.genres || [];
+    if (source === "tmdb") tmdbGenresCache = genres;
+    else anilistGenresCache = genres;
+    return genres;
+  } catch (e) {
+    return [];
+  }
+}
 
 const HEART_SVG = `
   <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
@@ -23,6 +43,14 @@ const I18N = {
   tab_followed: { tr: "Dizi & Film", en: "Shows & Movies", de: "Serien & Filme", fr: "Séries & Films", es: "Series y Películas", it: "Serie e Film", ru: "Сериалы и фильмы", ar: "مسلسلات وأفلام", pt: "Séries e Filmes", nl: "Series en Films", pl: "Seriale i filmy", ja: "アニメと映画", ko: "시리즈 및 영화", zh: "剧集和电影" },
   tab_search: { tr: "Ara & Ekle", en: "Search & Add", de: "Suchen & Hinzufügen", fr: "Rechercher & Ajouter", es: "Buscar & Añadir", it: "Cerca & Aggiungi", ru: "Поиск и добавление", ar: "بحث وإضافة", pt: "Pesquisar & Adicionar", nl: "Zoeken & Toevoegen", pl: "Szukaj i dodaj", ja: "検索と追加", ko: "검색 및 추가", zh: "搜索和添加" },
   tab_anime: { tr: "Anime", en: "Anime", de: "Anime", fr: "Anime", es: "Anime", it: "Anime", ru: "Аниме", ar: "أنمي", pt: "Anime", nl: "Anime", pl: "Anime", ja: "アニメ", ko: "애니메", zh: "动漫" },
+  tab_unwatched: { tr: "İzlenmemiş", en: "Unwatched", de: "Ungesehen", fr: "Non vus", es: "Sin ver", it: "Non visti", ru: "Непросмотренное", ar: "غير مشاهد", pt: "Não assistidos", nl: "Ongezien", pl: "Nieobejrzane", ja: "未視聴", ko: "안 본 것", zh: "未看" },
+  unwatched_shows: { tr: "İzlenmemiş Diziler", en: "Unwatched Shows", de: "Ungesehene Serien", fr: "Séries non vues", es: "Series sin ver", it: "Serie non viste", ru: "Непросмотренные сериалы", ar: "مسلسلات غير مشاهد", pt: "Séries não assistidas", nl: "Ongeziene series", pl: "Nieobejrzane seriale", ja: "未視聴のアニメ", ko: "안 본 시리즈", zh: "未看剧集" },
+  unwatched_anime: { tr: "İzlenmemiş Animeler", en: "Unwatched Anime", de: "Ungesehene Animes", fr: "Animes non vus", es: "Animes sin ver", it: "Anime non visti", ru: "Непросмотренное аниме", ar: "أنمي غير مشاهد", pt: "Animes não assistidos", nl: "Ongeziene anime", pl: "Nieobejrzane anime", ja: "未視聴のアニメ", ko: "안 본 애니메", zh: "未看动漫" },
+  unwatched_count: { tr: "İzlenmeyen {n} Bölüm var", en: "{n} unwatched episodes", de: "{n} ungesehene Folgen", fr: "{n} épisodes non vus", es: "{n} episodios sin ver", it: "{n} episodi non visti", ru: "{n} непросмотренных серий", ar: "{n} حلقة غير مشاهدة", pt: "{n} episódios não assistidos", nl: "{n} ongeziene afleveringen", pl: "{n} nieobejrzanych odcinków", ja: "未視聴{n}話", ko: "안 본 {n}개 에피소드", zh: "{n}集未看" },
+  unwatched_title: { tr: "İzlenmemiş Bölümler", en: "Unwatched Episodes", de: "Ungesehene Folgen", fr: "Épisodes non vus", es: "Episodios sin ver", it: "Episodi non visti", ru: "Непросмотренные серии", ar: "حلقات غير مشاهدة", pt: "Episódios não assistidos", nl: "Ongeziene afleveringen", pl: "Nieobejrzane odcinki", ja: "未視聴エピソード", ko: "안 본 에피소드", zh: "未看剧集" },
+  empty_unwatched: { tr: "İzlenmemiş bölüm yok.", en: "No unwatched episodes.", de: "Keine ungesehenen Folgen.", fr: "Aucun épisode non vu.", es: "No hay episodios sin ver.", it: "Nessun episodio non visto.", ru: "Нет непросмотренных серий.", ar: "لا توجد حلقات غير مشاهدة.", pt: "Nenhum episódio não assistido.", nl: "Geen ongeziene afleveringen.", pl: "Brak nieobejrzanych odcinków.", ja: "未視聴のエピソードはありません。", ko: "안 본 에피소드가 없습니다.", zh: "没有未看的剧集。" },
+  unwatched_tooltip: { tr: "{ep} izlenmedi", en: "{ep} not watched", de: "{ep} nicht gesehen", fr: "{ep} non vu", es: "{ep} no visto", it: "{ep} non visto", ru: "{ep} не просмотрено", ar: "{ep} غير مشاهد", pt: "{ep} não assistido", nl: "{ep} niet bekeken", pl: "{ep} nie obejrzano", ja: "{ep}は未視聴", ko: "{ep} 안 봄", zh: "{ep}未看" },
+  watch_done: { tr: "İzlendi", en: "Watched", de: "Gesehen", fr: "Vu", es: "Visto", it: "Visto", ru: "Просмотрено", ar: "تمت المشاهدة", pt: "Assistido", nl: "Bekeken", pl: "Obejrzano", ja: "視聴済み", ko: "봤음", zh: "已看" },
   anime_placeholder: { tr: "Anime ara...", en: "Search anime...", de: "Anime suchen...", fr: "Rechercher un anime...", es: "Buscar anime...", it: "Cerca anime...", ru: "Поиск аниме...", ar: "ابحث عن أنمي...", pt: "Pesquisar anime...", nl: "Anime zoeken...", pl: "Szukaj anime...", ja: "アニメを検索...", ko: "애니메 검색...", zh: "搜索动漫..." },
   anime_empty_1: { tr: "Henüz takip ettiğiniz anime yok.", en: "No anime in your list yet.", de: "Noch kein Anime in Ihrer Liste.", fr: "Aucun anime dans votre liste pour l'instant.", es: "Aún no hay anime en tu lista.", it: "Non c'è ancora nessun anime nella tua lista.", ru: "В вашем списке пока нет аниме.", ar: "لا يوجد أنمي في قائمتك بعد.", pt: "Nenhum anime na sua lista ainda.", nl: "Nog geen anime in uw lijst.", pl: "Na razie nie masz anime na liście.", ja: "リストにはまだアニメがありません。", ko: "목록에 아직 애니메가 없습니다.", zh: "列表中还没有动漫。" },
   anime_empty_2: { tr: "Yayınlanmasını istediğiniz animeleri arayın ve ekleyin.", en: "Search and add the anime you want to track.", de: "Suchen Sie das Anime, das Sie verfolgen möchten.", fr: "Recherchez et ajoutez l'anime que vous voulez suivre.", es: "Busca y añade el anime que quieras seguir.", it: "Cerca e aggiungi l'anime che vuoi seguire.", ru: "Найдите и добавьте аниме, за которым хотите следить.", ar: "ابحث وأضف الأنمي الذي تريد متابعته.", pt: "Pesquise e adicione o anime que deseja acompanhar.", nl: "Zoek en voeg de anime toe die u wilt volgen.", pl: "Znajdź i dodaj anime, które chcesz śledzić.", ja: "追跡したいアニメを検索して追加してください。", ko: "추적하고 싶은 애니메를 검색해 추가하세요.", zh: "搜索并添加您想关注的动漫。" },
@@ -41,7 +69,10 @@ const I18N = {
   search_type_anime: { tr: "Anime", en: "Anime", de: "Anime", fr: "Anime", es: "Anime", it: "Anime", ru: "Аниме", ar: "أنمي", pt: "Anime", nl: "Anime", pl: "Anime", ja: "アニメ", ko: "애니메", zh: "动漫" },
   search_type_actor: { tr: "Oyuncu", en: "Actor", de: "Schauspieler", fr: "Acteur", es: "Actor", it: "Attore", ru: "Актёр", ar: "ممثل", pt: "Ator", nl: "Acteur", pl: "Aktor", ja: "俳優", ko: "배우", zh: "演员" },
   filter_actor: { tr: "Oyuncu", en: "Actor", de: "Schauspieler", fr: "Acteur", es: "Actor", it: "Attore", ru: "Актёр", ar: "ممثل", pt: "Ator", nl: "Acteur", pl: "Aktor", ja: "俳優", ko: "배우", zh: "演员" },
+  filter_character: { tr: "Karakter", en: "Character", de: "Charakter", fr: "Personnage", es: "Personaje", it: "Personaggio", ru: "Персонаж", ar: "شخصية", pt: "Personagem", nl: "Personage", pl: "Postać", ja: "キャラクター", ko: "캐릭터", zh: "角色" },
   filter_genre: { tr: "Tür", en: "Genre", de: "Genre", fr: "Genre", es: "Género", it: "Genere", ru: "Жанр", ar: "نوع", pt: "Gênero", nl: "Genre", pl: "Gatunek", ja: "ジャンル", ko: "장르", zh: "类型" },
+  search_type_character: { tr: "Karakter", en: "Character", de: "Charakter", fr: "Personnage", es: "Personaje", it: "Personaggio", ru: "Персонаж", ar: "شخصية", pt: "Personagem", nl: "Personage", pl: "Postać", ja: "キャラクター", ko: "캐릭터", zh: "角色" },
+  chip_char: { tr: "Karakter", en: "Character", de: "Charakter", fr: "Personnage", es: "Personaje", it: "Personaggio", ru: "Персонаж", ar: "شخصية", pt: "Personagem", nl: "Personage", pl: "Postać", ja: "キャラクター", ko: "캐릭터", zh: "角色" },
   search_basic: { tr: "Ara", en: "Search", de: "Suchen", fr: "Rechercher", es: "Buscar", it: "Cerca", ru: "Поиск", ar: "بحث", pt: "Pesquisar", nl: "Zoeken", pl: "Szukaj", ja: "検索", ko: "검색", zh: "搜索" },
   search_combo: { tr: "Çoklu Ara", en: "Multi Search", de: "Multi-Suche", fr: "Recherche multiple", es: "Búsqueda múltiple", it: "Ricerca multipla", ru: "Мультипоиск", ar: "بحث متعدد", pt: "Pesquisa múltipla", nl: "Multi-zoeken", pl: "Wyszukiwanie wielokrotne", ja: "複合検索", ko: "다중 검색", zh: "多重搜索" },
   cancel: { tr: "İptal", en: "Cancel", de: "Abbrechen", fr: "Annuler", es: "Cancelar", it: "Annulla", ru: "Отмена", ar: "إلغاء", pt: "Cancelar", nl: "Annuleren", pl: "Anuluj", ja: "キャンセル", ko: "취소", zh: "取消" },
@@ -57,6 +88,9 @@ const I18N = {
   picker_add: { tr: "Ekle", en: "Add", de: "Hinzufügen", fr: "Ajouter", es: "Añadir", it: "Aggiungi", ru: "Добавить", ar: "إضافة", pt: "Adicionar", nl: "Toevoegen", pl: "Dodaj", ja: "追加", ko: "추가", zh: "添加" },
   picker_actor_title: { tr: "Favori Oyuncular", en: "Favorite Actors", de: "Lieblingsschauspieler", fr: "Acteurs favoris", es: "Actores favoritos", it: "Attori preferiti", ru: "Любимые актёры", ar: "الممثلون المفضلون", pt: "Atores favoritos", nl: "Favoriete acteurs", pl: "Ulubieni aktorzy", ja: "お気に入りの俳優", ko: "즐겨찾는 배우", zh: "最喜欢的演员" },
   picker_actor_search: { tr: "Oyuncu Ara", en: "Search Actor", de: "Schauspieler suchen", fr: "Rechercher un acteur", es: "Buscar actor", it: "Cerca attore", ru: "Поиск актёра", ar: "ابحث عن ممثل", pt: "Pesquisar ator", nl: "Acteur zoeken", pl: "Szukaj aktora", ja: "俳優を検索", ko: "배우 검색", zh: "搜索演员" },
+  picker_char_search: { tr: "Karakter Ara", en: "Search Character", de: "Charakter suchen", fr: "Rechercher un personnage", es: "Buscar personaje", it: "Cerca personaggio", ru: "Поиск персонажа", ar: "ابحث عن شخصية", pt: "Pesquisar personagem", nl: "Personage zoeken", pl: "Szukaj postaci", ja: "キャラクターを検索", ko: "캐릭터 검색", zh: "搜索角色" },
+  picker_fav_char_search: { tr: "Favori Karakter Ara", en: "Search Favorite Character", de: "Lieblingscharakter suchen", fr: "Rechercher un personnage favori", es: "Buscar personaje favorito", it: "Cerca personaggio preferito", ru: "Поиск любимого персонажа", ar: "ابحث عن شخصية مفضلة", pt: "Pesquisar personagem favorito", nl: "Favoriete personage zoeken", pl: "Szukaj ulubionej postaci", ja: "お気に入りのキャラクターを検索", ko: "즐겨찾는 캐릭터 검색", zh: "搜索最喜欢的角色" },
+  picker_fav_char_title: { tr: "Favori Karakterler", en: "Favorite Characters", de: "Lieblingscharaktere", fr: "Personnages favoris", es: "Personajes favoritos", it: "Personaggi preferiti", ru: "Любимые персонажи", ar: "الشخصيات المفضلة", pt: "Personagens favoritos", nl: "Favoriete personages", pl: "Ulubione postacie", ja: "お気に入りのキャラクター", ko: "즐겨찾는 캐릭터", zh: "最喜欢的角色" },
   picker_fav_actor_search: { tr: "Favori Oyuncu Ara", en: "Search Favorite Actor", de: "Lieblingsschauspieler suchen", fr: "Rechercher un acteur favori", es: "Buscar actor favorito", it: "Cerca attore preferito", ru: "Поиск любимого актёра", ar: "ابحث عن ممثل مفضل", pt: "Pesquisar ator favorito", nl: "Favoriete acteur zoeken", pl: "Szukaj ulubionego aktora", ja: "お気に入りの俳優を検索", ko: "즐겨찾는 배우 검색", zh: "搜索最喜欢的演员" },
   picker_genre_title: { tr: "Favori Türler", en: "Favorite Genres", de: "Lieblingsgenres", fr: "Genres favoris", es: "Géneros favoritos", it: "Generi preferiti", ru: "Любимые жанры", ar: "الأنواع المفضلة", pt: "Gêneros favoritos", nl: "Favoriete genres", pl: "Ulubione gatunki", ja: "お気に入りのジャンル", ko: "즐겨찾는 장르", zh: "最喜欢的类型" },
   picker_genre_search: { tr: "Tür Ara", en: "Search Genre", de: "Genre suchen", fr: "Rechercher un genre", es: "Buscar género", it: "Cerca genere", ru: "Поиск жанра", ar: "ابحث عن نوع", pt: "Pesquisar gênero", nl: "Genre zoeken", pl: "Szukaj gatunku", ja: "ジャンルを検索", ko: "장르 검색", zh: "搜索类型" },
@@ -67,13 +101,17 @@ const I18N = {
   year_invalid: { tr: "Yıl 4 haneli ve 1900-{max} arasında olmalı (örn. 2020)", en: "Year must be 4 digits between 1900 and {max} (e.g. 2020)", de: "Jahr muss 4-stellig zwischen 1900 und {max} sein (z.B. 2020)", fr: "L'année doit avoir 4 chiffres entre 1900 et {max} (ex. 2020)", es: "El año debe tener 4 dígitos entre 1900 y {max} (ej. 2020)", it: "L'anno deve avere 4 cifre tra 1900 e {max} (es. 2020)", ru: "Год должен быть 4-значным от 1900 до {max} (напр. 2020)", ar: "يجب أن تكون السنة 4 أرقام بين 1900 و{max} (مثال 2020)", pt: "O ano deve ter 4 dígitos entre 1900 e {max} (ex. 2020)", nl: "Jaar moet 4 cijfers hebben tussen 1900 en {max} (bijv. 2020)", pl: "Rok musi mieć 4 cyfry od 1900 do {max} (np. 2020)", ja: "年は1900〜{max}の4桁で入力してください（例：2020）", ko: "연도는 1900~{max} 사이의 4자리여야 합니다 (예: 2020)", zh: "年份必须是1900到{max}之间的4位数字（例如2020）" },
   score_invalid: { tr: "Puan 7, 7.4 veya 7,4 formatında olmalı", en: "Score must be like 7, 7.4 or 7,4", de: "Bewertung muss wie 7, 7.4 oder 7,4 sein", fr: "La note doit être comme 7, 7.4 ou 7,4", es: "La puntuación debe ser como 7, 7.4 o 7,4", it: "Il voto deve essere come 7, 7.4 o 7,4", ru: "Рейтинг должен быть как 7, 7.4 или 7,4", ar: "يجب أن يكون التقييم مثل 7 أو 7.4 أو 7,4", pt: "A nota deve ser como 7, 7.4 ou 7,4", nl: "Score moet zijn zoals 7, 7.4 of 7,4", pl: "Ocena musi być jak 7, 7.4 lub 7,4", ja: "スコアは7、7.4、7,4のような形式で入力してください", ko: "평점은 7, 7.4 또는 7,4 형식이어야 합니다", zh: "评分格式应为7、7.4或7,4" },
   no_fav_actor: { tr: "Henüz favori oyuncunuz yok. Oyuncu detayında kalbe tıklayın.", en: "No favorite actors yet. Click the heart on an actor's details.", de: "Noch keine Lieblingsschauspieler. Klicken Sie auf das Herz in den Details.", fr: "Aucun acteur favori. Cliquez sur le cœur dans les détails.", es: "Aún no hay actores favoritos. Toca el corazón en los detalles.", it: "Nessun attore preferito. Tocca il cuore nei dettagli.", ru: "Нет любимых актёров. Нажмите на сердце в деталях.", ar: "لا يوجد ممثلون مفضلون بعد. اضغط على القلب في التفاصيل.", pt: "Nenhum ator favorito ainda. Toque no coração nos detalhes.", nl: "Nog geen favoriete acteurs. Klik op het hart in de details.", pl: "Brak ulubionych aktorów. Kliknij serce w szczegółach.", ja: "お気に入りの俳優がいません。詳細でハートをクリックしてください。", ko: "즐겨찾는 배우가 없습니다. 상세에서 하트를 클릭하세요.", zh: "还没有喜欢的演员。在详情中点击心形。" },
+  no_fav_char: { tr: "Henüz favori karakteriniz yok. Anime detayında karakterin kalbine tıklayın.", en: "No favorite characters yet. Click the heart on a character's anime details.", de: "Noch keine Lieblingscharaktere. Klicken Sie auf das Herz in den Anime-Details.", fr: "Aucun personnage favori. Cliquez sur le cœur dans les détails de l'anime.", es: "Aún no hay personajes favoritos. Toca el corazón en los detalles del anime.", it: "Nessun personaggio preferito. Tocca il cuore nei dettagli dell'anime.", ru: "Нет любимых персонажей. Нажмите на сердце в деталях аниме.", ar: "لا توجد شخصيات مفضلة بعد. اضغط على القلب في تفاصيل الأنمي.", pt: "Nenhum personagem favorito ainda. Toque no coração nos detalhes do anime.", nl: "Nog geen favoriete personages. Klik op het hart in de anime-details.", pl: "Brak ulubionych postaci. Kliknij serce w szczegółach anime.", ja: "お気に入りのキャラクターがいません。アニメの詳細でハートをクリックしてください。", ko: "즐겨찾는 캐릭터가 없습니다. 애니메 상세에서 하트를 클릭하세요.", zh: "还没有喜欢的角色。在动漫详情中点击心形。" },
+  char_placeholder: { tr: "Karakter adı girin...", en: "Enter character name...", de: "Charakternamen eingeben...", fr: "Entrez un nom de personnage...", es: "Ingresa nombre de personaje...", it: "Inserisci nome personaggio...", ru: "Введите имя персонажа...", ar: "أدخل اسم الشخصية...", pt: "Digite o nome do personagem...", nl: "Voer personagenaam in...", pl: "Wpisz nazwę postaci...", ja: "キャラクター名を入力...", ko: "캐릭터 이름 입력...", zh: "输入角色姓名..." },
   no_fav_genre: { tr: "Henüz favori türünüz yok. Tür etiketine tıklayın.", en: "No favorite genres yet. Click a genre tag.", de: "Noch keine Lieblingsgenres. Klicken Sie auf ein Genre-Tag.", fr: "Aucun genre favori. Cliquez sur une étiquette de genre.", es: "Aún no hay géneros favoritos. Toca una etiqueta de género.", it: "Nessun genere preferito. Tocca un'etichetta di genere.", ru: "Нет любимых жанров. Нажмите на метку жанра.", ar: "لا توجد أنواع مفضلة بعد. اضغط على علامة النوع.", pt: "Nenhum gênero favorito ainda. Toque em uma etiqueta de gênero.", nl: "Nog geen favoriete genres. Klik op een genre-tag.", pl: "Brak ulubionych gatunków. Kliknij etykietę gatunku.", ja: "お気に入りのジャンルがありません。ジャンルのタグをクリックしてください。", ko: "즐겨찾는 장르가 없습니다. 장르 태그를 클릭하세요.", zh: "还没有喜欢的类型。点击类型标签。" },
+  no_fav_anime_genre: { tr: "Henüz favori anime türünüz yok. Anime detayında tür etiketine tıklayın.", en: "No favorite anime genres yet. Click a genre tag in anime details.", de: "Noch keine Lieblings-Anime-Genres. Klicken Sie auf ein Genre-Tag in den Anime-Details.", fr: "Aucun genre d'anime favori. Cliquez sur une étiquette de genre dans les détails de l'anime.", es: "Aún no hay géneros de anime favoritos. Toca una etiqueta de género en los detalles del anime.", it: "Nessun genere di anime preferito. Tocca un'etichetta di genere nei dettagli dell'anime.", ru: "Нет любимых жанров аниме. Нажмите на метку жанра в деталях аниме.", ar: "لا توجد أنواع أنمي مفضلة بعد. اضغط على علامة النوع في تفاصيل الأنمي.", pt: "Nenhum gênero de anime favorito ainda. Toque em uma etiqueta de gênero nos detalhes do anime.", nl: "Nog geen favoriete anime-genres. Klik op een genre-tag in de anime-details.", pl: "Brak ulubionych gatunków anime. Kliknij etykietę gatunku w szczegółach anime.", ja: "お気に入りのアニメジャンルがありません。アニメ詳細でジャンルのタグをクリックしてください。", ko: "즐겨찾는 애니메 장르가 없습니다. 애니메 상세에서 장르 태그를 클릭하세요.", zh: "还没有喜欢的动漫类型。在动漫详情中点击类型标签。" },
   empty_1: { tr: "Henüz takip ettiğiniz bir şey yok.", en: "Nothing in your list yet.", de: "Noch nichts in Ihrer Liste.", fr: "Rien dans votre liste pour l'instant.", es: "Aún no hay nada en tu lista.", it: "Non c'è ancora nulla nella tua lista.", ru: "В вашем списке пока ничего нет.", ar: "لا يوجد شيء في قائمتك بعد.", pt: "Nada na sua lista ainda.", nl: "Nog niets in uw lijst.", pl: "Na razie nic nie masz na liście.", ja: "リストにはまだ何もありません。", ko: "아직 목록에 아무것도 없습니다.", zh: "列表中还没有任何内容。" },
   empty_2: { tr: "Yayınlanmasını istediğiniz dizi ve filmleri ekleyin.", en: "Add the shows and movies you want to track.", de: "Fügen Sie die Serien und Filme hinzu, die Sie verfolgen möchten.", fr: "Ajoutez les séries et films que vous souhaitez suivre.", es: "Añade las series y películas que quieras seguir.", it: "Aggiungi le serie e i film che vuoi seguire.", ru: "Добавьте сериалы и фильмы, за которыми хотите следить.", ar: "أضف المسلسلات والأفلام التي تريد متابعتها.", pt: "Adicione as séries e filmes que deseja acompanhar.", nl: "Voeg de series en films toe die u wilt volgen.", pl: "Dodaj seriale i filmy, które chcesz śledzić.", ja: "追跡したいドラマや映画を追加してください。", ko: "추적하고 싶은 시리즈와 영화를 추가하세요.", zh: "添加您想关注的剧集和电影。" },
   search_placeholder: { tr: "Film veya dizi ara...", en: "Search movies or shows...", de: "Filme oder Serien suchen...", fr: "Rechercher des films ou séries...", es: "Buscar películas o series...", it: "Cerca film o serie...", ru: "Поиск фильмов или сериалов...", ar: "ابحث عن أفلام أو مسلسلات...", pt: "Pesquisar filmes ou séries...", nl: "Zoek films of series...", pl: "Szukaj filmów lub seriali...", ja: "映画やドラマを検索...", ko: "영화나 시리즈 검색...", zh: "搜索电影或剧集..." },
   actor_placeholder: { tr: "Oyuncu adı girin...", en: "Enter actor name...", de: "Schauspielername eingeben...", fr: "Entrez un nom d'acteur...", es: "Ingresa nombre de actor...", it: "Inserisci nome attore...", ru: "Введите имя актёра...", ar: "أدخل اسم الممثل...", pt: "Digite o nome do ator...", nl: "Voer acteernaam in...", pl: "Wpisz nazwisko aktora...", ja: "俳優名を入力...", ko: "배우 이름 입력...", zh: "输入演员姓名..." },
   genre_placeholder: { tr: "Tür adı girin...", en: "Enter genre name...", de: "Genrenamen eingeben...", fr: "Entrez un nom de genre...", es: "Ingresa nombre de género...", it: "Inserisci nome genere...", ru: "Введите название жанра...", ar: "أدخل اسم النوع...", pt: "Digite o nome do gênero...", nl: "Voer genrenaam in...", pl: "Wpisz nazwę gatunku...", ja: "ジャンル名を入力...", ko: "장르 이름 입력...", zh: "输入类型名称..." },
   no_actor_results: { tr: "Oyuncu bulunamadı", en: "No actor found", de: "Kein Schauspieler gefunden", fr: "Aucun acteur trouvé", es: "No se encontró actor", it: "Nessun attore trovato", ru: "Актёр не найден", ar: "لم يتم العثور على ممثل", pt: "Nenhum ator encontrado", nl: "Geen acteur gevonden", pl: "Nie znaleziono aktora", ja: "俳優が見つかりません", ko: "배우를 찾을 수 없습니다", zh: "未找到演员" },
+  no_char_results: { tr: "Karakter bulunamadı", en: "No character found", de: "Kein Charakter gefunden", fr: "Aucun personnage trouvé", es: "No se encontró personaje", it: "Nessun personaggio trovato", ru: "Персонаж не найден", ar: "لم يتم العثور على شخصية", pt: "Nenhum personagem encontrado", nl: "Geen personage gevonden", pl: "Nie znaleziono postaci", ja: "キャラクターが見つかりません", ko: "캐릭터를 찾을 수 없습니다", zh: "未找到角色" },
   no_genre_results: { tr: "Tür bulunamadı", en: "No genre found", de: "Kein Genre gefunden", fr: "Aucun genre trouvé", es: "No se encontró género", it: "Nessun genere trovato", ru: "Жанр не найден", ar: "لم يتم العثور على نوع", pt: "Nenhum gênero encontrado", nl: "Geen genre gevonden", pl: "Nie znaleziono gatunku", ja: "ジャンルが見つかりません", ko: "장르를 찾을 수 없습니다", zh: "未找到类型" },
   no_show_results: { tr: "Sonuç bulunamadı", en: "No results found", de: "Keine Ergebnisse gefunden", fr: "Aucun résultat trouvé", es: "No se encontraron resultados", it: "Nessun risultato trovato", ru: "Результаты не найдены", ar: "لا توجد نتائج", pt: "Nenhum resultado encontrado", nl: "Geen resultaten gevonden", pl: "Nie znaleziono wyników", ja: "結果が見つかりません", ko: "결과를 찾을 수 없습니다", zh: "未找到结果" },
   settings_title: { tr: "Ayarlar", en: "Settings", de: "Einstellungen", fr: "Paramètres", es: "Ajustes", it: "Impostazioni", ru: "Настройки", ar: "الإعدادات", pt: "Configurações", nl: "Instellingen", pl: "Ustawienia", ja: "設定", ko: "설정", zh: "设置" },
@@ -146,6 +184,7 @@ const I18N = {
   need_ntfy_topic: { tr: "ntfy konusu gerekli", en: "ntfy topic required", de: "ntfy-Thema erforderlich", fr: "Sujet ntfy requis", es: "Tema ntfy requerido", it: "Argomento ntfy richiesto", ru: "Требуется тема ntfy", ar: "مطلوب موضوع ntfy", pt: "Tópico ntfy obrigatório", nl: "ntfy-onderwerp vereist", pl: "Temat ntfy wymagany", ja: "ntfyトピックが必要です", ko: "ntfy 주제 필요", zh: "需要ntfy主题" },
   tmdb_key_needed: { tr: "Sistem gerekli bilgileri TMDB den {link} çektiği için TMDB'ye üye olup API anahtarı almanız ve TMDB ve Telegram seçeneğinden API anahtarını girmeniz gerekmektedir. TMDB ye üye olduktan sonra {api_link} adresinden API anahtarınızı alabilirsiniz.", en: "Since the system fetches the required information from TMDB {link}, you need to sign up to TMDB, get an API key, and enter it from the TMDB & Telegram option. After signing up to TMDB, you can get your API key at {api_link}.", de: "Da das System die benötigten Informationen von TMDB {link} abruft, müssen Sie sich bei TMDB registrieren, einen API-Schlüssel erhalten und ihn über die Option TMDB und Telegram eingeben. Nach der Registrierung bei TMDB erhalten Sie Ihren API-Schlüssel unter {api_link}.", fr: "Le système récupère les informations nécessaires depuis TMDB {link}, vous devez donc créer un compte TMDB, obtenir une clé API et la saisir depuis l'option TMDB et Telegram. Après votre inscription à TMDB, vous pouvez obtenir votre clé API à l'adresse {api_link}.", es: "Como el sistema obtiene la información necesaria de TMDB {link}, debe registrarse en TMDB, obtener una clave API e introducirla desde la opción TMDB y Telegram. Tras registrarse en TMDB, puede obtener su clave API en {api_link}.", it: "Poiché il sistema recupera le informazioni necessarie da TMDB {link}, devi iscriverti a TMDB, ottenere una chiave API e inserirla dall'opzione TMDB e Telegram. Dopo l'iscrizione a TMDB, puoi ottenere la tua chiave API all'indirizzo {api_link}.", ru: "Поскольку система получает необходимую информацию из TMDB {link}, вам необходимо зарегистрироваться в TMDB, получить API-ключ и ввести его через опцию TMDB и Telegram. После регистрации в TMDB вы можете получить свой API-ключ по адресу {api_link}.", ar: "بما أن النظام يجلب المعلومات اللازمة من TMDB {link}، يجب عليك التسجيل في TMDB والحصول على مفتاح API وإدخاله من خيار TMDB وتيليجرام. بعد التسجيل في TMDB، يمكنك الحصول على مفتاح API الخاص بك من {api_link}.", pt: "Como o sistema obtém as informações necessárias do TMDB {link}, você precisa se cadastrar no TMDB, obter uma chave de API e inseri-la pela opção TMDB e Telegram. Após o cadastro no TMDB, você pode obter sua chave de API em {api_link}.", nl: "Omdat het systeem benodigde informatie van TMDB {link} ophaalt, moet u zich bij TMDB registreren, een API-sleutel verkrijgen en deze invoeren via de optie TMDB en Telegram. Na registratie bij TMDB kunt u uw API-sleutel verkrijgen via {api_link}.", pl: "Ponieważ system pobiera niezbędne informacje z TMDB {link}, musisz zarejestrować się w TMDB, uzyskać klucz API i wprowadzić go z opcji TMDB i Telegram. Po rejestracji w TMDB możesz uzyskać swój klucz API pod adresem {api_link}.", ja: "システムは必要な情報をTMDB {link}から取得するため、TMDBに登録してAPIキーを取得し、「TMDBとTelegram」オプションからAPIキーを入力する必要があります。TMDBに登録後、{api_link} からAPIキーを取得できます。", ko: "시스템이 필요한 정보를 TMDB {link}에서 가져오므로 TMDB에 가입하여 API 키를 받고 TMDB 및 텔레그램 옵션에서 API 키를 입력해야 합니다. TMDB에 가입한 후 {api_link}에서 API 키를 받을 수 있습니다.", zh: "系统需要从 TMDB {link} 获取必要信息，因此您需要注册 TMDB、获取 API 密钥，并从“TMDB和Telegram”选项中输入 API 密钥。注册 TMDB 后，您可以从 {api_link} 获取您的 API 密钥。" },
   test_sent: { tr: "Test mesajı gönderildi", en: "Test message sent", de: "Testnachricht gesendet", fr: "Message test envoyé", es: "Mensaje de prueba enviado", it: "Messaggio di prova inviato", ru: "Тестовое сообщение отправлено", ar: "تم إرسال رسالة الاختبار", pt: "Mensagem de teste enviada", nl: "Testbericht verzonden", pl: "Wysłano wiadomość testową", ja: "テストメッセージを送信しました", ko: "테스트 메시지를 보냈습니다", zh: "测试消息已发送" },
+  tmdb_key_needed_short: { tr: "TMDB API key girilmemiş", en: "TMDB API key not set", de: "TMDB-API-Schlüssel nicht gesetzt", fr: "Clé API TMDB non définie", es: "Clave API de TMDB no configurada", it: "Chiave API TMDB non impostata", ru: "Ключ API TMDB не задан", ar: "مفتاح TMDB API غير مضبوط", pt: "Chave da API TMDB não definida", nl: "TMDB API-sleutel niet ingesteld", pl: "Klucz API TMDB nie ustawiony", ja: "TMDB APIキーが設定されていません", ko: "TMDB API 키가 설정되지 않았습니다", zh: "尚未设置TMDB API密钥" },
   runtime_hm: { tr: "{h} sa {m} dk", en: "{h}h {m}m", de: "{h} Std. {m} Min.", fr: "{h} h {m} min", es: "{h} h {m} min", it: "{h} h {m} min", ru: "{h} ч {m} мин", ar: "{h} س {m} د", pt: "{h} h {m} min", nl: "{h} u {m} min", pl: "{h} godz. {m} min", ja: "{h}時間{m}分", ko: "{h}시간 {m}분", zh: "{h}小时{m}分" },
   runtime_h: { tr: "{h} sa", en: "{h}h", de: "{h} Std.", fr: "{h} h", es: "{h} h", it: "{h} h", ru: "{h} ч", ar: "{h} س", pt: "{h} h", nl: "{h} u", pl: "{h} godz.", ja: "{h}時間", ko: "{h}시간", zh: "{h}小时" },
   runtime_m: { tr: "{m} dk", en: "{m}m", de: "{m} Min.", fr: "{m} min", es: "{m} min", it: "{m} min", ru: "{m} мин", ar: "{m} د", pt: "{m} min", nl: "{m} min", pl: "{m} min", ja: "{m}分", ko: "{m}분", zh: "{m}分" },
@@ -153,13 +192,24 @@ const I18N = {
   fav_actor_added: { tr: "Favori oyunculara eklendi", en: "Added to favorite actors", de: "Zu Lieblingsschauspielern hinzugefügt", fr: "Ajouté aux acteurs favoris", es: "Añadido a actores favoritos", it: "Aggiunto agli attori preferiti", ru: "Добавлен в любимые актёры", ar: "تمت الإضافة إلى الممثلين المفضلين", pt: "Adicionado aos atores favoritos", nl: "Toegevoegd aan favoriete acteurs", pl: "Dodano do ulubionych aktorów", ja: "お気に入りの俳優に追加しました", ko: "즐겨찾는 배우에 추가했습니다", zh: "已添加到最喜欢的演员" },
   fav_actor_removed: { tr: "Favori oyunculardan çıkarıldı", en: "Removed from favorite actors", de: "Aus Lieblingsschauspielern entfernt", fr: "Retiré des acteurs favoris", es: "Eliminado de actores favoritos", it: "Rimosso dagli attori preferiti", ru: "Удалён из любимых актёров", ar: "تمت الإزالة من الممثلين المفضلين", pt: "Removido dos atores favoritos", nl: "Verwijderd uit favoriete acteurs", pl: "Usunięto z ulubionych aktorów", ja: "お気に入りの俳優から削除しました", ko: "즐겨찾는 배우에서 제거했습니다", zh: "已从最喜欢的演员中移除" },
   fav_genre_removed: { tr: "Favori türlerden çıkarıldı", en: "Removed from favorite genres", de: "Aus Lieblingsgenres entfernt", fr: "Retiré des genres favoris", es: "Eliminado de géneros favoritos", it: "Rimosso dai generi preferiti", ru: "Удалён из любимых жанров", ar: "تمت الإزالة من الأنواع المفضلة", pt: "Removido dos gêneros favoritos", nl: "Verwijderd uit favoriete genres", pl: "Usunięto z ulubionych gatunków", ja: "お気に入りのジャンルから削除しました", ko: "즐겨찾는 장르에서 제거했습니다", zh: "已从最喜欢的类型中移除" },
+  fav_genre_added: { tr: "Favori türlere eklendi", en: "Added to favorite genres", de: "Zu Lieblingsgenres hinzugefügt", fr: "Ajouté aux genres favoris", es: "Añadido a géneros favoritos", it: "Aggiunto ai generi preferiti", ru: "Добавлен в любимые жанры", ar: "تمت الإضافة إلى الأنواع المفضلة", pt: "Adicionado aos gêneros favoritos", nl: "Toegevoegd aan favoriete genres", pl: "Dodano do ulubionych gatunków", ja: "お気に入りのジャンルに追加しました", ko: "즐겨찾는 장르에 추가했습니다", zh: "已添加到最喜欢的类型" },
   settings_menu: { tr: "Menü", en: "Menu", de: "Menü", fr: "Menu", es: "Menú", it: "Menu", ru: "Меню", ar: "القائمة", pt: "Menu", nl: "Menu", pl: "Menu", ja: "メニュー", ko: "메뉴", zh: "菜单" },
   settings_lang: { tr: "Dil ve Zaman", en: "Language & Time", de: "Sprache & Zeit", fr: "Langue et heure", es: "Idioma y hora", it: "Lingua e ora", ru: "Язык и время", ar: "اللغة والوقت", pt: "Idioma e horário", nl: "Taal en tijd", pl: "Język i czas", ja: "言語と時間", ko: "언어 및 시간", zh: "语言和时间" },
   settings_tmdb: { tr: "TMDB ve Telegram", en: "TMDB & Telegram", de: "TMDB und Telegram", fr: "TMDB et Telegram", es: "TMDB y Telegram", it: "TMDB e Telegram", ru: "TMDB и Telegram", ar: "TMDB وتيليجرام", pt: "TMDB e Telegram", nl: "TMDB en Telegram", pl: "TMDB i Telegram", ja: "TMDBとTelegram", ko: "TMDB 및 텔레그램", zh: "TMDB和Telegram" },
   settings_favactors: { tr: "Favori Oyuncular", en: "Favorite Actors", de: "Lieblingsschauspieler", fr: "Acteurs favoris", es: "Actores favoritos", it: "Attori preferiti", ru: "Любимые актёры", ar: "الممثلون المفضلون", pt: "Atores favoritos", nl: "Favoriete acteurs", pl: "Ulubieni aktorzy", ja: "お気に入りの俳優", ko: "즐겨찾는 배우", zh: "最喜欢的演员" },
   settings_favgenres: { tr: "Favori Türler", en: "Favorite Genres", de: "Lieblingsgenres", fr: "Genres favoris", es: "Géneros favoritos", it: "Generi preferiti", ru: "Любимые жанры", ar: "الأنواع المفضلة", pt: "Gêneros favoritos", nl: "Favoriete genres", pl: "Ulubione gatunki", ja: "お気に入りのジャンル", ko: "즐겨찾는 장르", zh: "最喜欢的类型" },
   settings_notify: { tr: "Bildirim Ayarları", en: "Notification Settings", de: "Benachrichtigungseinstellungen", fr: "Paramètres de notification", es: "Configuración de notificaciones", it: "Impostazioni notifiche", ru: "Настройки уведомлений", ar: "إعدادات الإشعارات", pt: "Configurações de notificação", nl: "Notificatie-instellingen", pl: "Ustawienia powiadomień", ja: "通知設定", ko: "알림 설정", zh: "通知设置" },
+  settings_update: { tr: "Güncelleme", en: "Update", de: "Aktualisierung", fr: "Mise à jour", es: "Actualización", it: "Aggiornamento", ru: "Обновление", ar: "تحديث", pt: "Atualização", nl: "Bijwerken", pl: "Aktualizacja", ja: "更新", ko: "업데이트", zh: "更新" },
+  label_sync_hour: { tr: "Bölüm Güncelleme Saati", en: "Episode Update Hour", de: "Folgen-Aktualisierungszeit", fr: "Heure de mise à jour des épisodes", es: "Hora de actualización de episodios", it: "Ora aggiornamento episodi", ru: "Время обновления серий", ar: "ساعة تحديث الحلقات", pt: "Hora de atualização de episódios", nl: "Aflevering-updatetijd", pl: "Godzina aktualizacji odcinków", ja: "エピソード更新時刻", ko: "에피소드 업데이트 시간", zh: "剧集更新时间" },
+  label_genre_hour: { tr: "Tür Güncelleme Saati", en: "Genre Update Hour", de: "Genre-Aktualisierungszeit", fr: "Heure de mise à jour des genres", es: "Hora de actualización de géneros", it: "Ora aggiornamento generi", ru: "Время обновления жанров", ar: "ساعة تحديث الأنواع", pt: "Hora de atualização de gêneros", nl: "Genre-updatetijd", pl: "Godzina aktualizacji gatunków", ja: "ジャンル更新時刻", ko: "장르 업데이트 시간", zh: "类型更新时间" },
+  label_data_hour: { tr: "Veri Güncelleme Saati", en: "Data Update Hour", de: "Daten-Aktualisierungszeit", fr: "Heure de mise à jour des données", es: "Hora de actualización de datos", it: "Ora aggiornamento dati", ru: "Время обновления данных", ar: "ساعة تحديث البيانات", pt: "Hora de atualização de dados", nl: "Gegevens-updatetijd", pl: "Godzina aktualizacji danych", ja: "データ更新時刻", ko: "데이터 업데이트 시간", zh: "数据更新时间" },
   fav_actor_remove: { tr: "Favorilerden çıkar", en: "Remove from favorites", de: "Aus Favoriten entfernen", fr: "Retirer des favoris", es: "Quitar de favoritos", it: "Rimuovi dai preferiti", ru: "Удалить из избранного", ar: "إزالة من المفضلة", pt: "Remover dos favoritos", nl: "Uit favorieten verwijderen", pl: "Usuń z ulubionych", ja: "お気に入りから削除", ko: "즐겨찾기에서 제거", zh: "从收藏中移除" },
+  fav_char: { tr: "Favori karakter", en: "Favorite character", de: "Lieblingscharakter", fr: "Personnage favori", es: "Personaje favorito", it: "Personaggio preferito", ru: "Любимый персонаж", ar: "شخصية مفضلة", pt: "Personagem favorito", nl: "Favoriete personage", pl: "Ulubiona postać", ja: "お気に入りのキャラクター", ko: "즐겨찾는 캐릭터", zh: "最喜欢的角色" },
+  fav_char_added: { tr: "Favori karakterlere eklendi", en: "Added to favorite characters", de: "Zu Lieblingscharakteren hinzugefügt", fr: "Ajouté aux personnages favoris", es: "Añadido a personajes favoritos", it: "Aggiunto ai personaggi preferiti", ru: "Добавлен в любимые персонажи", ar: "تمت الإضافة إلى الشخصيات المفضلة", pt: "Adicionado aos personagens favoritos", nl: "Toegevoegd aan favoriete personages", pl: "Dodano do ulubionych postaci", ja: "お気に入りのキャラクターに追加しました", ko: "즐겨찾는 캐릭터에 추가했습니다", zh: "已添加到最喜欢的角色" },
+  fav_char_removed: { tr: "Favori karakterlerden çıkarıldı", en: "Removed from favorite characters", de: "Aus Lieblingscharakteren entfernt", fr: "Retiré des personnages favoris", es: "Eliminado de personajes favoritos", it: "Rimosso dai personaggi preferiti", ru: "Удалён из любимых персонажей", ar: "تمت الإزالة من الشخصيات المفضلة", pt: "Removido dos personagens favoritos", nl: "Verwijderd uit favoriete personages", pl: "Usunięto z ulubionych postaci", ja: "お気に入りのキャラクターから削除しました", ko: "즐겨찾는 캐릭터에서 제거했습니다", zh: "已从最喜欢的角色中移除" },
+  fav_char_remove: { tr: "Favorilerden çıkar", en: "Remove from favorites", de: "Aus Favoriten entfernen", fr: "Retirer des favoris", es: "Quitar de favoritos", it: "Rimuovi dai preferiti", ru: "Удалить из избранного", ar: "إزالة من المفضلة", pt: "Remover dos favoritos", nl: "Uit favorieten verwijderen", pl: "Usuń z ulubionych", ja: "お気に入りから削除", ko: "즐겨찾기에서 제거", zh: "从收藏中移除" },
+  fav_anime_genre_added: { tr: "Favori anime türlerine eklendi", en: "Added to favorite anime genres", de: "Zu Lieblings-Anime-Genres hinzugefügt", fr: "Ajouté aux genres d'anime favoris", es: "Añadido a géneros de anime favoritos", it: "Aggiunto ai generi di anime preferiti", ru: "Добавлен в любимые жанры аниме", ar: "تمت الإضافة إلى أنواع الأنمي المفضلة", pt: "Adicionado aos gêneros de anime favoritos", nl: "Toegevoegd aan favoriete anime-genres", pl: "Dodano do ulubionych gatunków anime", ja: "お気に入りのアニメジャンルに追加しました", ko: "즐겨찾는 애니메 장르에 추가했습니다", zh: "已添加到最喜欢的动漫类型" },
+  fav_anime_genre_removed: { tr: "Favori anime türlerinden çıkarıldı", en: "Removed from favorite anime genres", de: "Aus Lieblings-Anime-Genres entfernt", fr: "Retiré des genres d'anime favoris", es: "Eliminado de géneros de anime favoritos", it: "Rimosso dai generi di anime preferiti", ru: "Удалён из любимых жанров аниме", ar: "تمت الإزالة من أنواع الأنمي المفضلة", pt: "Removido dos gêneros de anime favoritos", nl: "Verwijderd uit favoriete anime-genres", pl: "Usunięto z ulubionych gatunków anime", ja: "お気に入りのアニメジャンルから削除しました", ko: "즐겨찾는 애니메 장르에서 제거했습니다", zh: "已从最喜欢的动漫类型中移除" },
   fav_genre_remove: { tr: "Favorilerden çıkar", en: "Remove from favorites", de: "Aus Favoriten entfernen", fr: "Retirer des favoris", es: "Quitar de favoritos", it: "Rimuovi dai preferiti", ru: "Удалить из избранного", ar: "إزالة من المفضلة", pt: "Remover dos favoritos", nl: "Uit favorieten verwijderen", pl: "Usuń z ulubionych", ja: "お気に入りから削除", ko: "즐겨찾기에서 제거", zh: "从收藏中移除" },
 };
 
@@ -171,6 +221,30 @@ function t(key, vars) {
     });
   }
   return s;
+}
+
+// Anime tür adlarının dil çevirileri (özel kalanlar: Ecchi, Hentai, Mahou Shoujo, Mecha, Slice of Life)
+const ANIME_GENRE_I18N = {
+  Action: { tr: "Aksiyon", en: "Action", de: "Action", fr: "Action", es: "Acción", it: "Azione", ru: "Экшн", ar: "أكشن", pt: "Ação", nl: "Actie", pl: "Akcja", ja: "アクション", ko: "액션", zh: "动作" },
+  Adventure: { tr: "Macera", en: "Adventure", de: "Abenteuer", fr: "Aventure", es: "Aventura", it: "Avventura", ru: "Приключения", ar: "مغامرة", pt: "Aventura", nl: "Avontuur", pl: "Przygoda", ja: "冒険", ko: "모험", zh: "冒险" },
+  Comedy: { tr: "Komedi", en: "Comedy", de: "Komödie", fr: "Comédie", es: "Comedia", it: "Commedia", ru: "Комедия", ar: "كوميديا", pt: "Comédia", nl: "Komedie", pl: "Komedia", ja: "コメディ", ko: "코미디", zh: "喜剧" },
+  Drama: { tr: "Dram", en: "Drama", de: "Drama", fr: "Drame", es: "Drama", it: "Dramma", ru: "Драма", ar: "دراما", pt: "Drama", nl: "Drama", pl: "Dramat", ja: "ドラマ", ko: "드라마", zh: "剧情" },
+  Fantasy: { tr: "Fantastik", en: "Fantasy", de: "Fantasy", fr: "Fantaisie", es: "Fantasía", it: "Fantasy", ru: "Фэнтези", ar: "خيال", pt: "Fantasia", nl: "Fantasy", pl: "Fantasy", ja: "ファンタジー", ko: "판타지", zh: "奇幻" },
+  Horror: { tr: "Korku", en: "Horror", de: "Horror", fr: "Horreur", es: "Terror", it: "Horror", ru: "Ужасы", ar: "رعب", pt: "Terror", nl: "Horror", pl: "Horror", ja: "ホラー", ko: "공포", zh: "恐怖" },
+  Music: { tr: "Müzik", en: "Music", de: "Musik", fr: "Musique", es: "Música", it: "Musica", ru: "Музыка", ar: "موسيقى", pt: "Música", nl: "Muziek", pl: "Muzyka", ja: "音楽", ko: "음악", zh: "音乐" },
+  Mystery: { tr: "Gizem", en: "Mystery", de: "Mysterium", fr: "Mystère", es: "Misterio", it: "Mistero", ru: "Тайна", ar: "غموض", pt: "Mistério", nl: "Mysterie", pl: "Tajemnica", ja: "ミステリー", ko: "미스터리", zh: "悬疑" },
+  Psychological: { tr: "Psikolojik", en: "Psychological", de: "Psychologisch", fr: "Psychologique", es: "Psicológico", it: "Psicologico", ru: "Психологический", ar: "نفسي", pt: "Psicológico", nl: "Psychologisch", pl: "Psychologiczny", ja: "サイコロジカル", ko: "심리", zh: "心理" },
+  Romance: { tr: "Romantik", en: "Romance", de: "Romanze", fr: "Romance", es: "Romance", it: "Romantico", ru: "Романтика", ar: "رومانسي", pt: "Romance", nl: "Romantiek", pl: "Romans", ja: "ロマンス", ko: "로맨스", zh: "恋爱" },
+  "Sci-Fi": { tr: "Bilim Kurgu", en: "Sci-Fi", de: "Sci-Fi", fr: "Science-fiction", es: "Ciencia ficción", it: "Fantascienza", ru: "Научная фантастика", ar: "خيال علمي", pt: "Ficção científica", nl: "Sciencefiction", pl: "Science fiction", ja: "SF", ko: "SF", zh: "科幻" },
+  Sports: { tr: "Spor", en: "Sports", de: "Sport", fr: "Sport", es: "Deportes", it: "Sport", ru: "Спорт", ar: "رياضة", pt: "Esporte", nl: "Sport", pl: "Sport", ja: "スポーツ", ko: "스포츠", zh: "运动" },
+  Supernatural: { tr: "Doğaüstü", en: "Supernatural", de: "Übernatürlich", fr: "Surnaturel", es: "Sobrenatural", it: "Soprannaturale", ru: "Сверхъестественное", ar: "خارق للطبيعة", pt: "Sobrenatural", nl: "Bovennatuurlijk", pl: "Nadprzyrodzone", ja: "超常", ko: "초자연", zh: "超自然" },
+  Thriller: { tr: "Gerilim", en: "Thriller", de: "Thriller", fr: "Thriller", es: "Suspenso", it: "Thriller", ru: "Триллер", ar: "إثارة", pt: "Suspense", nl: "Thriller", pl: "Thriller", ja: "スリラー", ko: "스릴러", zh: "惊悚" },
+};
+
+function animeGenreLabel(genre) {
+  const entry = ANIME_GENRE_I18N[genre];
+  if (entry) return entry[currentLang] || entry.en || genre;
+  return genre;
 }
 
 const ERROR_MAP = {
@@ -196,17 +270,32 @@ function errText(err) {
 }
 
 let tmdbKeySet = false;
+function updateSettingsMenuLocked() {
+  document.querySelectorAll(".settings-menu-item.tmdb-locked").forEach((btn) => {
+    if (tmdbKeySet) {
+      btn.classList.remove("locked");
+      btn.removeAttribute("data-tip");
+      btn.removeAttribute("aria-disabled");
+    } else {
+      btn.classList.add("locked");
+      btn.setAttribute("data-tip", t("tmdb_key_needed_short"));
+      btn.setAttribute("aria-disabled", "true");
+    }
+  });
+}
 function checkTmdbKey(hasKey) {
   tmdbKeySet = !!hasKey;
   const banner = document.getElementById("tmdb-key-banner");
   if (!banner) return;
   if (tmdbKeySet) {
     banner.style.display = "none";
+    updateSettingsMenuLocked();
     return;
   }
   const msg = document.getElementById("tmdb-key-msg");
   if (msg) msg.innerHTML = t("tmdb_key_needed", { link: '<a href="https://www.themoviedb.org" target="_blank" rel="noopener">https://www.themoviedb.org</a>', api_link: '<a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">https://www.themoviedb.org/settings/api</a>' });
   banner.style.display = "flex";
+  updateSettingsMenuLocked();
 }
 
 function applyLang(lang) {
@@ -222,18 +311,22 @@ function applyLang(lang) {
   });
   document.title = t("app_title");
   checkTmdbKey(tmdbKeySet);
+  updateSettingsMenuLocked();
   if (views.followed.classList.contains("active")) loadFollowed();
+  if (views.unwatched.classList.contains("active")) loadUnwatched();
 }
 
 const views = {
   followed: document.getElementById("view-followed"),
   anime: document.getElementById("view-anime"),
+  unwatched: document.getElementById("view-unwatched"),
   search: document.getElementById("view-search"),
 };
 
 const tabs = {
   followed: document.getElementById("tab-followed"),
   anime: document.getElementById("tab-anime"),
+  unwatched: document.getElementById("tab-unwatched"),
   search: document.getElementById("tab-search"),
 };
 
@@ -252,10 +345,12 @@ function switchView(name) {
   } catch (e) {}
   if (name === "followed") loadFollowed();
   if (name === "anime") loadAnime();
+  if (name === "unwatched") loadUnwatched();
 }
 
 tabs.followed.onclick = () => switchView("followed");
 tabs.anime.onclick = () => switchView("anime");
+tabs.unwatched.onclick = () => switchView("unwatched");
 tabs.search.onclick = () => switchView("search");
 document.getElementById("search-close").onclick = () => switchView("followed");
 
@@ -347,6 +442,14 @@ function posterHTML(posterPath, title) {
 function scoreTag(v) {
   if (!v || Number(v) <= 0) return "";
   return `<span class="badge badge-score">${Number(v).toFixed(1)}</span>`;
+}
+
+function platformTag(platform) {
+  if (!platform) return "";
+  const name = Array.isArray(platform) ? (platform[0] || "") : platform;
+  if (!name) return "";
+  const safe = escAttr(name);
+  return `<span class="badge badge-platform" data-tip="${safe}">${safe}</span>`;
 }
 
 function typeLabel(mediaType) {
@@ -470,6 +573,15 @@ function isNewTr(tr) {
   }
   const st = dateState(tr.dataset.date);
   return st === "date-past" || st === "date-today";
+}
+
+function isTodayTr(tr) {
+  const air = tr.dataset.air ? Number(tr.dataset.air) : null;
+  if (air) {
+    const day = utcDayStr(air);
+    return !!day && day === utcTodayStr();
+  }
+  return dateState(tr.dataset.date) === "date-today";
 }
 
 function shortDate(dateStr) {
@@ -609,14 +721,15 @@ async function openReleases(mediaType, tmdbId, title) {
           ? `<div class="episode-name">${it.episode_name}</div>`
           : "";
         const watchedClass = it.watched ? " watched" : "";
-        const aired = isNewEpisode(it); // yayınlandı mı (bold kriteri)
-        const btnDisabled = !aired ? " disabled" : "";
+        const released = st === "date-past" || st === "date-today"; // yayınlandı mı (watched'tan bağımsız)
+        const btnDisabled = !released ? " disabled" : "";
         const selectable = canSelectAll(it) ? 1 : 0;
         const btnCls = it.watched ? "watch-btn on" : "watch-btn";
         const checkIcon = it.watched ? CHECK_SVG : "";
         const newCls = isNewEpisode(it) ? " new" : "";
+        const todayCls = st === "date-today" ? " today-release" : "";
         const dateText = f.text;
-        html += `<tr class="${watchedClass}${newCls}" data-released="${selectable}" data-air="${it.air_time || ""}" data-date="${it.date || ""}">`;
+        html += `<tr class="${watchedClass}${newCls}${todayCls}" data-released="${selectable}" data-air="${it.air_time || ""}" data-date="${it.date || ""}">`;
         if (data.media_type === "tv") {
           html += `<td><button class="${btnCls}" data-s="${it.season}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("season_ep", { s: it.season, e: it.episode })}</span>${epName}</span></td>`;
         } else {
@@ -653,6 +766,7 @@ async function openReleases(mediaType, tmdbId, title) {
           const tr = btn.closest("tr");
           tr.classList.toggle("watched", watched === 1);
           tr.classList.toggle("new", watched === 0 && isNewTr(tr));
+          tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
 
           const seasonBox = btn.closest(".season-box");
           const allRows = seasonBox.querySelectorAll("tbody tr");
@@ -703,6 +817,7 @@ async function openReleases(mediaType, tmdbId, title) {
             b.innerHTML = watched ? CHECK_SVG : "";
             b.disabled = false;
             tr.classList.toggle("new", watched === 0 && isNewTr(tr));
+            tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
           });
           const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
           const total = rows.length;
@@ -911,6 +1026,41 @@ async function toggleFavActor(btn) {
   }
 }
 
+async function toggleFavAnimeChar(btn) {
+  const charId = btn.dataset.charId;
+  const name = btn.dataset.charName || "";
+  const animeTitle = btn.dataset.animeTitle || "";
+  const prevFav = favAnimeChars.has(charId);
+  try {
+    const r = await fetch("/api/fav_anime_chars", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ character_id: charId, name, anime_title: animeTitle }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    if (j.added) favAnimeChars.set(charId, name);
+    else favAnimeChars.delete(charId);
+    btn.classList.toggle("fav", j.added);
+    toast(j.added ? t("fav_char_added") : t("fav_char_removed"));
+  } catch (err) {
+    if (prevFav) favAnimeChars.delete(charId);
+    else favAnimeChars.delete(charId);
+    btn.classList.toggle("fav", prevFav);
+    toast(errText(err.message) || t("error"));
+  }
+}
+
+function openAnimeChar(charId, name) {
+  setMedia("anime");
+  const input = document.getElementById("search-input");
+  if (input) input.value = "";
+  chips.length = 0;
+  chips.push({ type: "char", label: name, value: charId });
+  renderChips();
+  doComboSearch("", chips, "anime");
+}
+
 async function openPerson(personId, name) {
   const modal = document.getElementById("person-modal");
   const body = document.getElementById("person-body");
@@ -1008,7 +1158,10 @@ async function loadFollowed() {
 
   items.forEach((item) => {
     const div = document.createElement("div");
-    div.className = "card";
+    const todayNow =
+      (item.media_type === "tv" && item.next_episode && isToday(item.next_episode.air_date)) ||
+      (item.media_type === "movie" && dateState(item.release_date) === "date-today");
+    div.className = todayNow ? "card today-release-card" : "card";
     div.innerHTML = `
       ${posterHTML(item.poster_path, item.title)}
       <div class="info">
@@ -1016,6 +1169,7 @@ async function loadFollowed() {
         <div class="meta">
           <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
           ${scoreTag(item.vote_average)}
+          ${platformTag(item.networks)}
           ${
             item.media_type === "tv"
               ? item.next_episode
@@ -1099,7 +1253,8 @@ async function loadAnime() {
 
   items.forEach((item) => {
     const div = document.createElement("div");
-    div.className = "card";
+    const animeToday = !!item.next_episode && utcDayStr(item.next_episode.airing_at) === utcTodayStr();
+    div.className = animeToday ? "card today-release-card" : "card";
     div.innerHTML = `
       ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
       <div class="info">
@@ -1107,6 +1262,7 @@ async function loadAnime() {
         <div class="meta">
           <span class="badge badge-anime">${t("tab_anime")}</span>
           ${item.score ? scoreTag(item.score / 10) : ""}
+          ${platformTag(item.studios)}
           ${animeNextText(item.next_episode, item.status)}
         </div>
       </div>
@@ -1133,6 +1289,175 @@ async function loadAnime() {
     applyTitleHint(div);
   });
 }
+
+function unwatchedFirstLabel(item) {
+  if (!item.items || !item.items.length) return "";
+  const it = item.items[0];
+  if (item.isAnime) return `EP ${it.episode}`;
+  return `S${String(it.season).padStart(2, "0")}E${String(it.episode).padStart(2, "0")}`;
+}
+
+async function loadUnwatched() {
+  let data = { shows: [], anime: [] };
+  try {
+    const res = await fetch("/api/unwatched");
+    data = await res.json();
+  } catch (e) {
+    data = { shows: [], anime: [] };
+  }
+  const showsWrap = document.getElementById("unwatched-shows-wrap");
+  const animeWrap = document.getElementById("unwatched-anime-wrap");
+  const empty = document.getElementById("empty-unwatched");
+  const showsGrid = document.getElementById("unwatched-shows");
+  const animeGrid = document.getElementById("unwatched-anime");
+  showsGrid.innerHTML = "";
+  animeGrid.innerHTML = "";
+
+  const shows = (data.shows || []).map((s) => ({ ...s, isAnime: false }));
+  const animes = (data.anime || []).map((a) => ({ ...a, isAnime: true }));
+
+  showsWrap.style.display = shows.length ? "" : "none";
+  animeWrap.style.display = animes.length ? "" : "none";
+  animeWrap.classList.toggle("has-shows", shows.length > 0);
+  empty.style.display = shows.length || animes.length ? "none" : "block";
+
+  shows.forEach((item) => {
+    const div = document.createElement("div");
+    const singleToday = item.unwatched === 1 && isToday((item.items[0] || {}).air_date);
+    div.className = singleToday ? "card today-release-card" : "card unwatched-card";
+    let bottom;
+    if (item.unwatched === 1) {
+      const lbl = unwatchedFirstLabel(item);
+      bottom = singleToday
+        ? `<div class="next-ep today">${lbl} ${t("today_airing")}</div>`
+        : `<div class="next-ep today">${lbl}</div>`;
+    } else {
+      bottom = `<div class="next-ep unwatched-count">${t("unwatched_count", { n: item.unwatched })}</div>`;
+    }
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-tv">${typeLabel("tv")}</span>
+          ${scoreTag(item.vote_average)}
+          ${platformTag(item.networks)}
+          ${bottom}
+        </div>
+      </div>
+    `;
+    if (item.unwatched > 1) {
+      div.onclick = () => openUnwatchedModal(item, false);
+    }
+    showsGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+
+  animes.forEach((item) => {
+    const div = document.createElement("div");
+    const singleToday = item.unwatched === 1 && !!item.items[0] && utcDayStr(item.items[0].air_at) === utcTodayStr();
+    div.className = singleToday ? "card today-release-card" : "card unwatched-card";
+    let bottom;
+    if (item.unwatched === 1) {
+      const lbl = unwatchedFirstLabel(item);
+      bottom = singleToday
+        ? `<div class="next-ep today">${lbl} ${t("today_airing")}</div>`
+        : `<div class="next-ep today">${lbl}</div>`;
+    } else {
+      bottom = `<div class="next-ep unwatched-count">${t("unwatched_count", { n: item.unwatched })}</div>`;
+    }
+    div.innerHTML = `
+      ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-anime">${t("tab_anime")}</span>
+          ${item.score ? scoreTag(item.score / 10) : ""}
+          ${platformTag(item.studios)}
+          ${bottom}
+        </div>
+      </div>
+    `;
+    if (item.unwatched > 1) {
+      div.onclick = () => openUnwatchedModal(item, true);
+    }
+    animeGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+}
+
+async function openUnwatchedModal(item, isAnime) {
+  const modal = document.getElementById("unwatched-modal");
+  const body = document.getElementById("unwatched-body");
+  document.getElementById("unwatched-title").textContent = `${item.title} · ${t("unwatched_title")}`;
+  body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  modal.style.display = "flex";
+
+  const renderList = () => {
+    const sorted = [...item.items].sort((a, b) =>
+      a.season != null
+        ? (a.season - b.season) || (a.episode - b.episode)
+        : a.episode - b.episode
+    );
+    const firstUnwatched = sorted.find((it) => !it.watched);
+    const rows = sorted.map((it) => {
+      const isUnwatched = !it.watched;
+      const isFirst = isUnwatched && firstUnwatched === it;
+      const lockedCls = isUnwatched && !isFirst ? " locked" : "";
+      const watchedCls = !isUnwatched ? " watched" : "";
+      const tip = isUnwatched && !isFirst
+        ? ` data-tip="${t("unwatched_tooltip", { ep: item.isAnime ? `EP ${firstUnwatched.episode}` : `S${String(firstUnwatched.season).padStart(2, "0")}E${String(firstUnwatched.episode).padStart(2, "0")}` })}"`
+        : "";
+      const label = isAnime
+        ? `EP ${it.episode}`
+        : t("season_ep", { s: it.season, e: it.episode });
+      const epName = it.episode_name
+        ? `<div class="episode-name">${it.episode_name}</div>`
+        : "";
+      return `<tr class="${watchedCls}">
+        <td><button class="watch-btn uw-watch${it.watched ? " on" : ""}${lockedCls}" data-i="${it.idx}"${tip}>${it.watched ? CHECK_SVG : ""}</button><span class="episode-cell"><span class="episode-label">${label}</span>${epName}</span></td>
+      </tr>`;
+    });
+    body.innerHTML = `<div class="season-box"><table class="releases-table"><thead><tr><th>${t("col_episode")}</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+
+    body.querySelectorAll(".uw-watch").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (btn.classList.contains("locked")) return;
+        const it = sorted[Number(btn.dataset.i)];
+        const newWatched = it.watched ? 0 : 1;
+        try {
+          if (isAnime) {
+            await fetch("/api/anime/episode/watch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ anime_id: item.id, episode: it.episode, watched: newWatched }),
+            });
+          } else {
+            await fetch("/api/episode/watch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tmdb_id: item.tmdb_id, season: it.season, episode: it.episode, watched: newWatched }),
+            });
+          }
+          it.watched = newWatched;
+          renderList();
+        } catch (e) {
+          toast(t("error"));
+        }
+      });
+    });
+  };
+
+  item.items = (item.items || []).map((it, idx) => ({ ...it, idx }));
+  renderList();
+}
+
+document.getElementById("unwatched-close").onclick = () => {
+  document.getElementById("unwatched-modal").style.display = "none";
+};
+document.getElementById("unwatched-modal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) document.getElementById("unwatched-modal").style.display = "none";
+});
 
 async function openAnimeDetails(dbId, anilistId, title) {
   const modal = document.getElementById("details-modal");
@@ -1184,7 +1509,7 @@ async function openAnimeDetails(dbId, anilistId, title) {
     if (data.genres && data.genres.length) {
       html += '<div class="genre-tags">';
       data.genres.forEach((g) => {
-        html += `<span class="detail-badge genre-tag${favGenres.has(g) ? " fav" : ""}" data-genre="${g.replace(/"/g, "&quot;")}">${g}</span>`;
+        html += `<span class="detail-badge anime-genre-tag${favAnimeGenres.has(g) ? " fav" : ""}" data-anime-genre="${g.replace(/"/g, "&quot;")}">${animeGenreLabel(g)}</span>`;
       });
       html += "</div>";
     }
@@ -1206,7 +1531,10 @@ async function openAnimeDetails(dbId, anilistId, title) {
         const img = c.image
           ? `<img class="cast-avatar" src="${c.image}" alt="${c.name}" />`
           : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
-        html += `<div class="cast-item">${img}<div class="cast-info"><div class="cast-name">${c.name}</div></div></div>`;
+        const fav = c.id && favAnimeChars.has(String(c.id)) ? " fav" : "";
+        html += `<div class="cast-item" data-char-id="${c.id || ""}" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${c.name}</div></div>${
+          c.id ? `<button class="cast-fav${fav}" data-char-id="${c.id}" data-char-name="${c.name.replace(/"/g, "&quot;")}" data-anime-title="${(data.title || "").replace(/"/g, "&quot;")}" data-tip="${t("fav_char")}">${HEART_SVG}</button>` : ""
+        }</div>`;
       });
       html += "</div></div>";
     }
@@ -1214,6 +1542,17 @@ async function openAnimeDetails(dbId, anilistId, title) {
     html += "</div></div>";
 
     body.innerHTML = html;
+    body.querySelectorAll(".cast-item").forEach((el) => {
+      const cid = el.dataset.charId;
+      if (!cid) return;
+      el.onclick = () => openAnimeChar(cid, el.querySelector(".cast-name").textContent);
+    });
+    body.querySelectorAll(".cast-fav").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        toggleFavAnimeChar(btn);
+      };
+    });
   } catch (e) {
     body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
   }
@@ -1289,6 +1628,11 @@ function setMedia(media) {
     normalInput.dataset.i18n = ph;
     normalInput.placeholder = t(ph);
   }
+  const actorBtn = document.getElementById("filter-actor");
+  if (actorBtn) {
+    actorBtn.dataset.i18n = media === "anime" ? "filter_character" : "filter_actor";
+    actorBtn.textContent = t(media === "anime" ? "filter_character" : "filter_actor");
+  }
 }
 
 document.getElementById("media-show").onclick = () => setMedia("show");
@@ -1298,7 +1642,7 @@ function renderChips() {
   const box = document.getElementById("filter-chips");
   box.innerHTML = chips
     .map(
-      (c, i) => `<span class="chip">${c.label}<button class="chip-x" data-i="${i}">✕</button></span>`
+      (c, i) => `<span class="chip">${c.type === "genre" ? animeGenreLabel(c.label) : c.label}<button class="chip-x" data-i="${i}">✕</button></span>`
     )
     .join("");
   box.querySelectorAll(".chip-x").forEach((btn) => {
@@ -1493,8 +1837,8 @@ document.getElementById("search-input")?.addEventListener("input", (e) => {
   }
 });
 
-document.getElementById("filter-actor").onclick = () => openPicker("fav_actor");
-document.getElementById("filter-genre").onclick = () => openPicker("fav_genre");
+document.getElementById("filter-actor").onclick = () => openPicker(currentMedia() === "anime" ? "fav_anime_char" : "fav_actor");
+document.getElementById("filter-genre").onclick = () => openPicker(currentMedia() === "anime" ? "anime_genre" : "fav_genre");
 document.getElementById("filter-year").onclick = () => openValueModal("year");
 document.getElementById("filter-score").onclick = () => openValueModal("score");
 
@@ -1505,9 +1849,6 @@ document.getElementById("value-close").onclick = () => {
 document.getElementById("value-modal").addEventListener("click", (e) => {
   if (e.target === e.currentTarget) document.getElementById("value-modal").style.display = "none";
 });
-document.getElementById("value-cancel").onclick = () => {
-  document.getElementById("value-modal").style.display = "none";
-};
 document.getElementById("value-go").onclick = () => {
   const kind = document.getElementById("value-input").dataset.filter;
   const val = document.getElementById("value-input").value.trim();
@@ -1557,8 +1898,8 @@ function comboTitle(chipsArr) {
   const q = (document.getElementById("search-input")?.value || "").trim();
   if (q) parts.push(q);
   chipsArr.forEach((c) => {
-    if (c.type === "actor") parts.push(`${c.label}`);
-    else if (c.type === "genre") parts.push(`${c.label}`);
+    if (c.type === "actor" || c.type === "char") parts.push(`${c.label}`);
+    else if (c.type === "genre") parts.push(`${animeGenreLabel(c.label)}`);
     else if (c.type === "year") parts.push(`${c.label}`);
     else if (c.type === "score") parts.push(`${c.label}`);
   });
@@ -1569,7 +1910,7 @@ async function doComboSearch(q, chipsArr, media) {
   const params = new URLSearchParams();
   params.set("media", media);
   if (q) params.set("q", q);
-  const actors = chipsArr.filter((c) => c.type === "actor").map((c) => c.value).join(",");
+  const actors = chipsArr.filter((c) => c.type === "actor" || c.type === "char").map((c) => c.value).join(",");
   const genres = chipsArr.filter((c) => c.type === "genre").map((c) => c.value).join(",");
   const year = chipsArr.filter((c) => c.type === "year").map((c) => c.value)[0] || "";
   const score = chipsArr.filter((c) => c.type === "score").map((c) => c.value)[0] || "";
@@ -1594,7 +1935,7 @@ async function doComboSearch(q, chipsArr, media) {
   const actorLabel = actors
     ? chipsArr.filter((c) => c.type === "actor").map((c) => c.label).join(", ")
     : "";
-  const genreLabel = genres ? chipsArr.filter((c) => c.type === "genre").map((c) => c.label).join(", ") : "";
+  const genreLabel = genres ? chipsArr.filter((c) => c.type === "genre").map((c) => animeGenreLabel(c.label)).join(", ") : "";
   if (media === "anime") {
     grid.style.display = "none";
     animeGrid.style.display = "";
@@ -1699,7 +2040,7 @@ renderChips();
 let pickerMode = "";
 const pickerSelected = new Set();
 
-function openPicker(mode) {
+async function openPicker(mode) {
   pickerMode = mode;
   pickerSelected.clear();
   const modal = document.getElementById("picker-modal");
@@ -1728,6 +2069,65 @@ function openPicker(mode) {
         <div class="picker-section-title">${t("picker_fav_actor_search")}</div>
         ${favItems}
       </div>`;
+  } else if (mode === "fav_anime_char") {
+    title.textContent = t("picker_char_search");
+    const favItems = favAnimeChars.size
+      ? `<div class="picker-grid actor-grid">${[...favAnimeChars.entries()]
+          .map(
+            ([id, name]) => `<div class="picker-item actor" data-id="${escAttr(id)}" data-name="${escAttr(name)}">
+              <span class="picker-name">${escAttr(name)}</span>
+              <span class="picker-check">${CHECK_SVG}</span>
+            </div>`
+          )
+          .join("")}</div>`
+      : `<div class="picker-empty">${t("no_fav_char")}</div>`;
+    body.innerHTML = `
+      <div class="picker-section">
+        <div class="picker-section-title">${t("picker_char_search")}</div>
+        <div class="picker-free">
+          <input id="picker-free-input" type="text" placeholder="${t("char_placeholder")}" />
+        </div>
+      </div>
+      <div class="picker-section">
+        <div class="picker-section-title">${t("picker_fav_char_search")}</div>
+        ${favItems}
+      </div>`;
+  } else if (mode === "anime_genre") {
+    title.textContent = t("picker_genre_search");
+    const favItems = favAnimeGenres.size
+      ? `<div class="picker-grid genre-grid">${[...favAnimeGenres]
+          .map(
+            (g) => `<div class="picker-item genre" data-id="${escAttr(g)}" data-name="${escAttr(g)}">
+              <span class="picker-name">${escAttr(animeGenreLabel(g))}</span>
+              <span class="picker-check">${CHECK_SVG}</span>
+            </div>`
+          )
+          .join("")}</div>`
+      : `<div class="picker-empty">${t("no_fav_anime_genre")}</div>`;
+    const allGenres = await loadGenres("anilist");
+    const allItems = allGenres.length
+      ? `<div class="picker-grid genre-grid">${allGenres.map(
+          (g) => `<div class="picker-item genre" data-id="${escAttr(g)}" data-name="${escAttr(g)}">
+              <span class="picker-name">${escAttr(animeGenreLabel(g))}</span>
+              <span class="picker-check">${CHECK_SVG}</span>
+            </div>`
+        ).join("")}</div>`
+      : `<div class="picker-empty">${t("no_results")}</div>`;
+    body.innerHTML = `
+      <div class="picker-section">
+        <div class="picker-section-title">${t("picker_genre_search")}</div>
+        <div class="picker-free">
+          <input id="picker-free-input" type="text" placeholder="${t("genre_placeholder")}" />
+        </div>
+      </div>
+      <div class="picker-section">
+        <div class="picker-section-title">${t("picker_fav_genre_search")}</div>
+        ${favItems}
+      </div>
+      <div class="picker-section">
+        <div class="picker-section-title">${t("search_type_genre")}</div>
+        ${allItems}
+      </div>`;
   } else {
     title.textContent = t("picker_genre_search");
     const favItems = favGenres.size
@@ -1740,6 +2140,15 @@ function openPicker(mode) {
           )
           .join("")}</div>`
       : `<div class="picker-empty">${t("no_fav_genre")}</div>`;
+    const allGenres = await loadGenres("tmdb");
+    const allItems = allGenres.length
+      ? `<div class="picker-grid genre-grid">${allGenres.map(
+          (g) => `<div class="picker-item genre" data-id="${escAttr(g)}" data-name="${escAttr(g)}">
+              <span class="picker-name">${escAttr(g)}</span>
+              <span class="picker-check">${CHECK_SVG}</span>
+            </div>`
+        ).join("")}</div>`
+      : `<div class="picker-empty">${t("no_results")}</div>`;
     body.innerHTML = `
       <div class="picker-section">
         <div class="picker-section-title">${t("picker_genre_search")}</div>
@@ -1750,6 +2159,10 @@ function openPicker(mode) {
       <div class="picker-section">
         <div class="picker-section-title">${t("picker_fav_genre_search")}</div>
         ${favItems}
+      </div>
+      <div class="picker-section">
+        <div class="picker-section-title">${t("search_type_genre")}</div>
+        ${allItems}
       </div>`;
   }
   body.querySelectorAll(".picker-item").forEach((el) => {
@@ -1777,17 +2190,22 @@ document.getElementById("search-results-modal").addEventListener("click", (e) =>
 document.getElementById("picker-go").onclick = () => {
   const freeVal = (document.getElementById("picker-free-input")?.value || "").trim();
   if (!pickerSelected.size && !freeVal) {
-    toast(pickerMode === "fav_actor" ? t("no_fav_actor") : t("no_fav_genre"));
+    toast(pickerMode === "fav_actor" ? t("no_fav_actor") : pickerMode === "fav_anime_char" ? t("no_fav_char") : t("no_fav_genre"));
     return;
   }
+  const chipType = pickerMode === "fav_actor" ? "actor" : pickerMode === "fav_anime_char" ? "char" : "genre";
+  const nameOf = (id) => {
+    if (pickerMode === "fav_actor") return favActors.get(id) || id;
+    if (pickerMode === "fav_anime_char") return favAnimeChars.get(id) || id;
+    return id;
+  };
   pickerSelected.forEach((id) => {
-    const name = pickerMode === "fav_actor" ? favActors.get(id) || id : id;
-    chips.push({ type: pickerMode === "fav_actor" ? "actor" : "genre", label: name, value: id });
+    chips.push({ type: chipType, label: nameOf(id), value: id });
   });
   if (freeVal) {
     freeVal.split(",").forEach((s) => {
       const v = s.trim();
-      if (v) chips.push({ type: pickerMode === "fav_actor" ? "actor" : "genre", label: v, value: v });
+      if (v) chips.push({ type: chipType, label: v, value: v });
     });
   }
   document.getElementById("picker-modal").style.display = "none";
@@ -1822,11 +2240,14 @@ function renderTzList(query) {
   });
 }
 
-function initTimePicker() {
-  const input = document.getElementById("s-hour");
-  const list = document.getElementById("s-time-list");
-  const hourBody = document.getElementById("s-hour-list");
-  const minuteBody = document.getElementById("s-minute-list");
+function initTimePicker(base) {
+  const input = document.getElementById(base);
+  const box = input.closest(".time-combobox");
+  const list = box.querySelector(".time-list");
+  const cols = list.querySelectorAll(".time-col");
+  const hourBody = cols[0].querySelector(".time-col-body");
+  const minuteBody = cols[1].querySelector(".time-col-body");
+  const clock = box.querySelector(".time-clock");
   let open = false;
   let lastHourValue = input.value || "09:00";
 
@@ -1920,7 +2341,7 @@ function initTimePicker() {
     }
   }
 
-  document.querySelector(".time-clock").addEventListener("click", (e) => {
+  clock.addEventListener("click", (e) => {
     e.stopPropagation();
     toggle();
   });
@@ -1977,10 +2398,16 @@ async function loadSettings() {
   document.getElementById("s-token").value = s.telegram_bot_token || "";
   document.getElementById("s-chat").value = s.telegram_chat_id || "";
   document.getElementById("s-hour").value = s.notify_hour || "09:00";
+  document.getElementById("s-sync-hour").value = s.sync_hour || "09:00";
+  document.getElementById("s-genre-hour").value = s.genre_hour || "05:00";
+  document.getElementById("s-data-hour").value = s.data_hour || "05:10";
   document.getElementById("s-ntfy").value = s.ntfy_topic || "";
   await loadTimezones();
   initTzCombo();
-  initTimePicker();
+  initTimePicker("s-hour");
+  initTimePicker("s-sync-hour");
+  initTimePicker("s-genre-hour");
+  initTimePicker("s-data-hour");
   currentTz = s.timezone || "Europe/Istanbul";
   document.getElementById("s-tz").value = currentTz;
   document.getElementById("s-lang").value = s.language || "tr-TR";
@@ -2132,7 +2559,10 @@ document.getElementById("tab-settings").addEventListener("click", (e) => {
   document.getElementById("settings-menu").classList.toggle("open");
 });
 document.querySelectorAll(".settings-menu-item").forEach((btn) => {
-  btn.addEventListener("click", () => showSettingsSubmodal(btn.dataset.target));
+  btn.addEventListener("click", () => {
+    if (btn.classList.contains("locked")) return;
+    showSettingsSubmodal(btn.dataset.target);
+  });
 });
 document.addEventListener("click", (e) => {
   const wrap = document.querySelector(".settings-wrap");
@@ -2215,6 +2645,22 @@ document.getElementById("s-hour").addEventListener("change", () => {
   saveSettingsPartial({ notify_hour: el.value }, hint);
 });
 
+document.getElementById("s-sync-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-sync-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ sync_hour: el.value }, hint);
+});
+document.getElementById("s-genre-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-genre-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ genre_hour: el.value }, hint);
+});
+document.getElementById("s-data-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-data-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ data_hour: el.value }, hint);
+});
+
 document.getElementById("s-telegram-enabled").addEventListener("change", (e) => {
   saveSettingsPartial({ telegram_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
 });
@@ -2271,6 +2717,16 @@ let lastView = "followed";
 
 (async () => {
   try {
+    const res = await fetch("/api/fav_anime_genres");
+    const s = await res.json();
+    if (s.genres) favAnimeGenres = new Set(s.genres);
+  } catch (e) {
+    /* yoksay */
+  }
+})();
+
+(async () => {
+  try {
     const res = await fetch("/api/fav_actors");
     const s = await res.json();
     if (s.actors) favActors = new Map((s.actors || []).map((a) => [a.person_id, a.name]));
@@ -2279,7 +2735,43 @@ let lastView = "followed";
   }
 })();
 
+(async () => {
+  try {
+    const res = await fetch("/api/fav_anime_chars");
+    const s = await res.json();
+    if (s.characters) favAnimeChars = new Map((s.characters || []).map((a) => [a.character_id, a.name]));
+  } catch (e) {
+    /* yoksay */
+  }
+})();
+
 document.getElementById("details-modal").addEventListener("click", async (e) => {
+  const animeTag = e.target.closest(".anime-genre-tag");
+  if (animeTag) {
+    e.stopPropagation();
+    const genre = animeTag.dataset.animeGenre;
+    const prevFav = favAnimeGenres.has(genre);
+    favAnimeGenres.add(genre);
+    animeTag.classList.add("fav");
+    try {
+      const r = await fetch("/api/fav_anime_genres", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ genre }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      favAnimeGenres = new Set(j.genres);
+      if (!j.added) animeTag.classList.remove("fav");
+      toast(j.added ? t("fav_anime_genre_added") : t("fav_anime_genre_removed"));
+    } catch (err) {
+      if (prevFav) favAnimeGenres.delete(genre);
+      else favAnimeGenres.delete(genre);
+      if (prevFav) animeTag.classList.remove("fav");
+      toast(errText(err.message) || t("error"));
+    }
+    return;
+  }
   const tag = e.target.closest(".genre-tag");
   if (!tag) return;
   e.stopPropagation();
@@ -2297,6 +2789,7 @@ document.getElementById("details-modal").addEventListener("click", async (e) => 
     if (!r.ok) throw new Error(j.error);
     favGenres = new Set(j.genres);
     if (!j.added) tag.classList.remove("fav");
+    toast(j.added ? t("fav_genre_added") : t("fav_genre_removed"));
   } catch (err) {
     if (prevFav) favGenres.delete(genre);
     else favGenres.delete(genre);

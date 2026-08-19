@@ -48,6 +48,8 @@ def init_db():
     cols = [r["name"] for r in conn.execute("PRAGMA table_info(followed)").fetchall()]
     if "vote_average" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN vote_average REAL DEFAULT 0")
+    if "networks" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN networks TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS episodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,6 +66,13 @@ def init_db():
     if "watched" not in ecols:
         conn.execute("ALTER TABLE episodes ADD COLUMN watched INTEGER DEFAULT 0")
     conn.execute(
+        """CREATE TABLE IF NOT EXISTS genres (
+            source TEXT NOT NULL,
+            name TEXT NOT NULL,
+            UNIQUE(source, name)
+        )"""
+    )
+    conn.execute(
         """CREATE TABLE IF NOT EXISTS anime (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             anilist_id INTEGER UNIQUE,
@@ -78,6 +87,8 @@ def init_db():
     acols = [r["name"] for r in conn.execute("PRAGMA table_info(anime)").fetchall()]
     if "score" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN score REAL")
+    if "studios" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN studios TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS anime_episodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -249,10 +260,20 @@ def anilist_search(q):
     return data["Page"].get("media") or []
 
 
+ANIME_CHAR_MEDIA_QUERY = """
+query ($characterId: Int) {
+  Character(id: $characterId) {
+    media(type: ANIME, perPage: 50) {
+      nodes { id }
+    }
+  }
+}
+"""
+
 ANIME_ADV_SEARCH_QUERY = """
-query ($year: Int, $score: Int, $genres: [String], $q: String) {
+query ($year: Int, $score: Int, $genres: [String], $q: String, $idIn: [Int]) {
   Page(page: 1, perPage: 20) {
-    media(type: ANIME, seasonYear: $year, averageScore_greater: $score, genre_in: $genres, search: $q) {
+    media(type: ANIME, seasonYear: $year, averageScore_greater: $score, genre_in: $genres, search: $q, id_in: $idIn) {
       id
       title { romaji english native }
       coverImage { large }
@@ -269,7 +290,7 @@ query ($year: Int, $score: Int, $genres: [String], $q: String) {
 """
 
 
-def _anime_adv_results(year=None, score=None, genres=None, q=None):
+def _anime_adv_results(year=None, score=None, genres=None, q=None, character_id=None):
     variables = {}
     if year is not None:
         variables["year"] = int(year)
@@ -279,6 +300,14 @@ def _anime_adv_results(year=None, score=None, genres=None, q=None):
         variables["genres"] = [g.strip() for g in genres.split(",") if g.strip()]
     if q:
         variables["q"] = q
+    if character_id is not None:
+        cdata = anilist_query(ANIME_CHAR_MEDIA_QUERY, {"characterId": int(character_id)})
+        ids = []
+        if cdata and cdata.get("Character"):
+            ids = [n.get("id") for n in (cdata["Character"].get("media") or {}).get("nodes") or [] if n.get("id")]
+        if not ids:
+            return []
+        variables["idIn"] = ids
     data = anilist_query(ANIME_ADV_SEARCH_QUERY, variables)
     if not data or not data.get("Page"):
         return []
@@ -743,7 +772,13 @@ def combo_search():
             return jsonify({"error": "Puan 0-10 arasında olmalı"}), 400
 
     if media == "anime":
-        return jsonify(_anime_adv_results(year=year_i, score=score_f, genres=genres or None, q=q or None))
+        character_id = None
+        if actors:
+            cids = [x.strip() for x in actors.split(",") if x.strip().isdigit()]
+            if not cids:
+                return jsonify({"error": "Karakter bulunamadı"}), 400
+            character_id = int(cids[0])
+        return jsonify(_anime_adv_results(year=year_i, score=score_f, genres=genres or None, q=q or None, character_id=character_id))
 
     params_movie = {}
     params_tv = {}
@@ -865,6 +900,7 @@ def anime_details():
             "studios": [s.get("name") for s in (d.get("studios") or {}).get("nodes") or [] if s.get("name")],
             "characters": [
                 {
+                    "id": c.get("id"),
                     "name": c.get("name", {}).get("full") if c.get("name") else "",
                     "image": (c.get("image") or {}).get("large") if c.get("image") else None,
                 }
@@ -899,6 +935,7 @@ def anime_followed():
                 "episodes": r["episodes"],
                 "status": r["status"],
                 "score": score,
+                "studios": r["studios"],
                 "next_episode": _anime_followed_next(conn, r["id"]),
             }
         )
@@ -933,14 +970,16 @@ def anime_follow():
     episodes = detail.get("episodes") or 0
     status = detail.get("status")
     score = detail.get("averageScore")
+    studios = [s.get("name") for s in (detail.get("studios") or {}).get("nodes") or [] if s.get("name")]
+    studio = studios[0] if studios else None
     conn = get_db()
     conn.execute(
-        "INSERT INTO anime (anilist_id, title, cover_url, episodes, status, score) "
-        "VALUES (?, ?, ?, ?, ?, ?) "
+        "INSERT INTO anime (anilist_id, title, cover_url, episodes, status, score, studios) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?) "
         "ON CONFLICT(anilist_id) DO UPDATE SET "
         "title=excluded.title, cover_url=excluded.cover_url, "
-        "episodes=excluded.episodes, status=excluded.status, score=excluded.score",
-        (anilist_id, title, cover, episodes, status, score),
+        "episodes=excluded.episodes, status=excluded.status, score=excluded.score, studios=excluded.studios",
+        (anilist_id, title, cover, episodes, status, score, studio),
     )
     conn.commit()
     row = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
@@ -1003,35 +1042,43 @@ def anime_schedule():
 
 
 def get_tmdb_info(media_type, tmdb_id):
-    """TMDB'den temel bilgileri çeker: release_date ve vote_average."""
+    """TMDB'den temel bilgileri çeker: release_date, vote_average ve yayın platformları."""
     if media_type not in ("movie", "tv"):
         return None
     data = tmdb_request(f"/{media_type}/{tmdb_id}")
     if not data:
         return None
+    networks = [n.get("name") for n in (data.get("networks") or []) if n.get("name")]
     if media_type == "movie":
         return {
             "release_date": data.get("release_date"),
             "vote_average": data.get("vote_average") or 0,
+            "networks": [],
         }
     return {
         "release_date": data.get("first_air_date"),
         "vote_average": data.get("vote_average") or 0,
+        "networks": networks,
     }
 
 
 def backfill_votes():
-    """Puanı 0 olan takip kayıtlarını TMDB'den doldurur."""
+    """Takip edilen dizi/film ve anime verilerini TMDB/AniList'ten güncel çekip DB'yi yeniler."""
     conn = get_db()
-    rows = conn.execute(
-        "SELECT * FROM followed WHERE vote_average IS NULL OR vote_average=0"
-    ).fetchall()
-    for row in rows:
+    for row in conn.execute("SELECT * FROM followed").fetchall():
         info = get_tmdb_info(row["media_type"], row["tmdb_id"])
-        if info and info.get("vote_average"):
+        if info:
             conn.execute(
-                "UPDATE followed SET vote_average=? WHERE id=?",
-                (info["vote_average"], row["id"]),
+                "UPDATE followed SET vote_average=?, networks=? WHERE id=?",
+                (info.get("vote_average") or 0, json.dumps(info.get("networks") or []), row["id"]),
+            )
+    for row in conn.execute("SELECT * FROM anime").fetchall():
+        detail = anilist_detail(row["anilist_id"])
+        if detail:
+            studios = [s.get("name") for s in (detail.get("studios") or {}).get("nodes") or [] if s.get("name")]
+            conn.execute(
+                "UPDATE anime SET score=?, studios=? WHERE id=?",
+                (detail.get("averageScore"), studios[0] if studios else None, row["id"]),
             )
     conn.commit()
     conn.close()
@@ -1053,6 +1100,7 @@ def follow():
     release_date = body.get("release_date") or (info or {}).get("release_date")
     if vote_average is None:
         vote_average = (info or {}).get("vote_average") or 0
+    networks = (info or {}).get("networks") or []
 
     conn = get_db()
     existing = conn.execute(
@@ -1064,9 +1112,9 @@ def follow():
         return jsonify({"error": "Zaten takipte"}), 400
 
     conn.execute(
-        "INSERT INTO followed (tmdb_id, media_type, title, poster_path, release_date, vote_average) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (tmdb_id, media_type, title, poster_path, release_date, vote_average),
+        "INSERT INTO followed (tmdb_id, media_type, title, poster_path, release_date, vote_average, networks) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (tmdb_id, media_type, title, poster_path, release_date, vote_average, json.dumps(networks)),
     )
     new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.commit()
@@ -1089,6 +1137,10 @@ def followed():
     items = []
     for r in rows:
         item = dict(r)
+        try:
+            item["networks"] = json.loads(item.get("networks")) if item.get("networks") else []
+        except (ValueError, TypeError):
+            item["networks"] = []
         if item["media_type"] == "tv":
             nxt = conn.execute(
                 "SELECT season, episode, air_date FROM episodes "
@@ -1107,7 +1159,83 @@ def followed():
     return jsonify(items)
 
 
-@app.route("/api/unfollow/<int:item_id>", methods=["DELETE"])
+@app.route("/api/unwatched")
+def unwatched():
+    """Yayına girmiş ve izlenmemiş bölümleri olan dizi ve animeleri döndürür."""
+    conn = get_db()
+    today = today_str()
+    now = int(datetime.datetime.now().timestamp())
+
+    shows = []
+    for r in conn.execute("SELECT * FROM followed WHERE media_type='tv'").fetchall():
+        rows = conn.execute(
+            "SELECT season, episode, air_date FROM episodes "
+            "WHERE follow_id=? AND air_date IS NOT NULL AND air_date<=? AND watched=0 "
+            "ORDER BY air_date ASC, episode ASC",
+            (r["id"], today),
+        ).fetchall()
+        if not rows:
+            continue
+        season_cache = {}
+        items = []
+        for x in rows:
+            season_key = x["season"]
+            if season_key not in season_cache:
+                season_cache[season_key] = {}
+                if season_key is not None:
+                    sdata = tmdb_request(f"/tv/{r['tmdb_id']}/season/{season_key}")
+                    if sdata:
+                        season_cache[season_key] = {
+                            (ep.get("episode_number")): (ep.get("name") or "")
+                            for ep in (sdata.get("episodes") or [])
+                        }
+            ep_name = (season_cache.get(season_key) or {}).get(x["episode"]) or ""
+            items.append(
+                {
+                    "season": x["season"],
+                    "episode": x["episode"],
+                    "episode_name": ep_name,
+                    "air_date": x["air_date"],
+                }
+            )
+        shows.append(
+            {
+                "id": r["id"],
+                "tmdb_id": r["tmdb_id"],
+                "title": r["title"],
+                "poster_path": r["poster_path"],
+                "vote_average": r["vote_average"] or 0,
+                "networks": json.loads(r["networks"]) if r["networks"] else [],
+                "unwatched": len(items),
+                "items": items,
+            }
+        )
+
+    anime_list = []
+    for r in conn.execute("SELECT * FROM anime").fetchall():
+        rows = conn.execute(
+            "SELECT episode, air_at FROM anime_episodes "
+            "WHERE anime_id=? AND air_at IS NOT NULL AND air_at<=? AND watched=0 "
+            "ORDER BY air_at ASC, episode ASC",
+            (r["id"], now),
+        ).fetchall()
+        if not rows:
+            continue
+        anime_list.append(
+            {
+                "id": r["id"],
+                "anilist_id": r["anilist_id"],
+                "title": r["title"],
+                "cover_url": r["cover_url"],
+                "score": r["score"],
+                "studios": r["studios"],
+                "unwatched": len(rows),
+                "items": [{"episode": x["episode"], "air_at": x["air_at"]} for x in rows],
+            }
+        )
+
+    conn.close()
+    return jsonify({"shows": shows, "anime": anime_list})
 def unfollow(item_id):
     conn = get_db()
     conn.execute("DELETE FROM followed WHERE id=?", (item_id,))
@@ -1241,6 +1369,27 @@ def episode_watch():
         "ON CONFLICT(follow_id, season, episode) "
         "DO UPDATE SET watched=excluded.watched",
         (follow["id"], season, episode, watched),
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "watched": watched})
+
+
+@app.route("/api/anime/episode/watch", methods=["POST"])
+def anime_episode_watch():
+    body = request.get_json()
+    anime_id = body.get("anime_id")
+    episode = body.get("episode")
+    watched = 1 if body.get("watched") else 0
+    if not anime_id or episode is None:
+        return jsonify({"error": "Eksik bilgi"}), 400
+
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO anime_episodes (anime_id, episode, watched) "
+        "VALUES (?, ?, ?) "
+        "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=excluded.watched",
+        (anime_id, episode, watched),
     )
     conn.commit()
     conn.close()
@@ -1449,6 +1598,30 @@ def fav_actors():
         added = True
     set_setting("fav_actors", json.dumps(actors, ensure_ascii=False))
     return jsonify({"ok": True, "added": added, "actors": actors})
+
+
+@app.route("/api/fav_anime_chars", methods=["GET", "POST"])
+def fav_anime_chars():
+    if request.method == "GET":
+        raw = get_setting("fav_anime_chars")
+        chars = json.loads(raw) if raw else []
+        return jsonify({"characters": chars})
+    body = request.get_json(silent=True) or {}
+    character_id = body.get("character_id")
+    name = (body.get("name") or "").strip()
+    anime_title = (body.get("anime_title") or "").strip()
+    if not character_id:
+        return jsonify({"error": "Karakter id gerekli"}), 400
+    raw = get_setting("fav_anime_chars")
+    chars = json.loads(raw) if raw else []
+    if any(a.get("character_id") == character_id for a in chars):
+        chars = [a for a in chars if a.get("character_id") != character_id]
+        added = False
+    else:
+        chars.append({"character_id": character_id, "name": name, "anime_title": anime_title})
+        added = True
+    set_setting("fav_anime_chars", json.dumps(chars, ensure_ascii=False))
+    return jsonify({"ok": True, "added": added, "characters": chars})
 
 
 @app.route("/api/timezones")
@@ -1789,6 +1962,95 @@ def fav_genres():
     return jsonify({"ok": True, "added": added, "genres": genres})
 
 
+@app.route("/api/fav_anime_genres", methods=["GET", "POST"])
+def fav_anime_genres():
+    if request.method == "GET":
+        raw = get_setting("fav_anime_genres")
+        genres = json.loads(raw) if raw else []
+        return jsonify({"genres": genres})
+    body = request.get_json(silent=True) or {}
+    genre = (body.get("genre") or "").strip()
+    if not genre:
+        return jsonify({"error": "Tür adı gerekli"}), 400
+    raw = get_setting("fav_anime_genres")
+    genres = json.loads(raw) if raw else []
+    if genre in genres:
+        genres.remove(genre)
+        added = False
+    else:
+        genres.append(genre)
+        added = True
+    set_setting("fav_anime_genres", json.dumps(genres, ensure_ascii=False))
+    return jsonify({"ok": True, "added": added, "genres": genres})
+
+
+ANIME_GENRE_QUERY = """
+query {
+  GenreCollection
+}
+"""
+
+
+def _fetch_tmdb_genres():
+    """TMDB'den (seçili dilde) tüm film+dizi tür isimlerini döndürür."""
+    selected = get_setting("language") or "tr-TR"
+    names = []
+    seen = set()
+    for gpath in ("genre/movie/list", "genre/tv/list"):
+        data = tmdb_request(gpath, {"language": selected})
+        if data:
+            for g in (data.get("genres") or []):
+                gname = (g.get("name") or "").strip()
+                if gname and gname.lower() not in seen:
+                    seen.add(gname.lower())
+                    names.append(gname)
+    return names
+
+
+def _fetch_anilist_genres():
+    """AniList'ten tüm anime tür isimlerini döndürür."""
+    data = anilist_query(ANIME_GENRE_QUERY)
+    if not data:
+        return []
+    return [g for g in (data.get("GenreCollection") or []) if g]
+
+
+def sync_genres():
+    """TMDB ve AniList türlerini DB'ye işler; eksikleri ekler."""
+    conn = get_db()
+    for source, names in (("tmdb", _fetch_tmdb_genres()), ("anilist", _fetch_anilist_genres())):
+        for name in names:
+            conn.execute(
+                "INSERT OR IGNORE INTO genres (source, name) VALUES (?, ?)",
+                (source, name),
+            )
+    conn.commit()
+    conn.close()
+    print("sync_genres tamam", len(_tmdb_genre_names()), len(_anilist_genre_names()))
+
+
+def _tmdb_genre_names():
+    conn = get_db()
+    rows = conn.execute("SELECT name FROM genres WHERE source='tmdb' ORDER BY name").fetchall()
+    conn.close()
+    return [r["name"] for r in rows]
+
+
+def _anilist_genre_names():
+    conn = get_db()
+    rows = conn.execute("SELECT name FROM genres WHERE source='anilist' ORDER BY name").fetchall()
+    conn.close()
+    return [r["name"] for r in rows]
+
+
+@app.route("/api/genres")
+def list_genres():
+    source = request.args.get("source", "tmdb")
+    if source == "anilist":
+        return jsonify({"genres": _anilist_genre_names()})
+    return jsonify({"genres": _tmdb_genre_names()})
+
+
 SCHEDULER = BackgroundScheduler()
 
 
@@ -1817,12 +2079,35 @@ def schedule_releases():
         id="release_check",
         misfire_grace_time=3600,
     )
+    if SCHEDULER.get_job("genre_sync"):
+        SCHEDULER.remove_job("genre_sync")
+    SCHEDULER.add_job(
+        sync_genres,
+        "cron",
+        hour=5,
+        minute=0,
+        timezone=tz,
+        id="genre_sync",
+        misfire_grace_time=3600,
+    )
+    if SCHEDULER.get_job("follow_data_sync"):
+        SCHEDULER.remove_job("follow_data_sync")
+    SCHEDULER.add_job(
+        backfill_votes,
+        "cron",
+        hour=5,
+        minute=10,
+        timezone=tz,
+        id="follow_data_sync",
+        misfire_grace_time=3600,
+    )
     if not SCHEDULER.running:
         SCHEDULER.start()
     print("next release check:", SCHEDULER.get_job("release_check").next_run_time)
 
 
 def start_scheduler():
+    sync_genres()
     schedule_releases()
 
 

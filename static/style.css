@@ -29,6 +29,16 @@ nav {
   font-size: 1.3rem;
   font-weight: 700;
   color: #f97316;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
 }
 
 .sort-wrap {
@@ -196,6 +206,16 @@ main {
   z-index: 5;
 }
 
+.card.today-release-card {
+  border-color: #60A5FA;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(96, 165, 250, 0.3);
+}
+
+.card.today-release-card:hover {
+  border-color: #f97316;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(249, 115, 22, 0.3);
+}
+
 .card img {
   width: 100%;
   aspect-ratio: 2/3;
@@ -278,6 +298,20 @@ main {
   color: #f97316;
   border: 1px solid rgba(194, 120, 8, 0.4);
   margin-left: 2px;
+}
+
+.card .info .meta .badge.badge-platform {
+  background: rgba(212, 160, 23, 0.15);
+  color: #d4a017;
+  border-color: rgba(212, 160, 23, 0.4);
+  display: block;
+  width: fit-content;
+  margin: 4px auto 0 auto;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .card .info .meta .next-ep {
@@ -805,6 +839,20 @@ input:-webkit-autofill:focus {
 
 .settings-menu-item:hover i {
   color: #f97316;
+}
+
+.settings-menu-item.locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.settings-menu-item.locked:hover {
+  background: none;
+  color: #c8cdd8;
+}
+
+.settings-menu-item.locked:hover i {
+  color: #c8cdd8;
 }
 
 .settings-modal {
@@ -1564,25 +1612,29 @@ input:-webkit-autofill:focus {
   margin-top: 8px;
 }
 
-.genre-tag {
+.genre-tag,
+.anime-genre-tag {
   cursor: pointer;
   user-select: none;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.genre-tag:hover {
+.genre-tag:hover,
+.anime-genre-tag:hover {
   background: #2d3342;
   border-color: #f97316;
   color: #f97316;
 }
 
-.genre-tag.fav {
+.genre-tag.fav,
+.anime-genre-tag.fav {
   background: #7f1d1d;
   border-color: #b91c1c;
   color: #fecaca;
 }
 
-.genre-tag.fav:hover {
+.genre-tag.fav:hover,
+.anime-genre-tag.fav:hover {
   background: #991b1b;
   border-color: #ef4444;
   color: #fee2e2;
@@ -1728,6 +1780,11 @@ input:-webkit-autofill:focus {
   max-width: min(560px, 95vw);
 }
 
+.unwatched-modal {
+  width: 560px;
+  max-width: min(560px, 95vw);
+}
+
 .picker-grid {
   display: flex;
   flex-wrap: wrap;
@@ -1832,6 +1889,10 @@ input:-webkit-autofill:focus {
 
 .modal-footer .btn + .btn {
   margin-left: 10px;
+}
+
+.modal-footer .btn {
+  padding: 9px 22px;
 }
 
 .picker-section {
@@ -2176,20 +2237,56 @@ input:-webkit-autofill:focus {
   color: transparent;
 }
 
+.releases-table .uw-watch.locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: #2a2f3d;
+}
+
+.releases-table .uw-watch.locked:hover {
+  border-color: #2a2f3d;
+  color: transparent;
+}
+
+.unwatched-section-title {
+  color: #f97316;
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: center;
+  margin: 0 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #3a4050;
+}
+
+#unwatched-anime-wrap.has-shows {
+  margin-top: 30px;
+}
+
+#view-unwatched > div {
+  margin-bottom: 24px;
+}
+
+.unwatched-card .next-ep.unwatched-count {
+  color: #f97316;
+}
+
 .releases-table .watch-btn.on {
   background: #16a34a;
   border-color: #16a34a;
   color: #fff;
 }
 
+.releases-table tr.today-release .episode-label,
+.releases-table tr.today-release .episode-name {
+  color: #6f9ec9;
+  font-weight: 700;
+}
+
 .releases-table tr.watched .episode-label,
 .releases-table tr.watched .episode-name {
   color: #5a6f5f;
-}
-
-.releases-table tr.new .episode-label,
-.releases-table tr.new .episode-name {
-  font-weight: 700;
 }
 
 /* ============ Responsive / Mobile ============ */
@@ -2219,7 +2316,7 @@ input:-webkit-autofill:focus {
 
   .tabs {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr auto auto;
+    grid-template-columns: 1fr 1fr 1fr auto auto auto;
     gap: 4px;
     width: 100%;
   }
@@ -2231,6 +2328,14 @@ input:-webkit-autofill:focus {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  #tab-search span {
+    display: none;
+  }
+
+  #tab-search {
+    padding: 8px 10px;
   }
 
   #tab-settings {
@@ -2416,7 +2521,10 @@ input:-webkit-autofill:focus {
   #releases-modal > .modal,
   .modal-overlay .confirm-modal,
   .modal-overlay .details-modal,
-  .modal-overlay .person-modal {
+  .modal-overlay .person-modal,
+  .modal-overlay .picker-modal,
+  .modal-overlay .value-modal,
+  .modal-overlay .unwatched-modal {
     max-width: 92%;
     max-height: none;
     height: auto;
@@ -2427,6 +2535,8 @@ input:-webkit-autofill:focus {
 
   .modal-overlay .details-modal,
   .modal-overlay .person-modal,
+  .modal-overlay .picker-modal,
+  .modal-overlay .unwatched-modal,
   #releases-modal > .modal {
     max-height: 90vh;
   }

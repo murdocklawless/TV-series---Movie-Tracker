@@ -6,3 +6,5 @@ data.db
 *.log
 backup_pre_calendar/
 .env
+baglanti-bilgileri.md
+AGENTS.md
