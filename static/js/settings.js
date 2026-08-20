@@ -2,6 +2,7 @@
 import { state } from "./state.js";
 import { t, checkTmdbKey } from "./i18n.js";
 import { toast, escAttr, HEART_SVG } from "./utils.js";
+import { sortMenu } from "./views.js";
 
 // ---- Search ----
 // ---- Settings ----

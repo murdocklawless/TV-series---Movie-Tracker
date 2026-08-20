@@ -4,7 +4,7 @@ import { t } from "./i18n.js";
 import {
   posterHTML, scoreTag, platformTag, typeLabel, applyTitleHint,
   formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
-  isToday, dateState, utcDayStr, utcTodayStr, FILM_SVG,
+  isToday, dateState, utcDayStr, utcTodayStr, FILM_SVG, CALENDAR_SVG, toast, tzLocale,
 } from "./utils.js";
 import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, showConfirm, openUnwatchedModal } from "./components.js";
 import { renderChips, closeResultsModal } from "./search.js";
@@ -366,4 +366,4 @@ async function loadUnwatched() {
 }
 
 
-export { switchView, loadFollowed, loadAnime, loadUnwatched, animeNextText, animeStatusLabel, applySort, updateSortMenu, views, tabs };
+export { switchView, loadFollowed, loadAnime, loadUnwatched, animeNextText, animeStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu };
