@@ -16,15 +16,15 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 echo "==> $APP_DIR klasörü hazırlanıyor..."
 mkdir -p "$APP_DIR/static"
-if [ -f "$SCRIPT_DIR/app.py" ]; then
-  cp -f "$SCRIPT_DIR/app.py" "$APP_DIR/"
+if [ -f "$SCRIPT_DIR/tracker.py" ]; then
+  cp -f "$SCRIPT_DIR/tracker.py" "$APP_DIR/"
   cp -f "$SCRIPT_DIR/requirements.txt" "$APP_DIR/" 2>/dev/null || true
-  cp -f "$SCRIPT_DIR/static/app.js" "$APP_DIR/static/" 2>/dev/null || true
+  cp -f "$SCRIPT_DIR/static/tracker.js" "$APP_DIR/static/" 2>/dev/null || true
   cp -f "$SCRIPT_DIR/static/style.css" "$APP_DIR/static/" 2>/dev/null || true
   cp -f "$SCRIPT_DIR/static/index.html" "$APP_DIR/static/" 2>/dev/null || true
   echo "==> Kaynak dosyalar kopyalandı."
 else
-  echo "==> app.py bu dizinde bulunamadı; mevcut $APP_DIR dosyaları kullanılacak."
+  echo "==> tracker.py bu dizinde bulunamadı; mevcut $APP_DIR dosyaları kullanılacak."
 fi
 
 cd "$APP_DIR"
@@ -53,7 +53,7 @@ Type=simple
 User=root
 WorkingDirectory=$APP_DIR
 Environment=PORT=$PORT
-ExecStart=$APP_DIR/venv/bin/python $APP_DIR/app.py
+ExecStart=$APP_DIR/venv/bin/python $APP_DIR/tracker.py
 Restart=always
 RestartSec=5
 

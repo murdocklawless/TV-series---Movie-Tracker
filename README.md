@@ -55,5 +55,5 @@ Servis 8050 portunda çalışır (`PORT` ortam değişkeniyle değiştirilebilir
 
 ## Not
 
-- `data.db` (SQLite veritabanı) ve gizli anahtar dosyaları `.gitignore` ile reponun dışında tutulur.
+- `tracker.db` (SQLite veritabanı) ve gizli anahtar dosyaları `.gitignore` ile reponun dışında tutulur.
 - `backup_pre_calendar/` klasörü, takvim özelliği öncesi sürümün yedeğini içerir.
