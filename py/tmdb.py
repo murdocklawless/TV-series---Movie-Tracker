@@ -5,17 +5,22 @@ import requests
 from db import get_setting, _safe_json_list
 
 
-def tmdb_request(path, params=None):
+def tmdb_request(path, params=None, lang=None):
+    """TMDB isteği yapar. `lang` verilirse o dilde (en-US yedeğiyle) çeker;
+    verilmezse ayarlı dile göre döner."""
     api_key = get_setting("tmdb_api_key")
     if not api_key:
         return None
     url = "https://api.themoviedb.org/3/" + path.lstrip("/")
-    selected = get_setting("language") or "tr-TR"
-    langs = ["en-US"]
-    if selected != "en-US":
-        langs.insert(0, selected)
-    for lang in langs:
-        p = {"api_key": api_key, "language": lang}
+    if lang:
+        langs = [lang] + (["en-US"] if lang != "en-US" else [])
+    else:
+        selected = get_setting("language") or "tr-TR"
+        langs = ["en-US"]
+        if selected != "en-US":
+            langs.insert(0, selected)
+    for l in langs:
+        p = {"api_key": api_key, "language": l}
         if params:
             p.update(params)
         try:
@@ -85,11 +90,12 @@ def _fetch_tmdb_genres():
     return names
 
 
-def get_tmdb_info(media_type, tmdb_id):
-    """TMDB'den temel bilgileri çeker: release_date, vote_average, yayın platformları ve detay alanları."""
+def get_tmdb_info(media_type, tmdb_id, lang=None):
+    """TMDB'den temel bilgileri çeker: release_date, vote_average, yayın platformları ve detay alanları.
+    `lang` verilirse TMDB verisi o dilde çekilir."""
     if media_type not in ("movie", "tv"):
         return None
-    data = tmdb_request(f"/{media_type}/{tmdb_id}")
+    data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=lang)
     if not data:
         return None
     networks = [n.get("name") for n in (data.get("networks") or []) if n.get("name")]

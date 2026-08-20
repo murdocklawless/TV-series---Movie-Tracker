@@ -1,6 +1,6 @@
 ﻿// Faz 4: settings — ayarlar menüsü, zaman dilimi / saat seçicileri, favori listeleri, otomatik kaydetme, bildirim anahtarları.
 import { state } from "./state.js";
-import { t, checkTmdbKey } from "./i18n.js";
+import { t, checkTmdbKey, applyLang } from "./i18n.js";
 import { toast, escAttr, HEART_SVG } from "./utils.js";
 import { sortMenu } from "./views.js";
 

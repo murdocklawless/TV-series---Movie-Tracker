@@ -60,6 +60,8 @@ def init_db():
         conn.execute("ALTER TABLE followed ADD COLUMN first_air_date TEXT")
     if "watched" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN watched INTEGER DEFAULT 0")
+    if "localized" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN localized TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS episodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

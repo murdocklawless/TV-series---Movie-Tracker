@@ -12,6 +12,7 @@ AGENTS.md
 
 # Test dosyalari ASLA git'e yollanmaz
 test_*.py
+test_*.sh
 *_test.py
 tests/
 

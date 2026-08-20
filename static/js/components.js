@@ -275,7 +275,7 @@ async function openDetails(mediaType, tmdbId, title, highlightPerson, highlightP
   };
 
   try {
-    const res = await fetch(`/api/details?media_type=${encodeURIComponent(mediaType)}&tmdb_id=${encodeURIComponent(tmdbId)}${highlightPerson ? `&highlight_person=${encodeURIComponent(highlightPerson)}` : ""}${highlightPersonId ? `&highlight_person_id=${encodeURIComponent(highlightPersonId)}` : ""}`);
+    const res = await fetch(`/api/details?media_type=${encodeURIComponent(mediaType)}&tmdb_id=${encodeURIComponent(tmdbId)}&lang=${encodeURIComponent(state.currentLang)}${highlightPerson ? `&highlight_person=${encodeURIComponent(highlightPerson)}` : ""}${highlightPersonId ? `&highlight_person_id=${encodeURIComponent(highlightPersonId)}` : ""}`);
     const data = await res.json();
     if (!res.ok) {
       body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;

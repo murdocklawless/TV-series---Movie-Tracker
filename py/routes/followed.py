@@ -371,118 +371,139 @@ def movie_watch():
     return jsonify({"ok": True, "watched": watched})
 
 
+def _lang_to_locale(lang):
+    """Kısa dil kodunu (tr, en, de...) TMDB locale'ine (tr-TR, en-US, de-DE) çevirir."""
+    if not lang:
+        return None
+    base = str(lang).lower().split("-")[0]
+    map_ = {
+        "tr": "tr-TR", "en": "en-US", "de": "de-DE", "fr": "fr-FR", "es": "es-ES",
+        "it": "it-IT", "ru": "ru-RU", "ar": "ar-SA", "pt": "pt-BR", "nl": "nl-NL",
+        "pl": "pl-PL", "ja": "ja-JP", "ko": "ko-KR", "zh": "zh-CN", "hi": "hi-IN",
+    }
+    return map_.get(base, base)
+
+
+def _load_localized(row_localized):
+    try:
+        v = json.loads(row_localized) if row_localized else {}
+        return v if isinstance(v, dict) else {}
+    except (ValueError, TypeError):
+        return {}
+
+
+def _build_response(media_type, d):
+    """Normalleştirilmiş detail sözlüğünü movie/tv JSON yanıtına çevirir."""
+    cast = [
+        {"id": c.get("person_id"), "name": c.get("name"), "character": c.get("character"), "profile_path": c.get("profile_path")}
+        for c in (d.get("cast") or [])
+    ]
+    # highlight_person / highlight_person_id: eşleşen oyuncuyu listeye başa al.
+    highlight = (request.args.get("highlight_person") or "").strip().lower()
+    hpid = (request.args.get("highlight_person_id") or "").strip()
+    for i, c in enumerate(cast):
+        nm = (c.get("name") or "").strip().lower()
+        if (highlight and nm == highlight) or (hpid and str(c.get("id")) == hpid):
+            cast.insert(0, cast.pop(i))
+            break
+    base = {
+        "media_type": media_type,
+        "title": d.get("title") or "",
+        "poster_path": d.get("poster_path"),
+        "overview": d.get("overview"),
+        "tagline": d.get("tagline"),
+        "genres": d.get("genres") or [],
+        "vote_average": d.get("vote_average"),
+        "vote_count": d.get("vote_count"),
+        "runtime": d.get("runtime"),
+        "cast": cast,
+    }
+    if media_type == "movie":
+        base["release_date"] = d.get("release_date")
+    else:
+        base["first_air_date"] = d.get("first_air_date")
+        base["number_of_seasons"] = d.get("number_of_seasons")
+        base["number_of_episodes"] = d.get("number_of_episodes")
+        base["status"] = d.get("status")
+    return base
+
+
 @followed_bp.route("/api/details")
 def details():
     media_type = request.args.get("media_type")
     tmdb_id = request.args.get("tmdb_id")
+    lang = (request.args.get("lang") or "").strip() or None
     if media_type not in ("movie", "tv") or not tmdb_id:
         return jsonify({"error": "Geçersiz istek"}), 400
 
     conn = get_db()
     follow = conn.execute(
-        "SELECT id FROM followed WHERE tmdb_id=? AND media_type=?",
+        "SELECT * FROM followed WHERE tmdb_id=? AND media_type=?",
         (tmdb_id, media_type),
     ).fetchone()
+    localized = _load_localized(follow["localized"] if follow else None)
 
-    if follow:
-        d = load_details(conn, follow["id"])
-        if d and d.get("overview"):
-            cast = d["cast"]
-            highlight = (request.args.get("highlight_person") or "").strip().lower()
-            hpid = (request.args.get("highlight_person_id") or "").strip()
-            for i, c in enumerate(cast):
-                nm = (c.get("name") or "").strip().lower()
-                if (highlight and nm == highlight) or (hpid and str(c.get("person_id")) == hpid):
-                    cast.insert(0, cast.pop(i))
-                    break
+    # -- lang VERİLMEDİYSE: legacy davranış (base cached overview, yoksa fetch). --
+    if not lang:
+        if follow:
+            d = load_details(conn, follow["id"])
+            if d and d.get("overview"):
+                conn.close()
+                return jsonify(_build_response(media_type, d))
+        data = tmdb_request(f"/{media_type}/{tmdb_id}")
+        if not data:
             conn.close()
-            if media_type == "movie":
-                return jsonify(
-                    {
-                        "media_type": "movie",
-                        "title": d.get("title") or "",
-                        "poster_path": d.get("poster_path"),
-                        "overview": d.get("overview"),
-                        "tagline": d.get("tagline"),
-                        "genres": d.get("genres"),
-                        "vote_average": d.get("vote_average"),
-                        "vote_count": d.get("vote_count"),
-                        "runtime": d.get("runtime"),
-                        "release_date": d.get("release_date"),
-                        "cast": [
-                            {"id": c.get("person_id"), "name": c.get("name"), "character": c.get("character"), "profile_path": c.get("profile_path")}
-                            for c in cast
-                        ],
-                    }
-                )
-            return jsonify(
-                {
-                    "media_type": "tv",
-                    "title": d.get("title") or "",
-                    "poster_path": d.get("poster_path"),
-                    "overview": d.get("overview"),
-                    "genres": d.get("genres"),
-                    "vote_average": d.get("vote_average"),
-                    "vote_count": d.get("vote_count"),
-                    "runtime": d.get("runtime"),
-                    "first_air_date": d.get("first_air_date"),
-                    "number_of_seasons": d.get("number_of_seasons"),
-                    "number_of_episodes": d.get("number_of_episodes"),
-                    "status": d.get("status"),
-                    "cast": [
-                        {"id": c.get("person_id"), "name": c.get("name"), "character": c.get("character"), "profile_path": c.get("profile_path")}
-                        for c in cast
-                    ],
-                }
-            )
+            return jsonify({"error": "TMDB'den veri alınamadı"}), 400
+        info = get_tmdb_info(media_type, tmdb_id)
+        cst = get_tmdb_cast(media_type, tmdb_id)
+        if follow:
+            save_details(conn, follow["id"], info, cst)
+            conn.commit()
+        conn.close()
+        d = dict(info or {})
+        d["title"] = data.get("title") or data.get("name") or data.get("original_name") or ""
+        d["poster_path"] = data.get("poster_path")
+        d["cast"] = cst
+        return jsonify(_build_response(media_type, d))
 
-    data = tmdb_request(f"/{media_type}/{tmdb_id}")
+    # -- lang VERİLDİYSE: dil başına önbellek. --
+    locale = _lang_to_locale(lang)
+    loc = localized.get(lang) if follow else None
+
+    # Cache hit: o dilde kayıt varsa fetch yapmadan dön (cast dil-bağımsız).
+    if follow and loc and loc.get("overview"):
+        d = load_details(conn, follow["id"]) or {}
+        d = dict(d)
+        d["title"] = loc.get("title") or d.get("title")
+        d["overview"] = loc.get("overview") or d.get("overview")
+        d["genres"] = loc.get("genres") or d.get("genres") or []
+        d["tagline"] = loc.get("tagline") or d.get("tagline")
+        conn.close()
+        return jsonify(_build_response(media_type, d))
+
+    # Cache miss: seçilen dilde her zaman canlı fetch, sonra önbelleğe yaz.
+    data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=locale)
     if not data:
         conn.close()
         return jsonify({"error": "TMDB'den veri alınamadı"}), 400
-
-    info = get_tmdb_info(media_type, tmdb_id)
+    info = get_tmdb_info(media_type, tmdb_id, lang=locale)
     cst = get_tmdb_cast(media_type, tmdb_id)
     if follow:
-        save_details(conn, follow["id"], info, cst)
+        localized[lang] = {
+            "title": data.get("title") or data.get("name"),
+            "overview": info.get("overview") or "",
+            "genres": info.get("genres") or [],
+            "tagline": info.get("tagline") or "",
+        }
+        conn.execute(
+            "UPDATE followed SET localized=? WHERE id=?",
+            (json.dumps(localized, ensure_ascii=False), follow["id"]),
+        )
         conn.commit()
     conn.close()
 
-    genres = info.get("genres") or []
-    cast = [
-        {"id": c.get("person_id"), "name": c.get("name"), "character": c.get("character"), "profile_path": c.get("profile_path")}
-        for c in cst
-    ]
-    if media_type == "movie":
-        return jsonify(
-            {
-                "media_type": "movie",
-                "title": data.get("title") or data.get("name"),
-                "poster_path": data.get("poster_path"),
-                "overview": info.get("overview"),
-                "tagline": info.get("tagline"),
-                "genres": genres,
-                "vote_average": info.get("vote_average"),
-                "vote_count": info.get("vote_count"),
-                "runtime": info.get("runtime"),
-                "release_date": info.get("release_date"),
-                "cast": cast,
-            }
-        )
-    return jsonify(
-        {
-            "media_type": "tv",
-            "title": data.get("name") or data.get("original_name"),
-            "poster_path": data.get("poster_path"),
-            "overview": info.get("overview"),
-            "genres": genres,
-            "vote_average": info.get("vote_average"),
-            "vote_count": info.get("vote_count"),
-            "runtime": info.get("runtime"),
-            "first_air_date": info.get("release_date"),
-            "number_of_seasons": info.get("number_of_seasons"),
-            "number_of_episodes": info.get("number_of_episodes"),
-            "status": info.get("status"),
-            "cast": cast,
-        }
-    )
+    d = dict(info or {})
+    d["title"] = data.get("title") or data.get("name") or data.get("original_name") or ""
+    d["poster_path"] = data.get("poster_path")
+    d["cast"] = cst
+    return jsonify(_build_response(media_type, d))
