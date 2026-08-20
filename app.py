@@ -11,6 +11,9 @@ from zoneinfo import ZoneInfo
 import zoneinfo
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Faz 2 klasör düzenlemesi için: .py dosyaları py/ altına taşınırsa BASE_DIR'i proje köküne sabitle
+if os.path.basename(BASE_DIR) == "py":
+    BASE_DIR = os.path.dirname(BASE_DIR)
 DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "data.db"))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 

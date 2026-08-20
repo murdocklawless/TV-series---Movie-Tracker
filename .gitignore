@@ -13,3 +13,10 @@ AGENTS.md
 test_*.py
 *_test.py
 tests/
+
+# Faz 0: klasör düzenlemesi için yedek ve DB klasörleri
+*.bak
+*.bak-*
+*.gz
+backup/
+db/
