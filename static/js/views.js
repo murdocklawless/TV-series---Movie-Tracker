@@ -200,7 +200,7 @@ async function loadFollowed(view) {
   const res = await fetch("/api/followed");
   let items = await res.json();
   const isTv = view === "dizi";
-  items = items.filter((i) => (isTv ? i.media_type === "tv" : i.media_type === "movie"));
+  items = items.filter((i) => (isTv ? i.media_type === "tv" : i.media_type === "movie") && !(i.in_watched == 1));
   items = applySort(items);
   const grid = document.getElementById(isTv ? "poster-grid-shows" : "poster-grid-movies");
   const empty = document.getElementById(isTv ? "empty-dizi" : "empty-film");
@@ -253,7 +253,7 @@ async function loadFollowed(view) {
         async () => {
           await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
           loadFollowed(view);
-          toast(t("unfollowed"));
+          toast(t("unfollowed", { name: item.title }));
         }
       );
     };
@@ -276,7 +276,8 @@ async function loadFollowed(view) {
         });
         const j = await r.json();
         if (r.ok) {
-          toast(t("moved_to_watched"));
+          toast(t("moved_to_watched", { name: item.title }));
+          loadFollowed(view);
         } else {
           toast(j.error || t("error"));
         }
@@ -324,6 +325,7 @@ function animeStatusLabel(status) {
 async function loadAnime() {
   const res = await fetch("/api/anime/followed");
   let items = await res.json();
+  items = items.filter((i) => !(i.in_watched == 1));
   items = applySort(items);
   const grid = document.getElementById("anime-grid");
   const empty = document.getElementById("empty-anime");
@@ -358,7 +360,7 @@ async function loadAnime() {
         async () => {
           await fetch(`/api/anime/unfollow/${item.id}`, { method: "DELETE" });
           loadAnime();
-          toast(t("unfollowed"));
+          toast(t("unfollowed", { name: item.title }));
         }
       );
     };
@@ -377,7 +379,8 @@ async function loadAnime() {
         });
         const j = await r.json();
         if (r.ok) {
-          toast(t("moved_to_watched"));
+          toast(t("moved_to_watched", { name: item.title }));
+          loadAnime();
         } else {
           toast(j.error || t("error"));
         }
@@ -463,18 +466,13 @@ async function loadUnwatched() {
         </div>
       </div>
       <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
-      <button class="move-back-btn" data-tip="${t("move_back_to", { view: t("tab_film") })}"><i class="fa-solid fa-right-to-bracket"></i></button>
     `;
     div.querySelector(".calendar-btn").onclick = (e) => {
       e.stopPropagation();
-      openReleases("movie", item.tmdb_id, item.title);
+      openUnwatchedModal(item, false);
     };
-    div.querySelector(".move-back-btn").onclick = async (e) => {
-      e.stopPropagation();
-      await moveBackFromWatched(item, "film");
-    };
-    div.onclick = () => openDetails("movie", item.tmdb_id, item.title);
-    moviesGrid.appendChild(div);
+    div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
+    showsGrid.appendChild(div);
     applyTitleHint(div);
   });
 
@@ -636,10 +634,15 @@ async function loadWatched() {
         </div>
       </div>
       <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+      <button class="move-back-btn" data-tip="${t("move_back_to", { view: t("tab_film") })}"><i class="fa-solid fa-right-to-bracket"></i></button>
     `;
     div.querySelector(".calendar-btn").onclick = (e) => {
       e.stopPropagation();
       openReleases("movie", item.tmdb_id, item.title);
+    };
+    div.querySelector(".move-back-btn").onclick = async (e) => {
+      e.stopPropagation();
+      await moveBackFromWatched(item, "film");
     };
     div.onclick = () => openDetails("movie", item.tmdb_id, item.title);
     moviesGrid.appendChild(div);
@@ -698,7 +701,7 @@ async function moveBackFromWatched(item, targetView) {
     toast(j.error || t("error"));
     return;
   }
-  toast(t("moved_back"));
+  toast(t("moved_back", { name: item.title }));
   await loadWatched();
   const empty = document.getElementById("empty-watched");
   const stillHasCards = !empty || empty.style.display === "none";

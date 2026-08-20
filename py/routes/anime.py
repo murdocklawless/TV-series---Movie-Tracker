@@ -126,6 +126,7 @@ def anime_followed():
                 "score": score,
                 "studios": r["studios"],
                 "completed": _anime_followed_completed(conn, r["id"]),
+                "in_watched": int(r["in_watched"] or 0),
                 "next_episode": _anime_followed_next(conn, r["id"]),
             }
         )

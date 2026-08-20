@@ -57,11 +57,11 @@ async function openReleases(mediaType, tmdbId, title) {
       html += `<div class="season-box">`;
       if (data.media_type === "tv") {
         const releasedItems = seasonItems.filter((it) => canSelectAll(it));
-        const total = seasonItems.length;
-        const watched = seasonItems.filter((it) => it.watched).length;
+        const total = releasedItems.length;
+        const watched = releasedItems.filter((it) => it.watched).length;
         const pct = total ? Math.round((watched / total) * 100) : 0;
         const allWatched = total > 0 && watched === total;
-        const btnDisabled = releasedItems.length === 0 ? " disabled" : "";
+        const btnDisabled = total === 0 ? " disabled" : "";
         html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} · %${pct}</span></div><button class="season-watch-all" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}"${btnDisabled}>${allWatched ? t("clear") : t("watch_all")}</button></div>`;
       } else {
         html += `<div class="season-box-title">${seasonLabel}</div>`;
@@ -125,16 +125,15 @@ async function openReleases(mediaType, tmdbId, title) {
           const seasonBox = btn.closest(".season-box");
           const allRows = seasonBox.querySelectorAll("tbody tr");
           const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
-          const total = allRows.length;
-          const done = seasonBox.querySelectorAll("tbody tr.watched").length;
-          const pct = total ? Math.round((done / total) * 100) : 0;
+          const done = seasonBox.querySelectorAll("tbody tr[data-released='1'].watched").length;
+          const pct = releasedCount ? Math.round((done / releasedCount) * 100) : 0;
           const prog = seasonBox.querySelector(".season-progress-text");
           const bar = seasonBox.querySelector(".season-progress-fill");
-          if (prog) prog.textContent = `${done}/${total} · %${pct}`;
+          if (prog) prog.textContent = `${done}/${releasedCount} · %${pct}`;
           if (bar) bar.style.width = pct + "%";
           const allBtn = seasonBox.querySelector(".season-watch-all");
           if (allBtn) {
-            const allDone = total > 0 && done === total;
+            const allDone = releasedCount > 0 && done === releasedCount;
             allBtn.dataset.w = allDone ? 0 : 1;
             allBtn.textContent = allDone ? t("clear") : t("watch_all");
             allBtn.disabled = releasedCount === 0;
@@ -175,14 +174,13 @@ async function openReleases(mediaType, tmdbId, title) {
             tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
           });
           const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
-          const total = rows.length;
-          const done = seasonBox.querySelectorAll("tbody tr.watched").length;
-          const pct = total ? Math.round((done / total) * 100) : 0;
+          const done = seasonBox.querySelectorAll("tbody tr[data-released='1'].watched").length;
+          const pct = releasedCount ? Math.round((done / releasedCount) * 100) : 0;
           const prog = seasonBox.querySelector(".season-progress-text");
           const bar = seasonBox.querySelector(".season-progress-fill");
-          if (prog) prog.textContent = `${done}/${total} · %${pct}`;
+          if (prog) prog.textContent = `${done}/${releasedCount} · %${pct}`;
           if (bar) bar.style.width = pct + "%";
-          const allDone = total > 0 && done === total;
+          const allDone = releasedCount > 0 && done === releasedCount;
           btn.dataset.w = allDone ? 0 : 1;
           btn.textContent = allDone ? t("clear") : t("watch_all");
           btn.disabled = releasedCount === 0;
@@ -381,7 +379,7 @@ async function toggleFavActor(btn) {
     if (j.added) state.favActors.set(personId, name);
     else state.favActors.delete(personId);
     btn.classList.toggle("fav", j.added);
-    toast(j.added ? t("fav_actor_added") : t("fav_actor_removed"));
+    toast(j.added ? t("fav_actor_added", { name }) : t("fav_actor_removed", { name }));
   } catch (err) {
     if (prevFav) state.favActors.delete(personId);
     else state.favActors.delete(personId);
@@ -406,7 +404,7 @@ async function toggleFavAnimeChar(btn) {
     if (j.added) state.favAnimeChars.set(charId, name);
     else state.favAnimeChars.delete(charId);
     btn.classList.toggle("fav", j.added);
-    toast(j.added ? t("fav_char_added") : t("fav_char_removed"));
+    toast(j.added ? t("fav_char_added", { name }) : t("fav_char_removed", { name }));
   } catch (err) {
     if (prevFav) state.favAnimeChars.delete(charId);
     else state.favAnimeChars.delete(charId);
@@ -474,7 +472,7 @@ data.forEach((item) => {
           }),
         });
         const j = await r.json();
-        toast(r.ok ? t("added") : j.error || t("error"));
+        toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
         if (r.ok) {
           loadFollowed(item.media_type === "tv" ? "dizi" : "film");
           switchView(item.media_type === "tv" ? "dizi" : "film");
@@ -532,7 +530,7 @@ async function openUnwatchedModal(item, isAnime) {
         ? ` data-tip="${t("unwatched_tooltip", { ep: item.isAnime ? `EP ${firstUnwatched.episode}` : `S${String(firstUnwatched.season).padStart(2, "0")}E${String(firstUnwatched.episode).padStart(2, "0")}` })}"`
         : "";
       const label = isAnime
-        ? `EP ${it.episode}`
+        ? `${t("col_episode")} ${it.episode}`
         : t("season_ep", { s: it.season, e: it.episode });
       const epName = it.episode_name
         ? `<div class="episode-name">${it.episode_name}</div>`
@@ -703,26 +701,88 @@ async function openAnimeSchedule(id, title) {
     }
 
     const loc = tzLocale();
-    let html = `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
-    data.items.forEach((it) => {
-      const d = it.airing_at ? new Date(it.airing_at * 1000) : null;
-      const now = Date.now();
-      let dateText = "—";
-      let cls = "";
-      if (d && !isNaN(d.getTime())) {
-        try {
-          dateText = new Intl.DateTimeFormat(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(d);
-        } catch (e) {
-          dateText = d.toLocaleString();
+    const items = [...data.items].sort((a, b) => (a.episode || 0) - (b.episode || 0));
+    const now = Date.now();
+    const releasedCount = items.filter((it) => it.airing_at && it.airing_at * 1000 <= now).length;
+
+    const renderTable = () => {
+      const releasedWatched = items.filter((it) => it.watched && it.airing_at && it.airing_at * 1000 <= now).length;
+      const allWatched = releasedCount > 0 && releasedWatched === releasedCount;
+      const pct = releasedCount ? Math.round((releasedWatched / releasedCount) * 100) : 0;
+      let html = `<div class="season-box">`;
+      html += `<div class="season-box-title"><span class="season-name">${escAttr(data.title || title || "")}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${releasedWatched}/${releasedCount} · %${pct}</span></div><button class="season-watch-all" data-w="${allWatched ? 0 : 1}"${releasedCount ? "" : " disabled"}>${allWatched ? t("clear") : t("watch_all")}</button></div>`;
+      html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
+      items.forEach((it, i) => {
+        const d = it.airing_at ? new Date(it.airing_at * 1000) : null;
+        let dateText = "—";
+        let cls = "";
+        if (d && !isNaN(d.getTime())) {
+          try {
+            dateText = new Intl.DateTimeFormat(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(d);
+          } catch (e) {
+            dateText = d.toLocaleString();
+          }
+          if (d.getTime() < now) cls = "date-past";
+          else if (d.getTime() > now) cls = "date-future";
+          else cls = "date-today";
         }
-        if (d.getTime() < now) cls = "date-past";
-        else if (d.getTime() > now) cls = "date-future";
-        else cls = "date-today";
-      }
-      html += `<tr><td><span class="episode-label">${t("col_episode")} ${it.episode}</span></td><td class="${cls}">${dateText}</td></tr>`;
-    });
-    html += "</tbody></table>";
-    body.innerHTML = html;
+        const released = it.airing_at && it.airing_at * 1000 <= now;
+        const prevWatched = i === 0 ? true : items[i - 1].watched;
+        const selectable = released && prevWatched;
+        const btnDisabled = !selectable ? " disabled" : "";
+        const watchedCls = it.watched ? " watched" : "";
+        html += `<tr class="${watchedCls}" data-released="${released ? 1 : 0}"><td><button class="watch-btn anime-watch${it.watched ? " on" : ""}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${it.watched ? CHECK_SVG : ""}</button><span class="episode-label">${t("col_episode")} ${it.episode}</span></td><td class="${cls}">${dateText}</td></tr>`;
+      });
+      html += "</tbody></table></div>";
+      body.innerHTML = html;
+
+      body.querySelectorAll(".anime-watch").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (btn.disabled) return;
+          const episode = Number(btn.dataset.e);
+          const newWatched = btn.dataset.w === "1" ? 0 : 1;
+          try {
+            const r = await fetch("/api/anime/episode/watch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ anime_id: id, episode, watched: newWatched }),
+            });
+            if (!r.ok) return;
+            const idx = items.findIndex((it) => it.episode === episode);
+            if (idx >= 0) items[idx].watched = newWatched;
+            renderTable();
+            if (typeof loadAnime === "function") loadAnime();
+          } catch (e) {
+            toast(t("error"));
+          }
+        });
+      });
+
+      body.querySelectorAll(".season-watch-all").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (btn.disabled) return;
+          const watched = btn.dataset.w === "1" ? 1 : 0;
+          const targets = items.filter((it) => it.airing_at && it.airing_at * 1000 <= now);
+          try {
+            for (const it of targets) {
+              if (it.watched === watched) continue;
+              const r = await fetch("/api/anime/episode/watch", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ anime_id: id, episode: it.episode, watched }),
+              });
+              if (r.ok) it.watched = watched;
+            }
+            renderTable();
+            if (typeof loadAnime === "function") loadAnime();
+          } catch (e) {
+            toast(t("error"));
+          }
+        });
+      });
+    };
+
+    renderTable();
   } catch (e) {
     body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
   }
@@ -746,7 +806,7 @@ document.getElementById("details-modal").addEventListener("click", async (e) => 
       if (!r.ok) throw new Error(j.error);
       state.favAnimeGenres = new Set(j.genres);
       if (!j.added) animeTag.classList.remove("fav");
-      toast(j.added ? t("fav_anime_genre_added") : t("fav_anime_genre_removed"));
+      toast(j.added ? t("fav_anime_genre_added", { name: genre }) : t("fav_anime_genre_removed", { name: genre }));
     } catch (err) {
       if (prevFav) state.favAnimeGenres.delete(genre);
       else state.favAnimeGenres.delete(genre);
@@ -772,7 +832,7 @@ document.getElementById("details-modal").addEventListener("click", async (e) => 
     if (!r.ok) throw new Error(j.error);
     state.favGenres = new Set(j.genres);
     if (!j.added) tag.classList.remove("fav");
-    toast(j.added ? t("fav_genre_added") : t("fav_genre_removed"));
+    toast(j.added ? t("fav_genre_added", { name: genre }) : t("fav_genre_removed", { name: genre }));
   } catch (err) {
     if (prevFav) state.favGenres.delete(genre);
     else state.favGenres.delete(genre);

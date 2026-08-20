@@ -78,11 +78,16 @@ function updateFilterButtons() {
   if (scoreBtn) scoreBtn.classList.toggle("active", has("score"));
 }
 
+const CHIP_ORDER = { media: 0, actor: 1, char: 1, genre: 2, year: 3, score: 4 };
+
 function renderChips() {
   const box = document.getElementById("filter-chips");
-  box.innerHTML = state.chips
+  const sorted = state.chips.slice().sort(
+    (a, b) => (CHIP_ORDER[a.type] ?? 9) - (CHIP_ORDER[b.type] ?? 9)
+  );
+  box.innerHTML = sorted
     .map(
-      (c, i) => `<span class="chip chip-${c.type === "media" ? `media-${c.value}` : c.type}">${c.type === "genre" ? animeGenreLabel(c.label) : c.label}<button class="chip-x" data-i="${i}">✕</button></span>`
+      (c) => `<span class="chip chip-${c.type === "media" ? `media-${c.value}` : c.type}">${c.type === "genre" ? animeGenreLabel(c.label) : c.label}<button class="chip-x" data-i="${state.chips.indexOf(c)}">✕</button></span>`
     )
     .join("");
   box.querySelectorAll(".chip-x").forEach((btn) => {
@@ -117,13 +122,17 @@ function setSearchBtnLoading(btn, loading) {
   if (!btn) return;
   if (loading) {
     if (!btn.dataset.orig) btn.dataset.orig = btn.innerHTML;
-    btn.innerHTML = '<span class="btn-spinner"></span>';
-    btn.disabled = true;
+    btn.classList.add("loading");
+    btn.innerHTML = `<span class="btn-spinner"></span><span class="btn-stop-label">${t("search_stop")}</span>`;
+    btn.disabled = false;
   } else {
     if (btn.dataset.orig) btn.innerHTML = btn.dataset.orig;
+    btn.classList.remove("loading");
     btn.disabled = false;
   }
 }
+
+let comboAbort = null;
 
 function runSearch() {
   const q = (document.getElementById("search-input")?.value || "").trim();
@@ -131,27 +140,57 @@ function runSearch() {
   if (!q && !state.chips.length) return;
   const btn = document.getElementById("search-btn");
   setSearchBtnLoading(btn, true);
-  doComboSearch(q, state.chips, media).finally(() => setSearchBtnLoading(btn, false));
+  if (comboAbort) comboAbort.abort();
+  comboAbort = new AbortController();
+  const handler = () => {
+    if (comboAbort) comboAbort.abort();
+    setSearchBtnLoading(btn, false);
+    btn.onclick = runSearch;
+  };
+  btn.onclick = handler;
+  doComboSearch(q, state.chips, media, comboAbort.signal).finally(() => {
+    if (comboAbort) {
+      comboAbort = null;
+      setSearchBtnLoading(btn, false);
+      btn.onclick = runSearch;
+    }
+  });
 }
 
-document.getElementById("search-btn")?.addEventListener("click", runSearch);
+document.getElementById("search-btn").onclick = runSearch;
 document.getElementById("search-input")?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") runSearch();
 });
+
+let normalAbort = null;
 
 function runNormalSearch() {
   const q = document.getElementById("normal-search-input").value.trim();
   if (!q) return;
   const btn = document.getElementById("normal-search-btn");
   setSearchBtnLoading(btn, true);
+  if (normalAbort) normalAbort.abort();
+  normalAbort = new AbortController();
+  const handler = () => {
+    if (normalAbort) normalAbort.abort();
+    setSearchBtnLoading(btn, false);
+    btn.onclick = runNormalSearch;
+  };
+  btn.onclick = handler;
   const media = currentMedia();
-  const p = media === "anime" ? doAnimeTitleSearch(q) : doTitleSearch(q, media);
-  p.finally(() => setSearchBtnLoading(btn, false));
+  const p = media === "anime" ? doAnimeTitleSearch(q, normalAbort.signal) : doTitleSearch(q, media, normalAbort.signal);
+  p.finally(() => {
+    if (normalAbort) {
+      normalAbort = null;
+      setSearchBtnLoading(btn, false);
+      btn.onclick = runNormalSearch;
+    }
+  });
 }
 
-async function doTitleSearch(q, media) {
+async function doTitleSearch(q, media, signal) {
   const mediaType = media === "film" ? "movie" : "tv";
-  const res = await fetch("/api/search?q=" + encodeURIComponent(q) + "&media_type=" + mediaType);
+  const res = await fetch("/api/search?q=" + encodeURIComponent(q) + "&media_type=" + mediaType, { signal });
   const data = await res.json();
   const grid = document.getElementById("search-results");
   const animeGrid = document.getElementById("anime-results");
@@ -198,7 +237,7 @@ async function doTitleSearch(q, media) {
         }),
       });
       const j = await r.json();
-      toast(r.ok ? t("added") : j.error || t("error"));
+      toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
       if (r.ok) switchView(item.media_type === "tv" ? "dizi" : "film");
     };
     const calBtn = div.querySelector(".calendar-btn");
@@ -214,8 +253,8 @@ async function doTitleSearch(q, media) {
   });
 }
 
-async function doAnimeTitleSearch(q) {
-  const res = await fetch("/api/anime/search?q=" + encodeURIComponent(q));
+async function doAnimeTitleSearch(q, signal) {
+  const res = await fetch("/api/anime/search?q=" + encodeURIComponent(q), { signal });
   const data = await res.json();
   const grid = document.getElementById("search-results");
   const animeGrid = document.getElementById("anime-results");
@@ -256,7 +295,7 @@ async function doAnimeTitleSearch(q) {
         body: JSON.stringify({ anilist_id: item.anilist_id }),
       });
       const j = await r.json();
-      toast(r.ok ? t("added") : j.error || t("error"));
+      toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
       if (r.ok) switchView("anime");
     };
     div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
@@ -341,17 +380,20 @@ function comboTitle(chipsArr) {
   const parts = [];
   const q = (document.getElementById("search-input")?.value || "").trim();
   if (q) parts.push(q);
-  chipsArr.forEach((c) => {
-    if (c.type === "actor" || c.type === "char") parts.push(`${c.label}`);
-    else if (c.type === "genre") parts.push(`${animeGenreLabel(c.label)}`);
-    else if (c.type === "media") parts.push(`${c.label}`);
-    else if (c.type === "year") parts.push(`${c.label}`);
-    else if (c.type === "score") parts.push(`${c.label}`);
-  });
+  chipsArr
+    .slice()
+    .sort((a, b) => (CHIP_ORDER[a.type] ?? 9) - (CHIP_ORDER[b.type] ?? 9))
+    .forEach((c) => {
+      if (c.type === "actor" || c.type === "char") parts.push(`${c.label}`);
+      else if (c.type === "genre") parts.push(`${animeGenreLabel(c.label)}`);
+      else if (c.type === "media") parts.push(`${c.label}`);
+      else if (c.type === "year") parts.push(`${c.label}`);
+      else if (c.type === "score") parts.push(`${c.label}`);
+    });
   return parts.join(" • ");
 }
 
-async function doComboSearch(q, chipsArr, media) {
+async function doComboSearch(q, chipsArr, media, signal) {
   const params = new URLSearchParams();
   params.set("media", media);
   if (q) params.set("q", q);
@@ -366,7 +408,7 @@ async function doComboSearch(q, chipsArr, media) {
   if (kind) params.set("kind", kind);
   if (year) params.set("year", year);
   if (score) params.set("score", score);
-  const res = await fetch("/api/combo-search?" + params.toString());
+  const res = await fetch("/api/combo-search?" + params.toString(), { signal });
   const data = await res.json();
   const grid = document.getElementById("search-results");
   const animeGrid = document.getElementById("anime-results");
@@ -414,7 +456,7 @@ async function doComboSearch(q, chipsArr, media) {
           body: JSON.stringify({ anilist_id: item.anilist_id }),
         });
         const j = await r.json();
-        toast(r.ok ? t("added") : j.error || t("error"));
+        toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
         if (r.ok) doComboSearch(q, chipsArr, media);
       };
       div.onclick = () => openAnimeDetails(null, item.anilist_id, item.title);
@@ -459,7 +501,7 @@ async function doComboSearch(q, chipsArr, media) {
         }),
       });
       const j = await r.json();
-      toast(r.ok ? t("added") : j.error || t("error"));
+      toast(r.ok ? t("added", { name: item.title }) : j.error || t("error"));
       if (r.ok) doComboSearch(q, chipsArr, media);
     };
     const calBtn = div.querySelector(".calendar-btn");

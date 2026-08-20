@@ -302,7 +302,7 @@ async function renderFavActorsList() {
         if (r.ok) {
           state.favActors.delete(String(btn.dataset.id));
           renderFavActorsList();
-          toast(t("fav_actor_removed"));
+          toast(t("fav_actor_removed", { name: btn.dataset.name }));
         }
       };
     });
@@ -336,7 +336,7 @@ async function renderFavGenresList() {
         if (r.ok) {
           state.favGenres.delete(btn.dataset.name);
           renderFavGenresList();
-          toast(t("fav_genre_removed"));
+          toast(t("fav_genre_removed", { name: btn.dataset.name }));
         }
       };
     });
