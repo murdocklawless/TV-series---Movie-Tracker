@@ -1,0 +1,787 @@
+﻿// Faz 4: components — modal bileşenleri (yayın takvimi, detaylar, kişi, anime detay/takvim, izlenmemiş, onay).
+import { state } from "./state.js";
+import { t, errText, animeGenreLabel } from "./i18n.js";
+import {
+  IMAGE_BASE, HEART_SVG, CHECK_SVG, CALENDAR_SVG,
+  posterHTML, scoreTag, platformTag, typeLabel, formatDate,
+  fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
+  isNewTr, isTodayTr, canSelectAll, utcStateStr, isNewEpisode, tzLocale,
+} from "./utils.js";
+import { loadFollowed, loadAnime, switchView, animeStatusLabel } from "./views.js";
+import { setMedia, renderChips, doComboSearch } from "./search.js";
+
+async function openReleases(mediaType, tmdbId, title) {
+  const modal = document.getElementById("releases-modal");
+  const body = document.getElementById("releases-body");
+  document.getElementById("releases-title").textContent = title || "";
+  body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  modal.style.display = "flex";
+
+  try {
+    const res = await fetch(`/api/releases?media_type=${encodeURIComponent(mediaType)}&tmdb_id=${encodeURIComponent(tmdbId)}&title=${encodeURIComponent(title || "")}`);
+    const data = await res.json();
+    if (!res.ok) {
+      body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;
+      return;
+    }
+    document.getElementById("releases-title").textContent = data.title || title || "";
+
+    if (!data.items.length) {
+      body.innerHTML = `<div class="releases-error">${t("no_release_date")}</div>`;
+      return;
+    }
+
+    const groups = {};
+    data.items.forEach((it) => {
+      const season = it.season != null ? it.season : "other";
+      if (!groups[season]) groups[season] = [];
+      groups[season].push(it);
+    });
+
+    const seasonNames = Object.keys(groups).sort((a, b) => {
+      const na = parseInt(a, 10);
+      const nb = parseInt(b, 10);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return 0;
+    });
+
+    let html = "";
+    seasonNames.forEach((seasonKey) => {
+      const seasonItems = groups[seasonKey];
+      const seasonLabel =
+        seasonKey === "other"
+          ? data.media_type === "movie"
+            ? t("release_date")
+            : t("other")
+          : t("season", { n: seasonKey });
+      html += `<div class="season-box">`;
+      if (data.media_type === "tv") {
+        const releasedItems = seasonItems.filter((it) => canSelectAll(it));
+        const total = seasonItems.length;
+        const watched = seasonItems.filter((it) => it.watched).length;
+        const pct = total ? Math.round((watched / total) * 100) : 0;
+        const allWatched = total > 0 && watched === total;
+        const btnDisabled = releasedItems.length === 0 ? " disabled" : "";
+        html += `<div class="season-box-title"><span class="season-name">${seasonLabel}</span><div class="season-progress"><div class="season-progress-fill" style="width:${pct}%"></div><span class="season-progress-text">${watched}/${total} · %${pct}</span></div><button class="season-watch-all" data-s="${seasonKey}" data-w="${allWatched ? 0 : 1}"${btnDisabled}>${allWatched ? t("clear") : t("watch_all")}</button></div>`;
+      } else {
+        html += `<div class="season-box-title">${seasonLabel}</div>`;
+      }
+      html += `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
+      seasonItems.forEach((it) => {
+        const f = formatDate(it.date);
+        const st = utcStateStr(it);
+        const dateClass = st ? ` class="${st}"` : "";
+        const epName = it.episode_name
+          ? `<div class="episode-name">${it.episode_name}</div>`
+          : "";
+        const watchedClass = it.watched ? " watched" : "";
+        const released = st === "date-past" || st === "date-today"; // yayınlandı mı (watched'tan bağımsız)
+        const btnDisabled = !released ? " disabled" : "";
+        const selectable = canSelectAll(it) ? 1 : 0;
+        const btnCls = it.watched ? "watch-btn on" : "watch-btn";
+        const checkIcon = it.watched ? CHECK_SVG : "";
+        const newCls = isNewEpisode(it) ? " new" : "";
+        const todayCls = st === "date-today" ? " today-release" : "";
+        const dateText = f.text;
+        html += `<tr class="${watchedClass}${newCls}${todayCls}" data-released="${selectable}" data-air="${it.air_time || ""}" data-date="${it.date || ""}">`;
+        if (data.media_type === "tv") {
+          html += `<td><button class="${btnCls}" data-s="${it.season}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("season_ep", { s: it.season, e: it.episode })}</span>${epName}</span></td>`;
+        } else {
+          html += `<td><button class="${btnCls}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("release_date")}</span>${epName}</span></td>`;
+        }
+        html += `<td${dateClass}>${dateText}</td></tr>`;
+      });
+      html += "</tbody></table></div>";
+    });
+
+    body.innerHTML = html || `<div class="releases-error">${t("no_release_date")}</div>`;
+
+    if (data.media_type === "tv") {
+      body.querySelectorAll(".watch-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (btn.disabled) return;
+          const season = btn.dataset.s;
+          const episode = btn.dataset.e;
+          const watched = btn.dataset.w === "1" ? 0 : 1;
+          const res = await fetch("/api/episode/watch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tmdb_id: tmdbId,
+              season: Number(season),
+              episode: Number(episode),
+              watched,
+            }),
+          });
+          if (!res.ok) return;
+          btn.dataset.w = String(watched);
+          btn.classList.toggle("on", watched === 1);
+          btn.innerHTML = watched ? CHECK_SVG : "";
+          const tr = btn.closest("tr");
+          tr.classList.toggle("watched", watched === 1);
+          tr.classList.toggle("new", watched === 0 && isNewTr(tr));
+          tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
+
+          const seasonBox = btn.closest(".season-box");
+          const allRows = seasonBox.querySelectorAll("tbody tr");
+          const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
+          const total = allRows.length;
+          const done = seasonBox.querySelectorAll("tbody tr.watched").length;
+          const pct = total ? Math.round((done / total) * 100) : 0;
+          const prog = seasonBox.querySelector(".season-progress-text");
+          const bar = seasonBox.querySelector(".season-progress-fill");
+          if (prog) prog.textContent = `${done}/${total} · %${pct}`;
+          if (bar) bar.style.width = pct + "%";
+          const allBtn = seasonBox.querySelector(".season-watch-all");
+          if (allBtn) {
+            const allDone = total > 0 && done === total;
+            allBtn.dataset.w = allDone ? 0 : 1;
+            allBtn.textContent = allDone ? t("clear") : t("watch_all");
+            allBtn.disabled = releasedCount === 0;
+          }
+          loadFollowed();
+        });
+      });
+
+      body.querySelectorAll(".season-watch-all").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const season = btn.dataset.s;
+          const watched = btn.dataset.w === "1" ? 1 : 0;
+          const res = await fetch("/api/season/watch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tmdb_id: tmdbId,
+              season: Number(season),
+              watched,
+            }),
+          });
+          if (!res.ok) return;
+          const seasonBox = btn.closest(".season-box");
+          const rows = seasonBox.querySelectorAll("tbody tr");
+          rows.forEach((tr) => {
+            const isReleased = tr.dataset.released === "1";
+            const b = tr.querySelector(".watch-btn");
+            if (watched === 1 && !isReleased) {
+              if (b) b.disabled = true;
+              return;
+            }
+            tr.classList.toggle("watched", watched === 1);
+            b.dataset.w = String(watched);
+            b.classList.toggle("on", watched === 1);
+            b.innerHTML = watched ? CHECK_SVG : "";
+            b.disabled = false;
+            tr.classList.toggle("new", watched === 0 && isNewTr(tr));
+            tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
+          });
+          const releasedCount = seasonBox.querySelectorAll("tbody tr[data-released='1']").length;
+          const total = rows.length;
+          const done = seasonBox.querySelectorAll("tbody tr.watched").length;
+          const pct = total ? Math.round((done / total) * 100) : 0;
+          const prog = seasonBox.querySelector(".season-progress-text");
+          const bar = seasonBox.querySelector(".season-progress-fill");
+          if (prog) prog.textContent = `${done}/${total} · %${pct}`;
+          if (bar) bar.style.width = pct + "%";
+          const allDone = total > 0 && done === total;
+          btn.dataset.w = allDone ? 0 : 1;
+          btn.textContent = allDone ? t("clear") : t("watch_all");
+          btn.disabled = releasedCount === 0;
+          loadFollowed();
+        });
+      });
+    }
+    if (data.media_type === "movie") {
+      body.querySelectorAll(".watch-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (btn.disabled) return;
+          const watched = btn.dataset.w === "1" ? 0 : 1;
+          const res = await fetch("/api/movie/watch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tmdb_id: tmdbId, watched }),
+          });
+          if (!res.ok) return;
+          btn.dataset.w = String(watched);
+          btn.classList.toggle("on", watched === 1);
+          btn.innerHTML = watched ? CHECK_SVG : "";
+          const tr = btn.closest("tr");
+          tr.classList.toggle("watched", watched === 1);
+          tr.classList.toggle("new", watched === 0 && isNewTr(tr));
+          tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
+          loadFollowed();
+        });
+      });
+    }
+  } catch (e) {
+    body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
+  }
+}
+
+function closeReleases() {
+  document.getElementById("releases-modal").style.display = "none";
+}
+
+function closeDetails() {
+  document.getElementById("details-modal").style.display = "none";
+}
+
+function closeModals() {
+  closeReleases();
+  closeDetails();
+  closeConfirm();
+}
+
+function closeConfirm() {
+  document.getElementById("confirm-modal").style.display = "none";
+}
+
+function showConfirm(text, onYes) {
+  document.getElementById("confirm-text").textContent = text;
+  document.getElementById("confirm-modal").style.display = "flex";
+  document.getElementById("confirm-yes").onclick = () => {
+    closeConfirm();
+    onYes();
+  };
+  document.getElementById("confirm-no").onclick = closeConfirm;
+  document.getElementById("confirm-close").onclick = closeConfirm;
+  document.getElementById("confirm-modal").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeConfirm();
+  });
+}
+
+document.getElementById("releases-close").onclick = closeReleases;
+document.getElementById("releases-modal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeReleases();
+});
+document.getElementById("details-close").onclick = closeDetails;
+document.getElementById("details-modal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) closeDetails();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeModals();
+});
+
+async function openDetails(mediaType, tmdbId, title, highlightPerson, highlightPersonId, highlightGenre) {
+  const modal = document.getElementById("details-modal");
+  const body = document.getElementById("details-body");
+  const calBtn = document.getElementById("details-calendar");
+  document.getElementById("details-title").textContent = title || "";
+  body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  modal.style.display = "flex";
+  calBtn.style.display = "flex";
+  calBtn.onclick = () => {
+    closeDetails();
+    openReleases(mediaType, tmdbId, title);
+  };
+
+  try {
+    const res = await fetch(`/api/details?media_type=${encodeURIComponent(mediaType)}&tmdb_id=${encodeURIComponent(tmdbId)}${highlightPerson ? `&highlight_person=${encodeURIComponent(highlightPerson)}` : ""}${highlightPersonId ? `&highlight_person_id=${encodeURIComponent(highlightPersonId)}` : ""}`);
+    const data = await res.json();
+    if (!res.ok) {
+      body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;
+      return;
+    }
+    document.getElementById("details-title").textContent = data.title || title || "";
+
+    let html = '<div class="details-wrap">';
+    html += '<div class="details-poster-col">';
+    if (data.poster_path) {
+      html += `<img class="details-poster" src="${IMAGE_BASE}${data.poster_path}" alt="${data.title}" />`;
+    }
+
+    const badges = [];
+    if (data.media_type === "tv") {
+      badges.push(t("type_tv"));
+      if (data.number_of_seasons) badges.push(t("seasons", { n: data.number_of_seasons }));
+      if (data.number_of_episodes) badges.push(t("episodes", { n: data.number_of_episodes }));
+      if (data.status) badges.push(data.status);
+      if (data.first_air_date) badges.push(formatDate(data.first_air_date).text);
+    } else {
+      badges.push(t("type_movie"));
+      if (data.release_date) badges.push(formatDate(data.release_date).text);
+    }
+    if (data.runtime) badges.push(fmtRuntime(data.runtime));
+
+    html += '<div class="details-meta">';
+    badges.forEach((b) => {
+      html += `<span class="detail-badge">${b}</span>`;
+    });
+    html += "</div>";
+
+    if (data.genres && data.genres.length) {
+      html += '<div class="genre-tags">';
+      const hg = highlightGenre ? highlightGenre.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) : [];
+      data.genres.forEach((g) => {
+        const fav = state.favGenres.has(g) || hg.includes(g.toLowerCase());
+        html += `<span class="detail-badge genre-tag${fav ? " fav" : ""}" data-genre="${g.replace(/"/g, "&quot;")}">${g}</span>`;
+      });
+      html += "</div>";
+    }
+
+    if (data.vote_average != null) {
+      html += `<div class="details-rating">${fmtScore(data.vote_average)} / 10 <span class="details-votes">${t("votes", { n: data.vote_count || 0 })}</span></div>`;
+    }
+    html += "</div>";
+
+    html += '<div class="details-main">';
+
+    if (data.tagline) {
+      html += `<div class="details-tagline">${data.tagline}</div>`;
+    }
+
+    if (data.overview) {
+      html += `<p class="details-overview">${data.overview}</p>`;
+    }
+
+    if (data.cast && data.cast.length) {
+      html += '<div class="details-cast"><div class="details-cast-list">';
+      data.cast.forEach((c) => {
+        const img = c.profile_path
+          ? `<img class="cast-avatar" src="${IMAGE_BASE}${c.profile_path}" alt="${c.name}" />`
+          : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
+        const fav = c.id && state.favActors.has(String(c.id)) ? " fav" : "";
+        html += `<div class="cast-item" data-person-id="${c.id || ""}" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${c.name}</div><div class="cast-char">${c.character || ""}</div></div>${
+          c.id ? `<button class="cast-fav${fav}" data-person-id="${c.id}" data-person-name="${c.name.replace(/"/g, "&quot;")}" data-tip="${t("fav_actor")}">${HEART_SVG}</button>` : ""
+        }</div>`;
+      });
+      html += "</div></div>";
+    }
+
+    html += "</div></div>";
+
+    body.innerHTML = html;
+    body.querySelectorAll(".cast-item").forEach((el) => {
+      const pid = el.dataset.personId;
+      if (!pid) return;
+      el.onclick = () => openPerson(pid, el.querySelector(".cast-name").textContent);
+    });
+    body.querySelectorAll(".cast-fav").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        toggleFavActor(btn);
+      };
+    });
+  } catch (e) {
+    body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
+  }
+}
+
+async function toggleFavActor(btn) {
+  const personId = btn.dataset.personId;
+  const name = btn.dataset.personName || "";
+  const prevFav = state.favActors.has(personId);
+  try {
+    const r = await fetch("/api/fav_actors", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ person_id: personId, name }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    if (j.added) state.favActors.set(personId, name);
+    else state.favActors.delete(personId);
+    btn.classList.toggle("fav", j.added);
+    toast(j.added ? t("fav_actor_added") : t("fav_actor_removed"));
+  } catch (err) {
+    if (prevFav) state.favActors.delete(personId);
+    else state.favActors.delete(personId);
+    btn.classList.toggle("fav", prevFav);
+    toast(errText(err.message) || t("error"));
+  }
+}
+
+async function toggleFavAnimeChar(btn) {
+  const charId = btn.dataset.charId;
+  const name = btn.dataset.charName || "";
+  const animeTitle = btn.dataset.animeTitle || "";
+  const prevFav = state.favAnimeChars.has(charId);
+  try {
+    const r = await fetch("/api/fav_anime_chars", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ character_id: charId, name, anime_title: animeTitle }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    if (j.added) state.favAnimeChars.set(charId, name);
+    else state.favAnimeChars.delete(charId);
+    btn.classList.toggle("fav", j.added);
+    toast(j.added ? t("fav_char_added") : t("fav_char_removed"));
+  } catch (err) {
+    if (prevFav) state.favAnimeChars.delete(charId);
+    else state.favAnimeChars.delete(charId);
+    btn.classList.toggle("fav", prevFav);
+    toast(errText(err.message) || t("error"));
+  }
+}
+
+function openAnimeChar(charId, name) {
+  setMedia("anime");
+  const input = document.getElementById("search-input");
+  if (input) input.value = "";
+  state.chips.length = 0;
+  state.chips.push({ type: "char", label: name, value: charId });
+  renderChips();
+  doComboSearch("", state.chips, "anime");
+}
+
+async function openPerson(personId, name) {
+  const modal = document.getElementById("person-modal");
+  const body = document.getElementById("person-body");
+  document.getElementById("person-title").textContent = name || "";
+  body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  modal.style.display = "flex";
+  try {
+    const res = await fetch(`/api/person/${encodeURIComponent(personId)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;
+      return;
+    }
+const grid = document.createElement("div");
+    grid.className = "poster-grid person-grid";
+    if (!data.length) {
+    grid.innerHTML = `<div class="empty">${t("no_credits")}</div>`;
+    return;
+  }
+data.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+<div class="meta">
+          <span class="badge badge-${item.media_type}">${typeLabel(item.media_type)}</span>
+          ${scoreTag(item.vote_average)}
+          ${item.media_type === "tv" && item.number_of_seasons ? `<div class="season-line"><span class="season-count-badge">${t("seasons", { n: item.number_of_seasons })}</span>${item.number_of_episodes ? `<span class="episode-count">${t("episodes", { n: item.number_of_episodes })}</span>` : ""}</div>` : `<div class="season-line"></div>`}
+          ${item.release_date ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>` : ""}
+        </div>
+        </div>
+        ${item.media_type === "tv" ? `<button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>` : ""}
+        <button class="remove" style="display:block" data-tip="${t("follow")}">+</button>
+      `;
+      div.querySelector(".remove").onclick = async (e) => {
+        e.stopPropagation();
+        const r = await fetch("/api/follow", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tmdb_id: item.tmdb_id,
+            media_type: item.media_type,
+            title: item.title,
+            poster_path: item.poster_path,
+          }),
+        });
+        const j = await r.json();
+        toast(r.ok ? t("added") : j.error || t("error"));
+        if (r.ok) {
+          loadFollowed();
+          switchView("followed");
+          modal.style.display = "none";
+        }
+      };
+      const calBtn = div.querySelector(".calendar-btn");
+      if (calBtn) {
+        calBtn.onclick = (e) => {
+          e.stopPropagation();
+          openReleases(item.media_type, item.tmdb_id, item.title);
+        };
+      }
+      div.onclick = () => {
+        openDetails(item.media_type, item.tmdb_id, item.title);
+        modal.style.display = "none";
+      };
+      grid.appendChild(div);
+      applyTitleHint(div);
+    });
+    body.innerHTML = "";
+    body.appendChild(grid);
+  } catch (e) {
+    body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
+  }
+}
+
+document.getElementById("person-close").onclick = () => {
+  document.getElementById("person-modal").style.display = "none";
+};
+document.getElementById("person-modal").onclick = (e) => {
+  if (e.target === e.currentTarget) document.getElementById("person-modal").style.display = "none";
+};
+
+async function openUnwatchedModal(item, isAnime) {
+  const modal = document.getElementById("unwatched-modal");
+  const body = document.getElementById("unwatched-body");
+  document.getElementById("unwatched-title").textContent = `${item.title} · ${t("unwatched_title")}`;
+  body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  modal.style.display = "flex";
+
+  const renderList = () => {
+    const sorted = [...item.items].sort((a, b) =>
+      a.season != null
+        ? (a.season - b.season) || (a.episode - b.episode)
+        : a.episode - b.episode
+    );
+    const firstUnwatched = sorted.find((it) => !it.watched);
+    const rows = sorted.map((it) => {
+      const isUnwatched = !it.watched;
+      const isFirst = isUnwatched && firstUnwatched === it;
+      const lockedCls = isUnwatched && !isFirst ? " locked" : "";
+      const watchedCls = !isUnwatched ? " watched" : "";
+      const tip = isUnwatched && !isFirst
+        ? ` data-tip="${t("unwatched_tooltip", { ep: item.isAnime ? `EP ${firstUnwatched.episode}` : `S${String(firstUnwatched.season).padStart(2, "0")}E${String(firstUnwatched.episode).padStart(2, "0")}` })}"`
+        : "";
+      const label = isAnime
+        ? `EP ${it.episode}`
+        : t("season_ep", { s: it.season, e: it.episode });
+      const epName = it.episode_name
+        ? `<div class="episode-name">${it.episode_name}</div>`
+        : "";
+      return `<tr class="${watchedCls}">
+        <td><button class="watch-btn uw-watch${it.watched ? " on" : ""}${lockedCls}" data-i="${it.idx}"${tip}>${it.watched ? CHECK_SVG : ""}</button><span class="episode-cell"><span class="episode-label">${label}</span>${epName}</span></td>
+      </tr>`;
+    });
+    body.innerHTML = `<div class="season-box"><table class="releases-table"><thead><tr><th>${t("col_episode")}</th></tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+
+    body.querySelectorAll(".uw-watch").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (btn.classList.contains("locked")) return;
+        const it = sorted[Number(btn.dataset.i)];
+        const newWatched = it.watched ? 0 : 1;
+        try {
+          if (isAnime) {
+            await fetch("/api/anime/episode/watch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ anime_id: item.id, episode: it.episode, watched: newWatched }),
+            });
+          } else {
+            await fetch("/api/episode/watch", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tmdb_id: item.tmdb_id, season: it.season, episode: it.episode, watched: newWatched }),
+            });
+          }
+          it.watched = newWatched;
+          renderList();
+        } catch (e) {
+          toast(t("error"));
+        }
+      });
+    });
+  };
+
+  item.items = (item.items || []).map((it, idx) => ({ ...it, idx }));
+  renderList();
+}
+
+document.getElementById("unwatched-close").onclick = () => {
+  document.getElementById("unwatched-modal").style.display = "none";
+};
+document.getElementById("unwatched-modal").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) document.getElementById("unwatched-modal").style.display = "none";
+});
+
+async function openAnimeDetails(dbId, anilistId, title) {
+  const modal = document.getElementById("details-modal");
+  const body = document.getElementById("details-body");
+  const calBtn = document.getElementById("details-calendar");
+  document.getElementById("details-title").textContent = title || "";
+  body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  modal.style.display = "flex";
+  if (dbId) {
+    calBtn.style.display = "flex";
+    calBtn.onclick = () => {
+      closeDetails();
+      openAnimeSchedule(dbId, title);
+    };
+  } else {
+    calBtn.style.display = "none";
+  }
+
+  try {
+    const res = await fetch(`/api/anime/details?anilist_id=${encodeURIComponent(anilistId)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;
+      return;
+    }
+    document.getElementById("details-title").textContent = data.title || title || "";
+
+    let html = '<div class="details-wrap">';
+    html += '<div class="details-poster-col">';
+    if (data.cover_url) {
+      html += `<img class="details-poster" src="${data.cover_url}" alt="${data.title}" />`;
+    }
+
+    const badges = [];
+    badges.push(t("tab_anime"));
+    if (data.format) badges.push(data.format);
+    if (data.status) badges.push(animeStatusLabel(data.status));
+    if (data.episodes) badges.push(t("episodes", { n: data.episodes }));
+    if (data.duration) badges.push(fmtRuntime(data.duration));
+    if (data.start_date) badges.push(String(data.start_date));
+    if (data.studios && data.studios.length) badges.push(data.studios.join(", "));
+
+    html += '<div class="details-meta">';
+    badges.forEach((b) => {
+      html += `<span class="detail-badge">${b}</span>`;
+    });
+    html += "</div>";
+
+    if (data.genres && data.genres.length) {
+      html += '<div class="genre-tags">';
+      data.genres.forEach((g) => {
+        html += `<span class="detail-badge anime-genre-tag${state.favAnimeGenres.has(g) ? " fav" : ""}" data-anime-genre="${g.replace(/"/g, "&quot;")}">${animeGenreLabel(g)}</span>`;
+      });
+      html += "</div>";
+    }
+
+    if (data.score != null) {
+      html += `<div class="details-rating">${fmtScore(data.score / 10)} / 10</div>`;
+    }
+    html += "</div>";
+
+    html += '<div class="details-main">';
+
+    if (data.description) {
+      html += `<div class="details-tagline" style="white-space:pre-wrap">${data.description.replace(/<[^>]*>/g, "")}</div>`;
+    }
+
+    if (data.characters && data.characters.length) {
+      html += '<div class="details-cast"><div class="details-cast-list">';
+      data.characters.forEach((c) => {
+        const img = c.image
+          ? `<img class="cast-avatar" src="${c.image}" alt="${c.name}" />`
+          : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
+        const fav = c.id && state.favAnimeChars.has(String(c.id)) ? " fav" : "";
+        html += `<div class="cast-item" data-char-id="${c.id || ""}" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${c.name}</div></div>${
+          c.id ? `<button class="cast-fav${fav}" data-char-id="${c.id}" data-char-name="${c.name.replace(/"/g, "&quot;")}" data-anime-title="${(data.title || "").replace(/"/g, "&quot;")}" data-tip="${t("fav_char")}">${HEART_SVG}</button>` : ""
+        }</div>`;
+      });
+      html += "</div></div>";
+    }
+
+    html += "</div></div>";
+
+    body.innerHTML = html;
+    body.querySelectorAll(".cast-item").forEach((el) => {
+      const cid = el.dataset.charId;
+      if (!cid) return;
+      el.onclick = () => openAnimeChar(cid, el.querySelector(".cast-name").textContent);
+    });
+    body.querySelectorAll(".cast-fav").forEach((btn) => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        toggleFavAnimeChar(btn);
+      };
+    });
+  } catch (e) {
+    body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
+  }
+}
+
+async function openAnimeSchedule(id, title) {
+  const modal = document.getElementById("releases-modal");
+  const body = document.getElementById("releases-body");
+  document.getElementById("releases-title").textContent = title || "";
+  body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+  modal.style.display = "flex";
+
+  try {
+    const res = await fetch(`/api/anime/schedule?anime_id=${encodeURIComponent(id)}`);
+    const data = await res.json();
+    if (!res.ok) {
+      body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;
+      return;
+    }
+    document.getElementById("releases-title").textContent = data.title || title || "";
+
+    if (!data.items.length) {
+      body.innerHTML = `<div class="releases-error">${t("no_release_date")}</div>`;
+      return;
+    }
+
+    const loc = tzLocale();
+    let html = `<table class="releases-table"><thead><tr><th>${t("col_episode")}</th><th>${t("col_date")}</th></tr></thead><tbody>`;
+    data.items.forEach((it) => {
+      const d = it.airing_at ? new Date(it.airing_at * 1000) : null;
+      const now = Date.now();
+      let dateText = "—";
+      let cls = "";
+      if (d && !isNaN(d.getTime())) {
+        try {
+          dateText = new Intl.DateTimeFormat(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(d);
+        } catch (e) {
+          dateText = d.toLocaleString();
+        }
+        if (d.getTime() < now) cls = "date-past";
+        else if (d.getTime() > now) cls = "date-future";
+        else cls = "date-today";
+      }
+      html += `<tr><td><span class="episode-label">${t("col_episode")} ${it.episode}</span></td><td class="${cls}">${dateText}</td></tr>`;
+    });
+    html += "</tbody></table>";
+    body.innerHTML = html;
+  } catch (e) {
+    body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
+  }
+}
+
+document.getElementById("details-modal").addEventListener("click", async (e) => {
+  const animeTag = e.target.closest(".anime-genre-tag");
+  if (animeTag) {
+    e.stopPropagation();
+    const genre = animeTag.dataset.animeGenre;
+    const prevFav = state.favAnimeGenres.has(genre);
+    state.favAnimeGenres.add(genre);
+    animeTag.classList.add("fav");
+    try {
+      const r = await fetch("/api/fav_anime_genres", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ genre }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error);
+      state.favAnimeGenres = new Set(j.genres);
+      if (!j.added) animeTag.classList.remove("fav");
+      toast(j.added ? t("fav_anime_genre_added") : t("fav_anime_genre_removed"));
+    } catch (err) {
+      if (prevFav) state.favAnimeGenres.delete(genre);
+      else state.favAnimeGenres.delete(genre);
+      if (prevFav) animeTag.classList.remove("fav");
+      toast(errText(err.message) || t("error"));
+    }
+    return;
+  }
+  const tag = e.target.closest(".genre-tag");
+  if (!tag) return;
+  e.stopPropagation();
+  const genre = tag.dataset.genre;
+  const prevFav = state.favGenres.has(genre);
+  state.favGenres.add(genre);
+  tag.classList.add("fav");
+  try {
+    const r = await fetch("/api/fav_genres", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ genre }),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    state.favGenres = new Set(j.genres);
+    if (!j.added) tag.classList.remove("fav");
+    toast(j.added ? t("fav_genre_added") : t("fav_genre_removed"));
+  } catch (err) {
+    if (prevFav) state.favGenres.delete(genre);
+    else state.favGenres.delete(genre);
+    if (prevFav) tag.classList.remove("fav");
+    toast(errText(err.message) || t("error"));
+  }
+});
+
+
+export { openReleases, closeReleases, closeDetails, closeModals, closeConfirm, showConfirm,
+         openDetails, toggleFavActor, toggleFavAnimeChar, openAnimeChar, openPerson,
+         openUnwatchedModal, openAnimeDetails, openAnimeSchedule };
