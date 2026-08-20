@@ -1,0 +1,205 @@
+import os
+import sqlite3
+import json
+import datetime
+from zoneinfo import ZoneInfo
+
+from config import DB_PATH
+
+
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    conn = get_db()
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS followed (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tmdb_id INTEGER,
+            media_type TEXT,
+            title TEXT,
+            poster_path TEXT,
+            release_date TEXT,
+            notified INTEGER DEFAULT 0,
+            vote_average REAL DEFAULT 0
+        )"""
+    )
+    cols = [r["name"] for r in conn.execute("PRAGMA table_info(followed)").fetchall()]
+    if "vote_average" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN vote_average REAL DEFAULT 0")
+    if "networks" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN networks TEXT")
+    if "overview" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN overview TEXT")
+    if "genres" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN genres TEXT")
+    if "tagline" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN tagline TEXT")
+    if "runtime" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN runtime INTEGER")
+    if "number_of_seasons" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN number_of_seasons INTEGER")
+    if "number_of_episodes" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN number_of_episodes INTEGER")
+    if "status" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN status TEXT")
+    if "season_list" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN season_list TEXT")
+    if "vote_count" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN vote_count INTEGER")
+    if "first_air_date" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN first_air_date TEXT")
+    if "watched" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN watched INTEGER DEFAULT 0")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS episodes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            follow_id INTEGER,
+            season INTEGER,
+            episode INTEGER,
+            air_date TEXT,
+            air_time INTEGER,
+            notified INTEGER DEFAULT 0,
+            watched INTEGER DEFAULT 0,
+            name TEXT,
+            UNIQUE(follow_id, season, episode)
+        )"""
+    )
+    ecols = [r["name"] for r in conn.execute("PRAGMA table_info(episodes)").fetchall()]
+    if "watched" not in ecols:
+        conn.execute("ALTER TABLE episodes ADD COLUMN watched INTEGER DEFAULT 0")
+    if "name" not in ecols:
+        conn.execute("ALTER TABLE episodes ADD COLUMN name TEXT")
+    if "air_time" not in ecols:
+        conn.execute("ALTER TABLE episodes ADD COLUMN air_time INTEGER")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS cast (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            follow_id INTEGER,
+            person_id INTEGER,
+            name TEXT,
+            character TEXT,
+            profile_path TEXT,
+            sort_order INTEGER DEFAULT 0
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS genres (
+            source TEXT NOT NULL,
+            name TEXT NOT NULL,
+            UNIQUE(source, name)
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS anime (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            anilist_id INTEGER UNIQUE,
+            title TEXT,
+            cover_url TEXT,
+            episodes INTEGER DEFAULT 0,
+            status TEXT,
+            score REAL,
+            notified INTEGER DEFAULT 0
+        )"""
+    )
+    acols = [r["name"] for r in conn.execute("PRAGMA table_info(anime)").fetchall()]
+    if "score" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN score REAL")
+    if "studios" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN studios TEXT")
+    if "banner" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN banner TEXT")
+    if "description" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN description TEXT")
+    if "format" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN format TEXT")
+    if "duration" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN duration INTEGER")
+    if "genres" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN genres TEXT")
+    if "start_date" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN start_date TEXT")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS anime_cast (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            anime_id INTEGER,
+            person_id INTEGER,
+            name TEXT,
+            image TEXT,
+            sort_order INTEGER DEFAULT 0
+        )"""
+    )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS anime_episodes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            anime_id INTEGER,
+            episode INTEGER,
+            air_at INTEGER,
+            notified INTEGER DEFAULT 0,
+            watched INTEGER DEFAULT 0,
+            UNIQUE(anime_id, episode)
+        )"""
+    )
+    conn.commit()
+    conn.close()
+
+
+ENV_KEYS = {
+    "tmdb_api_key": "TMDB_API_KEY",
+    "telegram_bot_token": "TELEGRAM_BOT_TOKEN",
+    "telegram_chat_id": "TELEGRAM_CHAT_ID",
+    "notify_hour": "NOTIFY_HOUR",
+    "timezone": "TIMEZONE",
+    "language": "LANGUAGE",
+    "ntfy_topic": "NTFY_TOPIC",
+}
+
+
+def get_setting(key):
+    env_name = ENV_KEYS.get(key)
+    if env_name and os.environ.get(env_name):
+        return os.environ.get(env_name)
+    conn = get_db()
+    row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    conn.close()
+    return row["value"] if row else None
+
+
+def today_str():
+    """Seçili zaman diliminde bugünün tarihi (YYYY-MM-DD)."""
+    tz_name = get_setting("timezone") or "Europe/Istanbul"
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz = ZoneInfo("Europe/Istanbul")
+    return datetime.datetime.now(tz).strftime("%Y-%m-%d")
+
+
+def set_setting(key, value):
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO settings (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (key, value),
+    )
+    conn.commit()
+    conn.close()
+
+
+def _safe_json_list(value):
+    if not value:
+        return []
+    try:
+        v = json.loads(value)
+        return v if isinstance(v, list) else []
+    except (ValueError, TypeError):
+        return []
