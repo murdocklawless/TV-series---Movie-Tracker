@@ -14,10 +14,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Faz 2 klasör düzenlemesi için: .py dosyaları py/ altına taşınırsa BASE_DIR'i proje köküne sabitle
 if os.path.basename(BASE_DIR) == "py":
     BASE_DIR = os.path.dirname(BASE_DIR)
-DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "tracker.db"))
-# Migration: eski data.db varsa ve tracker.db yoksa onu kullan
-if "DB_PATH" not in os.environ and not os.path.exists(DB_PATH) and os.path.exists(os.path.join(BASE_DIR, "data.db")):
-    DB_PATH = os.path.join(BASE_DIR, "data.db")
+DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "db", "tracker.db"))
+# Migration: eski konumda (root'ta data.db veya tracker.db) varsa ve hedefte yoksa onu kullan
+if "DB_PATH" not in os.environ and not os.path.exists(DB_PATH):
+    for legacy in (os.path.join(BASE_DIR, "data.db"), os.path.join(BASE_DIR, "tracker.db")):
+        if os.path.exists(legacy):
+            DB_PATH = legacy
+            break
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"

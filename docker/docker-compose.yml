@@ -1,6 +1,8 @@
 services:
   takip:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     image: ${DOCKER_IMAGE:-takip}
     container_name: takip
     restart: unless-stopped

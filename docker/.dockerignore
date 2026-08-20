@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+data.db
+tracker.db
+backup_pre_calendar/
+venv/
+.git/
+md/
+sh/
+service/
+backup/
+bak/
+db/

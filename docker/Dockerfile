@@ -2,10 +2,10 @@ FROM python:3.13-alpine
 
 WORKDIR /app
 
-COPY requirements.txt .
+COPY requirements/requirements.txt .
 RUN apk add --no-cache tzdata && pip install --no-cache-dir -r requirements.txt
 
-COPY tracker.py .
+COPY py/tracker.py .
 COPY static ./static
 
 ENV PORT=8050

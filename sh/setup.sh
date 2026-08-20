@@ -12,19 +12,19 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-# Betik çalıştırılan dizinden dosyaları kopyala
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Betik çalıştırılan dizinden dosyaları kopyala (setup.sh artık sh/ altında)
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 echo "==> $APP_DIR klasörü hazırlanıyor..."
-mkdir -p "$APP_DIR/static"
-if [ -f "$SCRIPT_DIR/tracker.py" ]; then
-  cp -f "$SCRIPT_DIR/tracker.py" "$APP_DIR/"
-  cp -f "$SCRIPT_DIR/requirements.txt" "$APP_DIR/" 2>/dev/null || true
-  cp -f "$SCRIPT_DIR/static/tracker.js" "$APP_DIR/static/" 2>/dev/null || true
-  cp -f "$SCRIPT_DIR/static/style.css" "$APP_DIR/static/" 2>/dev/null || true
+mkdir -p "$APP_DIR/py" "$APP_DIR/requirements" "$APP_DIR/static/js" "$APP_DIR/static/css" "$APP_DIR/static/images"
+if [ -f "$SCRIPT_DIR/py/tracker.py" ]; then
+  cp -f "$SCRIPT_DIR/py/tracker.py" "$APP_DIR/py/"
+  cp -f "$SCRIPT_DIR/requirements/requirements.txt" "$APP_DIR/requirements/" 2>/dev/null || true
+  cp -f "$SCRIPT_DIR/static/js/tracker.js" "$APP_DIR/static/js/" 2>/dev/null || true
+  cp -f "$SCRIPT_DIR/static/css/style.css" "$APP_DIR/static/css/" 2>/dev/null || true
   cp -f "$SCRIPT_DIR/static/index.html" "$APP_DIR/static/" 2>/dev/null || true
   echo "==> Kaynak dosyalar kopyalandı."
 else
-  echo "==> tracker.py bu dizinde bulunamadı; mevcut $APP_DIR dosyaları kullanılacak."
+  echo "==> py/tracker.py bu dizinde bulunamadı; mevcut $APP_DIR dosyaları kullanılacak."
 fi
 
 cd "$APP_DIR"
@@ -40,7 +40,7 @@ fi
 
 echo "==> Bağımlılıklar yükleniyor..."
 ./venv/bin/pip install --upgrade pip >/dev/null
-./venv/bin/pip install -r requirements.txt
+./venv/bin/pip install -r requirements/requirements.txt
 
 echo "==> Systemd servisi kuruluyor (port: $PORT)..."
 cat > /etc/systemd/system/takip.service <<EOF
@@ -53,7 +53,7 @@ Type=simple
 User=root
 WorkingDirectory=$APP_DIR
 Environment=PORT=$PORT
-ExecStart=$APP_DIR/venv/bin/python $APP_DIR/tracker.py
+ExecStart=$APP_DIR/venv/bin/python $APP_DIR/py/tracker.py
 Restart=always
 RestartSec=5
 

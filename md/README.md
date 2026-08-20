@@ -27,11 +27,11 @@ Dizi ve filmleri takip eden, yeni bölümlerin yayın tarihlerini takvimde göst
 2. Sanal ortam oluşturup paketleri kurun:
    ```
    python3 -m venv venv
-   ./venv/bin/pip install -r requirements.txt
+   ./venv/bin/pip install -r requirements/requirements.txt
    ```
 3. systemd servisi kurun:
    ```
-   cp takip.service /etc/systemd/system/
+   cp service/takip.service /etc/systemd/system/
    systemctl daemon-reload
    systemctl enable --now takip
    ```
@@ -55,5 +55,5 @@ Servis 8050 portunda çalışır (`PORT` ortam değişkeniyle değiştirilebilir
 
 ## Not
 
-- `tracker.db` (SQLite veritabanı) ve gizli anahtar dosyaları `.gitignore` ile reponun dışında tutulur.
+- `db/tracker.db` (SQLite veritabanı) ve gizli anahtar dosyaları `.gitignore` ile reponun dışında tutulur.
 - `backup_pre_calendar/` klasörü, takvim özelliği öncesi sürümün yedeğini içerir.

@@ -20,4 +20,6 @@ tests/
 *.bak-*
 *.gz
 backup/
+bak/
 db/
+static/bak/
