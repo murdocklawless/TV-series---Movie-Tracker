@@ -50,6 +50,28 @@ def init_db():
         conn.execute("ALTER TABLE followed ADD COLUMN vote_average REAL DEFAULT 0")
     if "networks" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN networks TEXT")
+    if "overview" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN overview TEXT")
+    if "genres" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN genres TEXT")
+    if "tagline" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN tagline TEXT")
+    if "runtime" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN runtime INTEGER")
+    if "number_of_seasons" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN number_of_seasons INTEGER")
+    if "number_of_episodes" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN number_of_episodes INTEGER")
+    if "status" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN status TEXT")
+    if "season_list" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN season_list TEXT")
+    if "vote_count" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN vote_count INTEGER")
+    if "first_air_date" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN first_air_date TEXT")
+    if "watched" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN watched INTEGER DEFAULT 0")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS episodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,14 +79,31 @@ def init_db():
             season INTEGER,
             episode INTEGER,
             air_date TEXT,
+            air_time INTEGER,
             notified INTEGER DEFAULT 0,
             watched INTEGER DEFAULT 0,
+            name TEXT,
             UNIQUE(follow_id, season, episode)
         )"""
     )
     ecols = [r["name"] for r in conn.execute("PRAGMA table_info(episodes)").fetchall()]
     if "watched" not in ecols:
         conn.execute("ALTER TABLE episodes ADD COLUMN watched INTEGER DEFAULT 0")
+    if "name" not in ecols:
+        conn.execute("ALTER TABLE episodes ADD COLUMN name TEXT")
+    if "air_time" not in ecols:
+        conn.execute("ALTER TABLE episodes ADD COLUMN air_time INTEGER")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS cast (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            follow_id INTEGER,
+            person_id INTEGER,
+            name TEXT,
+            character TEXT,
+            profile_path TEXT,
+            sort_order INTEGER DEFAULT 0
+        )"""
+    )
     conn.execute(
         """CREATE TABLE IF NOT EXISTS genres (
             source TEXT NOT NULL,
@@ -89,6 +128,28 @@ def init_db():
         conn.execute("ALTER TABLE anime ADD COLUMN score REAL")
     if "studios" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN studios TEXT")
+    if "banner" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN banner TEXT")
+    if "description" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN description TEXT")
+    if "format" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN format TEXT")
+    if "duration" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN duration INTEGER")
+    if "genres" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN genres TEXT")
+    if "start_date" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN start_date TEXT")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS anime_cast (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            anime_id INTEGER,
+            person_id INTEGER,
+            name TEXT,
+            image TEXT,
+            sort_order INTEGER DEFAULT 0
+        )"""
+    )
     conn.execute(
         """CREATE TABLE IF NOT EXISTS anime_episodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -871,40 +932,127 @@ def anime_search():
     return jsonify(results)
 
 
+def _anime_start_year(d):
+    return (d.get("startDate") or {}).get("year") if (d.get("startDate") or {}).get("year") else None
+
+
+def save_anime_details(conn, anime_id, detail):
+    """AniList detayından statik verileri ve karakterleri DB'ye yazar."""
+    if not detail:
+        return
+    conn.execute(
+        "UPDATE anime SET banner=?, description=?, format=?, duration=?, genres=?, start_date=? WHERE id=?",
+        (
+            detail.get("bannerImage"),
+            detail.get("description"),
+            detail.get("format"),
+            detail.get("duration"),
+            json.dumps(detail.get("genres") or []),
+            _anime_start_year(detail),
+            anime_id,
+        ),
+    )
+    conn.execute("DELETE FROM anime_cast WHERE anime_id=?", (anime_id,))
+    chars = (detail.get("characters") or {}).get("nodes") or []
+    for i, c in enumerate(chars):
+        name = c.get("name", {}).get("full") if c.get("name") else ""
+        if not name:
+            continue
+        conn.execute(
+            "INSERT INTO anime_cast (anime_id, person_id, name, image, sort_order) VALUES (?, ?, ?, ?, ?)",
+            (anime_id, c.get("id"), name, (c.get("image") or {}).get("large") if c.get("image") else None, i),
+        )
+
+
+def load_anime_details(conn, anime_id):
+    """anime_id için DB'de saklı anime detay verilerini ve karakterleri döndürür (None = yok)."""
+    row = conn.execute(
+        "SELECT banner, description, format, duration, genres, start_date, title, cover_url, "
+        "episodes, status, score, studios, anilist_id FROM anime WHERE id=?",
+        (anime_id,),
+    ).fetchone()
+    if not row:
+        return None
+    chars = conn.execute(
+        "SELECT person_id, name, image FROM anime_cast WHERE anime_id=? ORDER BY sort_order",
+        (anime_id,),
+    ).fetchall()
+    return {
+        "anilist_id": row["anilist_id"],
+        "title": row["title"],
+        "cover_url": row["cover_url"],
+        "banner_url": row["banner"],
+        "description": row["description"],
+        "format": row["format"],
+        "status": row["status"],
+        "episodes": row["episodes"],
+        "duration": row["duration"],
+        "genres": _safe_json_list(row["genres"]),
+        "score": row["score"],
+        "start_date": row["start_date"],
+        "studios": [s for s in (row["studios"] or "").split(",") if s] if row["studios"] else [],
+        "characters": [
+            {"id": c["person_id"], "name": c["name"], "image": c["image"]}
+            for c in chars
+        ],
+    }
+
+
+def _safe_json_list(value):
+    if not value:
+        return []
+    try:
+        v = json.loads(value)
+        return v if isinstance(v, list) else []
+    except (ValueError, TypeError):
+        return []
+
+
 @app.route("/api/anime/details")
 def anime_details():
     anilist_id = request.args.get("anilist_id")
     if not anilist_id:
         return jsonify({"error": "anilist_id gereklidir"}), 400
-    d = anilist_detail(anilist_id)
-    if not d:
+    conn = get_db()
+    arow = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+    if arow:
+        d = load_anime_details(conn, arow["id"])
+        if d and d.get("description"):
+            conn.close()
+            return jsonify(d)
+    detail = anilist_detail(anilist_id)
+    if not detail:
+        conn.close()
         return jsonify({"error": "AniList'ten veri alınamadı"}), 404
+    if arow:
+        save_anime_details(conn, arow["id"], detail)
+        conn.commit()
+        d = load_anime_details(conn, arow["id"])
+        conn.close()
+        return jsonify(d)
+    conn.close()
     return jsonify(
         {
-            "anilist_id": d.get("id"),
-            "title": _anime_title(d),
-            "cover_url": _anime_cover(d),
-            "banner_url": d.get("bannerImage"),
-            "description": d.get("description"),
-            "format": d.get("format"),
-            "status": d.get("status"),
-            "episodes": d.get("episodes"),
-            "duration": d.get("duration"),
-            "genres": d.get("genres") or [],
-            "score": d.get("averageScore"),
-            "start_date": (
-                (d.get("startDate") or {}).get("year")
-                if (d.get("startDate") or {}).get("year")
-                else None
-            ),
-            "studios": [s.get("name") for s in (d.get("studios") or {}).get("nodes") or [] if s.get("name")],
+            "anilist_id": detail.get("id"),
+            "title": _anime_title(detail),
+            "cover_url": _anime_cover(detail),
+            "banner_url": detail.get("bannerImage"),
+            "description": detail.get("description"),
+            "format": detail.get("format"),
+            "status": detail.get("status"),
+            "episodes": detail.get("episodes"),
+            "duration": detail.get("duration"),
+            "genres": detail.get("genres") or [],
+            "score": detail.get("averageScore"),
+            "start_date": _anime_start_year(detail),
+            "studios": [s.get("name") for s in (detail.get("studios") or {}).get("nodes") or [] if s.get("name")],
             "characters": [
                 {
                     "id": c.get("id"),
                     "name": c.get("name", {}).get("full") if c.get("name") else "",
                     "image": (c.get("image") or {}).get("large") if c.get("image") else None,
                 }
-                for c in (d.get("characters") or {}).get("nodes") or []
+                for c in (detail.get("characters") or {}).get("nodes") or []
             ],
         }
     )
@@ -985,6 +1133,9 @@ def anime_follow():
     row = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
     anime_db_id = row["id"]
 
+    save_anime_details(conn, anime_db_id, detail)
+    conn.commit()
+
     schedule = anilist_schedule(anilist_id)
     if schedule and schedule.get("airingSchedule"):
         for node in schedule["airingSchedule"].get("nodes") or []:
@@ -1002,6 +1153,7 @@ def anime_follow():
 @app.route("/api/anime/unfollow/<int:anime_id>", methods=["DELETE"])
 def anime_unfollow(anime_id):
     conn = get_db()
+    conn.execute("DELETE FROM anime_cast WHERE anime_id=?", (anime_id,))
     conn.execute("DELETE FROM anime_episodes WHERE anime_id=?", (anime_id,))
     conn.execute("DELETE FROM anime WHERE id=?", (anime_id,))
     conn.commit()
@@ -1042,23 +1194,139 @@ def anime_schedule():
 
 
 def get_tmdb_info(media_type, tmdb_id):
-    """TMDB'den temel bilgileri çeker: release_date, vote_average ve yayın platformları."""
+    """TMDB'den temel bilgileri çeker: release_date, vote_average, yayın platformları ve detay alanları."""
     if media_type not in ("movie", "tv"):
         return None
     data = tmdb_request(f"/{media_type}/{tmdb_id}")
     if not data:
         return None
     networks = [n.get("name") for n in (data.get("networks") or []) if n.get("name")]
+    genres = [g.get("name") for g in data.get("genres", []) if g.get("name")]
     if media_type == "movie":
+        networks = [c.get("name") for c in (data.get("production_companies") or []) if c.get("name")]
         return {
             "release_date": data.get("release_date"),
             "vote_average": data.get("vote_average") or 0,
-            "networks": [],
+            "vote_count": data.get("vote_count"),
+            "networks": networks,
+            "overview": data.get("overview") or "",
+            "genres": genres,
+            "tagline": data.get("tagline") or "",
+            "runtime": data.get("runtime"),
+            "number_of_seasons": None,
+            "number_of_episodes": None,
+            "status": data.get("status") or "",
+            "season_list": [],
         }
+    season_list = [
+        {
+            "season_number": s.get("season_number"),
+            "name": s.get("name") or "",
+            "air_date": s.get("air_date"),
+            "episode_count": s.get("episode_count"),
+        }
+        for s in (data.get("seasons") or [])
+        if s.get("season_number") and s.get("season_number") != 0
+    ]
     return {
         "release_date": data.get("first_air_date"),
         "vote_average": data.get("vote_average") or 0,
+        "vote_count": data.get("vote_count"),
         "networks": networks,
+        "overview": data.get("overview") or "",
+        "genres": genres,
+        "tagline": data.get("tagline") or "",
+        "runtime": (data.get("episode_run_time") or [None])[0],
+        "number_of_seasons": data.get("number_of_seasons"),
+        "number_of_episodes": data.get("number_of_episodes"),
+        "status": data.get("status") or "",
+        "season_list": season_list,
+    }
+
+
+def get_tmdb_cast(media_type, tmdb_id):
+    """TMDB'den oyuncu kadrosunu çeker (ilk 8)."""
+    if media_type not in ("movie", "tv"):
+        return []
+    credits = tmdb_request(f"/{media_type}/{tmdb_id}/credits")
+    if not credits:
+        return []
+    out = []
+    for c in (credits.get("cast") or [])[:8]:
+        name = c.get("name") or c.get("original_name")
+        if name:
+            out.append(
+                {
+                    "person_id": c.get("id"),
+                    "name": name,
+                    "character": c.get("character") or "",
+                    "profile_path": c.get("profile_path"),
+                }
+            )
+    return out
+
+
+def save_details(conn, follow_id, info, cast):
+    """Detay verilerini ve oyuncu kadrosunu DB'ye yazar."""
+    if not info:
+        return
+    conn.execute(
+        "UPDATE followed SET overview=?, genres=?, tagline=?, runtime=?, "
+        "number_of_seasons=?, number_of_episodes=?, status=?, season_list=?, "
+        "vote_count=?, first_air_date=? WHERE id=?",
+        (
+            info.get("overview") or "",
+            json.dumps(info.get("genres") or []),
+            info.get("tagline") or "",
+            info.get("runtime"),
+            info.get("number_of_seasons"),
+            info.get("number_of_episodes"),
+            info.get("status") or "",
+            json.dumps(info.get("season_list") or []),
+            info.get("vote_count"),
+            info.get("release_date"),
+            follow_id,
+        ),
+    )
+    conn.execute("DELETE FROM cast WHERE follow_id=?", (follow_id,))
+    for i, c in enumerate(cast):
+        conn.execute(
+            "INSERT INTO cast (follow_id, person_id, name, character, profile_path, sort_order) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (follow_id, c.get("person_id"), c.get("name"), c.get("character") or "", c.get("profile_path"), i),
+        )
+
+
+def load_details(conn, follow_id):
+    """follow_id için DB'de saklı detay verilerini ve oyuncu kadrosunu döndürür (None = yok)."""
+    row = conn.execute(
+        "SELECT overview, genres, tagline, runtime, number_of_seasons, number_of_episodes, "
+        "status, season_list, vote_count, first_air_date, poster_path, vote_average, release_date, title "
+        "FROM followed WHERE id=?",
+        (follow_id,),
+    ).fetchone()
+    if not row:
+        return None
+    cast = conn.execute(
+        "SELECT person_id, name, character, profile_path FROM cast WHERE follow_id=? ORDER BY sort_order",
+        (follow_id,),
+    ).fetchall()
+    return {
+        "overview": row["overview"] or "",
+        "genres": _safe_json_list(row["genres"]),
+        "tagline": row["tagline"] or "",
+        "runtime": row["runtime"],
+        "number_of_seasons": row["number_of_seasons"],
+        "number_of_episodes": row["number_of_episodes"],
+        "status": row["status"] or "",
+        "season_list": _safe_json_list(row["season_list"]),
+        "vote_count": row["vote_count"],
+        "first_air_date": row["first_air_date"] or row["release_date"],
+        "poster_path": row["poster_path"],
+        "vote_average": row["vote_average"],
+        "release_date": row["release_date"],
+        "title": row["title"],
+        "cast": [dict(c) for c in cast],
     }
 
 
@@ -1069,17 +1337,40 @@ def backfill_votes():
         info = get_tmdb_info(row["media_type"], row["tmdb_id"])
         if info:
             conn.execute(
-                "UPDATE followed SET vote_average=?, networks=? WHERE id=?",
-                (info.get("vote_average") or 0, json.dumps(info.get("networks") or []), row["id"]),
+                "UPDATE followed SET vote_average=?, networks=?, release_date=? WHERE id=?",
+                (
+                    info.get("vote_average") or 0,
+                    json.dumps(info.get("networks") or []),
+                    info.get("release_date") or row["release_date"],
+                    row["id"],
+                ),
             )
+            save_details(conn, row["id"], info, get_tmdb_cast(row["media_type"], row["tmdb_id"]))
+        if row["media_type"] == "tv":
+            sync_episodes(conn, row)
     for row in conn.execute("SELECT * FROM anime").fetchall():
         detail = anilist_detail(row["anilist_id"])
         if detail:
             studios = [s.get("name") for s in (detail.get("studios") or {}).get("nodes") or [] if s.get("name")]
             conn.execute(
-                "UPDATE anime SET score=?, studios=? WHERE id=?",
-                (detail.get("averageScore"), studios[0] if studios else None, row["id"]),
+                "UPDATE anime SET score=?, studios=?, episodes=? WHERE id=?",
+                (
+                    detail.get("averageScore"),
+                    studios[0] if studios else None,
+                    detail.get("episodes") or row["episodes"],
+                    row["id"],
+                ),
             )
+            save_anime_details(conn, row["id"], detail)
+            schedule = anilist_schedule(row["anilist_id"])
+            if schedule and schedule.get("airingSchedule"):
+                for node in schedule["airingSchedule"].get("nodes") or []:
+                    conn.execute(
+                        "INSERT INTO anime_episodes (anime_id, episode, air_at) "
+                        "VALUES (?, ?, ?) "
+                        "ON CONFLICT(anime_id, episode) DO UPDATE SET air_at=excluded.air_at",
+                        (row["id"], node.get("episode"), node.get("airingAt")),
+                    )
     conn.commit()
     conn.close()
 
@@ -1119,6 +1410,10 @@ def follow():
     new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.commit()
 
+    if info:
+        save_details(conn, new_id, info, get_tmdb_cast(media_type, tmdb_id))
+        conn.commit()
+
     if media_type == "tv":
         new_follow = conn.execute(
             "SELECT * FROM followed WHERE id=?", (new_id,)
@@ -1141,6 +1436,8 @@ def followed():
             item["networks"] = json.loads(item.get("networks")) if item.get("networks") else []
         except (ValueError, TypeError):
             item["networks"] = []
+        # film için watched, dizi için completed
+        item["watched"] = int(item.get("watched") or 0)
         if item["media_type"] == "tv":
             nxt = conn.execute(
                 "SELECT season, episode, air_date FROM episodes "
@@ -1154,6 +1451,13 @@ def followed():
                     "episode": nxt["episode"],
                     "air_date": nxt["air_date"],
                 }
+            # tüm bölümler izlendi mi?
+            try:
+                total = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=?", (item["id"],)).fetchone()["c"]
+                watched_cnt = conn.execute("SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (item["id"],)).fetchone()["c"]
+                item["completed"] = bool(total > 0 and total == watched_cnt)
+            except Exception:
+                item["completed"] = False
         items.append(item)
     conn.close()
     return jsonify(items)
@@ -1169,35 +1473,22 @@ def unwatched():
     shows = []
     for r in conn.execute("SELECT * FROM followed WHERE media_type='tv'").fetchall():
         rows = conn.execute(
-            "SELECT season, episode, air_date FROM episodes "
+            "SELECT season, episode, air_date, name FROM episodes "
             "WHERE follow_id=? AND air_date IS NOT NULL AND air_date<=? AND watched=0 "
             "ORDER BY air_date ASC, episode ASC",
             (r["id"], today),
         ).fetchall()
         if not rows:
             continue
-        season_cache = {}
-        items = []
-        for x in rows:
-            season_key = x["season"]
-            if season_key not in season_cache:
-                season_cache[season_key] = {}
-                if season_key is not None:
-                    sdata = tmdb_request(f"/tv/{r['tmdb_id']}/season/{season_key}")
-                    if sdata:
-                        season_cache[season_key] = {
-                            (ep.get("episode_number")): (ep.get("name") or "")
-                            for ep in (sdata.get("episodes") or [])
-                        }
-            ep_name = (season_cache.get(season_key) or {}).get(x["episode"]) or ""
-            items.append(
-                {
-                    "season": x["season"],
-                    "episode": x["episode"],
-                    "episode_name": ep_name,
-                    "air_date": x["air_date"],
-                }
-            )
+        items = [
+            {
+                "season": x["season"],
+                "episode": x["episode"],
+                "episode_name": x["name"] or "",
+                "air_date": x["air_date"],
+            }
+            for x in rows
+        ]
         shows.append(
             {
                 "id": r["id"],
@@ -1238,6 +1529,8 @@ def unwatched():
     return jsonify({"shows": shows, "anime": anime_list})
 def unfollow(item_id):
     conn = get_db()
+    conn.execute("DELETE FROM cast WHERE follow_id=?", (item_id,))
+    conn.execute("DELETE FROM episodes WHERE follow_id=?", (item_id,))
     conn.execute("DELETE FROM followed WHERE id=?", (item_id,))
     conn.commit()
     conn.close()
@@ -1252,92 +1545,63 @@ def releases():
     if media_type not in ("movie", "tv") or not tmdb_id:
         return jsonify({"error": "Geçersiz istek"}), 400
 
+    conn = get_db()
+    follow = conn.execute(
+        "SELECT * FROM followed WHERE tmdb_id=? AND media_type=?",
+        (tmdb_id, media_type),
+    ).fetchone()
+
     if media_type == "movie":
-        data = tmdb_request(f"/movie/{tmdb_id}")
-        if not data:
-            return jsonify({"error": "TMDB'den veri alınamadı"}), 400
+        rel = (follow["release_date"] if follow else None) or (get_tmdb_info("movie", tmdb_id) or {}).get("release_date")
+        watched = int((follow["watched"] if follow and follow["watched"] is not None else 0))
+        conn.close()
         return jsonify(
             {
-                "title": title or data.get("title"),
+                "title": title or (follow["title"] if follow else ""),
                 "media_type": "movie",
                 "items": [
                     {
                         "label": "Yayın Tarihi",
-                        "date": data.get("release_date"),
+                        "date": rel,
+                        "watched": watched,
                     }
                 ],
             }
         )
 
-    data = tmdb_request(f"/tv/{tmdb_id}")
-    if not data:
-        return jsonify({"error": "TMDB'den veri alınamadı"}), 400
+    if follow is None:
+        conn.close()
+        return jsonify({"error": "Takip edilen dizi bulunamadı"}), 404
 
-    conn = get_db()
-    follow = conn.execute(
-        "SELECT id FROM followed WHERE tmdb_id=? AND media_type='tv'",
-        (tmdb_id,),
-    ).fetchone()
-    follow_id = follow["id"] if follow else None
-
-    items = []
-    tvmaze_times = None
-    for t in (data.get("original_name"), data.get("name"), title):
-        if t:
-            tvmaze_times = _tvmaze_episode_times(t)
-            if tvmaze_times is not None:
-                break
-    for season in data.get("seasons", []):
-        season_number = season.get("season_number")
-        if season_number is None or season_number == 0:
-            continue
-        season_data = tmdb_request(f"/tv/{tmdb_id}/season/{season_number}")
-        if not season_data:
-            continue
-        for ep in season_data.get("episodes", []):
-            ep_num = ep.get("episode_number")
-            ep_name = ep.get("name") or ""
-            watched = 0
-            if follow_id is not None:
-                wrow = conn.execute(
-                    "SELECT watched FROM episodes "
-                    "WHERE follow_id=? AND season=? AND episode=?",
-                    (follow_id, season_number, ep_num),
-                ).fetchone()
-                watched = wrow["watched"] if wrow else 0
-            air_time = None
-            if tvmaze_times is not None:
-                air_time = tvmaze_times.get((season_number, ep_num))
-            date_val = ep.get("air_date")
-            if air_time:
-                try:
-                    date_val = datetime.datetime.fromtimestamp(
-                        air_time, datetime.timezone.utc
-                    ).date().isoformat()
-                except (ValueError, OSError, OverflowError):
-                    date_val = ep.get("air_date")
-            if date_val and follow_id is not None and date_val != ep.get("air_date"):
-                conn.execute(
-                    "UPDATE episodes SET air_date=? WHERE follow_id=? AND season=? AND episode=?",
-                    (date_val, follow_id, season_number, ep_num),
-                )
-            items.append(
-                {
-                    "label": f"Sezon {season_number} · Bölüm {ep_num}",
-                    "episode_name": ep_name,
-                    "season": season_number,
-                    "episode": ep_num,
-                    "date": date_val,
-                    "watched": watched,
-                    "air_time": air_time,
-                }
-            )
-    conn.commit()
-
+    rows = conn.execute(
+        "SELECT season, episode, air_date, air_time, name, watched FROM episodes "
+        "WHERE follow_id=? ORDER BY season ASC, episode ASC",
+        (follow["id"],),
+    ).fetchall()
+    if not rows:
+        sync_episodes(conn, follow)
+        rows = conn.execute(
+            "SELECT season, episode, air_date, air_time, name, watched FROM episodes "
+            "WHERE follow_id=? ORDER BY season ASC, episode ASC",
+            (follow["id"],),
+        ).fetchall()
     conn.close()
+
+    items = [
+        {
+            "label": f"Sezon {x['season']} · Bölüm {x['episode']}",
+            "episode_name": x["name"] or "",
+            "season": x["season"],
+            "episode": x["episode"],
+            "date": x["air_date"],
+            "watched": x["watched"],
+            "air_time": x["air_time"],
+        }
+        for x in rows
+    ]
     return jsonify(
         {
-            "title": title or data.get("name"),
+            "title": title or follow["title"],
             "media_type": "tv",
             "items": items,
         }
@@ -1479,6 +1743,27 @@ def season_watch():
     return jsonify({"ok": True, "count": count})
 
 
+@app.route("/api/movie/watch", methods=["POST"])
+def movie_watch():
+    body = request.get_json()
+    tmdb_id = body.get("tmdb_id")
+    watched = 1 if body.get("watched") else 0
+    if not tmdb_id:
+        return jsonify({"error": "Eksik bilgi"}), 400
+    conn = get_db()
+    follow = conn.execute(
+        "SELECT id FROM followed WHERE tmdb_id=? AND media_type='movie'",
+        (tmdb_id,),
+    ).fetchone()
+    if not follow:
+        conn.close()
+        return jsonify({"error": "Takip bulunamadı"}), 400
+    conn.execute("UPDATE followed SET watched=? WHERE id=?", (watched, follow["id"]))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "watched": watched})
+
+
 @app.route("/api/details")
 def details():
     media_type = request.args.get("media_type")
@@ -1486,68 +1771,114 @@ def details():
     if media_type not in ("movie", "tv") or not tmdb_id:
         return jsonify({"error": "Geçersiz istek"}), 400
 
-    data = tmdb_request(f"/{media_type}/{tmdb_id}")
-    if not data:
-        return jsonify({"error": "TMDB'den veri alınamadı"}), 400
+    conn = get_db()
+    follow = conn.execute(
+        "SELECT id FROM followed WHERE tmdb_id=? AND media_type=?",
+        (tmdb_id, media_type),
+    ).fetchone()
 
-    genres = [g.get("name") for g in data.get("genres", []) if g.get("name")]
-
-    cast = []
-    credits = tmdb_request(f"/{media_type}/{tmdb_id}/credits")
-    if credits:
-        full_cast = credits.get("cast") or []
-        highlight = (request.args.get("highlight_person") or "").strip().lower()
-        hpid = (request.args.get("highlight_person_id") or "").strip()
-        for i, c in enumerate(full_cast):
-            nm = (c.get("name") or c.get("original_name") or "").strip().lower()
-            if (highlight and nm == highlight) or (hpid and str(c.get("id")) == hpid):
-                full_cast.insert(0, full_cast.pop(i))
-                break
-        for c in full_cast[:8]:
-            name = c.get("name") or c.get("original_name")
-            if name:
-                cast.append(
+    if follow:
+        d = load_details(conn, follow["id"])
+        if d and d.get("overview"):
+            cast = d["cast"]
+            highlight = (request.args.get("highlight_person") or "").strip().lower()
+            hpid = (request.args.get("highlight_person_id") or "").strip()
+            for i, c in enumerate(cast):
+                nm = (c.get("name") or "").strip().lower()
+                if (highlight and nm == highlight) or (hpid and str(c.get("person_id")) == hpid):
+                    cast.insert(0, cast.pop(i))
+                    break
+            conn.close()
+            if media_type == "movie":
+                return jsonify(
                     {
-                        "id": c.get("id"),
-                        "name": name,
-                        "character": c.get("character"),
-                        "profile_path": c.get("profile_path"),
+                        "media_type": "movie",
+                        "title": d.get("title") or "",
+                        "poster_path": d.get("poster_path"),
+                        "overview": d.get("overview"),
+                        "tagline": d.get("tagline"),
+                        "genres": d.get("genres"),
+                        "vote_average": d.get("vote_average"),
+                        "vote_count": d.get("vote_count"),
+                        "runtime": d.get("runtime"),
+                        "release_date": d.get("release_date"),
+                        "cast": [
+                            {"id": c.get("person_id"), "name": c.get("name"), "character": c.get("character"), "profile_path": c.get("profile_path")}
+                            for c in cast
+                        ],
                     }
                 )
+            return jsonify(
+                {
+                    "media_type": "tv",
+                    "title": d.get("title") or "",
+                    "poster_path": d.get("poster_path"),
+                    "overview": d.get("overview"),
+                    "genres": d.get("genres"),
+                    "vote_average": d.get("vote_average"),
+                    "vote_count": d.get("vote_count"),
+                    "runtime": d.get("runtime"),
+                    "first_air_date": d.get("first_air_date"),
+                    "number_of_seasons": d.get("number_of_seasons"),
+                    "number_of_episodes": d.get("number_of_episodes"),
+                    "status": d.get("status"),
+                    "cast": [
+                        {"id": c.get("person_id"), "name": c.get("name"), "character": c.get("character"), "profile_path": c.get("profile_path")}
+                        for c in cast
+                    ],
+                }
+            )
 
+    data = tmdb_request(f"/{media_type}/{tmdb_id}")
+    if not data:
+        conn.close()
+        return jsonify({"error": "TMDB'den veri alınamadı"}), 400
+
+    info = get_tmdb_info(media_type, tmdb_id)
+    cst = get_tmdb_cast(media_type, tmdb_id)
+    if follow:
+        save_details(conn, follow["id"], info, cst)
+        conn.commit()
+    conn.close()
+
+    genres = info.get("genres") or []
+    cast = [
+        {"id": c.get("person_id"), "name": c.get("name"), "character": c.get("character"), "profile_path": c.get("profile_path")}
+        for c in cst
+    ]
     if media_type == "movie":
-        result = {
-            "media_type": "movie",
-            "title": data.get("title") or data.get("name"),
-            "poster_path": data.get("poster_path"),
-            "overview": data.get("overview"),
-            "tagline": data.get("tagline"),
-            "genres": genres,
-            "vote_average": data.get("vote_average"),
-            "vote_count": data.get("vote_count"),
-            "runtime": data.get("runtime"),
-            "release_date": data.get("release_date"),
-            "cast": cast,
-        }
-    else:
-        runtimes = data.get("episode_run_time") or []
-        result = {
+        return jsonify(
+            {
+                "media_type": "movie",
+                "title": data.get("title") or data.get("name"),
+                "poster_path": data.get("poster_path"),
+                "overview": info.get("overview"),
+                "tagline": info.get("tagline"),
+                "genres": genres,
+                "vote_average": info.get("vote_average"),
+                "vote_count": info.get("vote_count"),
+                "runtime": info.get("runtime"),
+                "release_date": info.get("release_date"),
+                "cast": cast,
+            }
+        )
+    return jsonify(
+        {
             "media_type": "tv",
             "title": data.get("name") or data.get("original_name"),
             "poster_path": data.get("poster_path"),
-            "overview": data.get("overview"),
+            "overview": info.get("overview"),
             "genres": genres,
-            "vote_average": data.get("vote_average"),
-            "vote_count": data.get("vote_count"),
-            "runtime": runtimes[0] if runtimes else None,
-            "first_air_date": data.get("first_air_date"),
-            "number_of_seasons": data.get("number_of_seasons"),
-            "number_of_episodes": data.get("number_of_episodes"),
-            "status": data.get("status"),
+            "vote_average": info.get("vote_average"),
+            "vote_count": info.get("vote_count"),
+            "runtime": info.get("runtime"),
+            "first_air_date": info.get("release_date"),
+            "number_of_seasons": info.get("number_of_seasons"),
+            "number_of_episodes": info.get("number_of_episodes"),
+            "status": info.get("status"),
             "cast": cast,
         }
-
-    return jsonify(result)
+    )
 
 
 @app.route("/api/person/<int:person_id>")
@@ -1702,6 +2033,9 @@ def get_settings():
             "telegram_bot_token": get_setting("telegram_bot_token") or "",
             "telegram_chat_id": get_setting("telegram_chat_id") or "",
             "notify_hour": get_setting("notify_hour") or "09:00",
+            "sync_hour": get_setting("sync_hour") or "09:00",
+            "genre_hour": get_setting("genre_hour") or "05:00",
+            "data_hour": get_setting("data_hour") or "05:10",
             "timezone": get_setting("timezone") or "Europe/Istanbul",
             "language": get_setting("language") or "tr-TR",
             "ntfy_topic": get_setting("ntfy_topic") or "",
@@ -1719,6 +2053,9 @@ def save_settings():
         "telegram_bot_token",
         "telegram_chat_id",
         "notify_hour",
+        "sync_hour",
+        "genre_hour",
+        "data_hour",
         "timezone",
         "language",
         "ntfy_topic",
@@ -1727,7 +2064,7 @@ def save_settings():
     ):
         if key in body:
             set_setting(key, str(body[key] or ""))
-    if any(k in body for k in ("notify_hour", "timezone")):
+    if any(k in body for k in ("notify_hour", "sync_hour", "genre_hour", "data_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})
 
@@ -1861,6 +2198,12 @@ def sync_episodes(conn, follow):
     data = tmdb_request(f"/tv/{follow['tmdb_id']}")
     if not data:
         return
+    tvmaze_times = None
+    for t in (data.get("original_name"), data.get("name"), follow["title"]):
+        if t:
+            tvmaze_times = _tvmaze_episode_times(t)
+            if tvmaze_times is not None:
+                break
     for season in data.get("seasons", []):
         season_number = season.get("season_number")
         if season_number is None or season_number == 0:
@@ -1873,12 +2216,23 @@ def sync_episodes(conn, follow):
             air_date = ep.get("air_date")
             if not air_date:
                 continue
+            ep_name = ep.get("name") or ""
+            air_time = None
+            if tvmaze_times is not None:
+                air_time = tvmaze_times.get((season_number, ep_num))
+            if air_time:
+                try:
+                    air_date = datetime.datetime.fromtimestamp(
+                        air_time, datetime.timezone.utc
+                    ).date().isoformat()
+                except (ValueError, OSError, OverflowError):
+                    air_date = ep.get("air_date")
             conn.execute(
-                "INSERT INTO episodes (follow_id, season, episode, air_date) "
-                "VALUES (?, ?, ?, ?) "
+                "INSERT INTO episodes (follow_id, season, episode, air_date, air_time, name) "
+                "VALUES (?, ?, ?, ?, ?, ?) "
                 "ON CONFLICT(follow_id, season, episode) "
-                "DO UPDATE SET air_date=excluded.air_date",
-                (follow["id"], season_number, ep_num, air_date),
+                "DO UPDATE SET air_date=excluded.air_date, air_time=excluded.air_time, name=excluded.name",
+                (follow["id"], season_number, ep_num, air_date, air_time, ep_name),
             )
     conn.commit()
 
@@ -1902,16 +2256,20 @@ def build_movie_message(title, date, poster_path=None):
     return text, None
 
 
-def check_releases():
-    today = today_str()
+def sync_releases():
+    """Takip edilen dizilerin bölüm verilerini TMDB/TVMaze'den güncelleyip DB'ye işler."""
     conn = get_db()
-
     follows = conn.execute("SELECT * FROM followed").fetchall()
     for follow in follows:
         if follow["media_type"] == "tv":
             sync_episodes(conn, follow)
-
     conn.commit()
+    conn.close()
+
+
+def check_releases():
+    today = today_str()
+    conn = get_db()
 
     rows = conn.execute(
         "SELECT e.*, f.title, f.media_type, f.poster_path FROM episodes e "
@@ -2066,8 +2424,48 @@ def parse_notify_hour(value):
 
 
 def schedule_releases():
-    hour, minute = parse_notify_hour(get_setting("notify_hour"))
     tz = ZoneInfo(get_setting("timezone") or "Europe/Istanbul")
+
+    sync_h, sync_m = parse_notify_hour(get_setting("sync_hour") or "09:00")
+    if SCHEDULER.get_job("release_sync"):
+        SCHEDULER.remove_job("release_sync")
+    SCHEDULER.add_job(
+        sync_releases,
+        "cron",
+        hour=sync_h,
+        minute=sync_m,
+        timezone=tz,
+        id="release_sync",
+        misfire_grace_time=3600,
+    )
+
+    genre_h, genre_m = parse_notify_hour(get_setting("genre_hour") or "05:00")
+    if SCHEDULER.get_job("genre_sync"):
+        SCHEDULER.remove_job("genre_sync")
+    SCHEDULER.add_job(
+        sync_genres,
+        "cron",
+        hour=genre_h,
+        minute=genre_m,
+        timezone=tz,
+        id="genre_sync",
+        misfire_grace_time=3600,
+    )
+
+    data_h, data_m = parse_notify_hour(get_setting("data_hour") or "05:10")
+    if SCHEDULER.get_job("follow_data_sync"):
+        SCHEDULER.remove_job("follow_data_sync")
+    SCHEDULER.add_job(
+        backfill_votes,
+        "cron",
+        hour=data_h,
+        minute=data_m,
+        timezone=tz,
+        id="follow_data_sync",
+        misfire_grace_time=3600,
+    )
+
+    hour, minute = parse_notify_hour(get_setting("notify_hour"))
     if SCHEDULER.get_job("release_check"):
         SCHEDULER.remove_job("release_check")
     SCHEDULER.add_job(
@@ -2079,30 +2477,10 @@ def schedule_releases():
         id="release_check",
         misfire_grace_time=3600,
     )
-    if SCHEDULER.get_job("genre_sync"):
-        SCHEDULER.remove_job("genre_sync")
-    SCHEDULER.add_job(
-        sync_genres,
-        "cron",
-        hour=5,
-        minute=0,
-        timezone=tz,
-        id="genre_sync",
-        misfire_grace_time=3600,
-    )
-    if SCHEDULER.get_job("follow_data_sync"):
-        SCHEDULER.remove_job("follow_data_sync")
-    SCHEDULER.add_job(
-        backfill_votes,
-        "cron",
-        hour=5,
-        minute=10,
-        timezone=tz,
-        id="follow_data_sync",
-        misfire_grace_time=3600,
-    )
+
     if not SCHEDULER.running:
         SCHEDULER.start()
+    print("next release sync:", SCHEDULER.get_job("release_sync").next_run_time)
     print("next release check:", SCHEDULER.get_job("release_check").next_run_time)
 
 

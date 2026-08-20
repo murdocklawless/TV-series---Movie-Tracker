@@ -224,6 +224,68 @@ main {
   display: block;
 }
 
+.poster-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3;
+  overflow: hidden;
+}
+
+.poster-wrap img,
+.poster-wrap .no-poster {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 2/3;
+}
+
+.badge-watched {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.badge-watched svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+}
+
+@media (max-width: 600px) {
+  .badge-watched {
+    width: 26px;
+    height: 26px;
+    right: 6px;
+    bottom: 6px;
+  }
+  .badge-watched svg {
+    width: 12px;
+    height: 12px;
+  }
+  .card .remove,
+  .card .calendar-btn {
+    width: 26px;
+    height: 26px;
+    top: 6px;
+  }
+  .card .remove {
+    right: 6px;
+  }
+  .card .calendar-btn {
+    left: 6px;
+  }
+}
+
 .card .no-poster {
   width: 100%;
   aspect-ratio: 2/3;
@@ -2257,7 +2319,7 @@ input:-webkit-autofill:focus {
   text-align: center;
   margin: 0 0 14px;
   padding-bottom: 8px;
-  border-bottom: 2px solid #3a4050;
+  border-bottom: 1px dotted #f97316;
 }
 
 #unwatched-anime-wrap.has-shows {

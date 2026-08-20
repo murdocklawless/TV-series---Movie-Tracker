@@ -432,11 +432,12 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".sort-wrap")) sortMenu.classList.remove("open");
 });
 
-function posterHTML(posterPath, title) {
-  if (posterPath) {
-    return `<img src="${IMAGE_BASE}${posterPath}" alt="${title}" onerror="this.outerHTML=noPosterFallback()" />`;
-  }
-  return `<div class="no-poster">${FILM_SVG}</div>`;
+function posterHTML(posterPath, title, withBadge) {
+  const img = posterPath
+    ? `<img src="${IMAGE_BASE}${posterPath}" alt="${title}" onerror="this.outerHTML=noPosterFallback()" />`
+    : `<div class="no-poster">${FILM_SVG}</div>`;
+  const badge = withBadge ? `<span class="badge-watched">${CHECK_SVG}</span>` : "";
+  return `<div class="poster-wrap">${img}${badge}</div>`;
 }
 
 function scoreTag(v) {
@@ -733,7 +734,7 @@ async function openReleases(mediaType, tmdbId, title) {
         if (data.media_type === "tv") {
           html += `<td><button class="${btnCls}" data-s="${it.season}" data-e="${it.episode}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("season_ep", { s: it.season, e: it.episode })}</span>${epName}</span></td>`;
         } else {
-          html += `<td><div class="episode-label">${t("release_date")}</div>${epName}</td>`;
+          html += `<td><button class="${btnCls}" data-w="${it.watched ? 1 : 0}"${btnDisabled}>${checkIcon}</button><span class="episode-cell"><span class="episode-label">${t("release_date")}</span>${epName}</span></td>`;
         }
         html += `<td${dateClass}>${dateText}</td></tr>`;
       });
@@ -785,6 +786,7 @@ async function openReleases(mediaType, tmdbId, title) {
             allBtn.textContent = allDone ? t("clear") : t("watch_all");
             allBtn.disabled = releasedCount === 0;
           }
+          loadFollowed();
         });
       });
 
@@ -831,6 +833,29 @@ async function openReleases(mediaType, tmdbId, title) {
           btn.dataset.w = allDone ? 0 : 1;
           btn.textContent = allDone ? t("clear") : t("watch_all");
           btn.disabled = releasedCount === 0;
+          loadFollowed();
+        });
+      });
+    }
+    if (data.media_type === "movie") {
+      body.querySelectorAll(".watch-btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          if (btn.disabled) return;
+          const watched = btn.dataset.w === "1" ? 0 : 1;
+          const res = await fetch("/api/movie/watch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tmdb_id: tmdbId, watched }),
+          });
+          if (!res.ok) return;
+          btn.dataset.w = String(watched);
+          btn.classList.toggle("on", watched === 1);
+          btn.innerHTML = watched ? CHECK_SVG : "";
+          const tr = btn.closest("tr");
+          tr.classList.toggle("watched", watched === 1);
+          tr.classList.toggle("new", watched === 0 && isNewTr(tr));
+          tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
+          loadFollowed();
         });
       });
     }
@@ -1162,8 +1187,11 @@ async function loadFollowed() {
       (item.media_type === "tv" && item.next_episode && isToday(item.next_episode.air_date)) ||
       (item.media_type === "movie" && dateState(item.release_date) === "date-today");
     div.className = todayNow ? "card today-release-card" : "card";
+    const isMovieWatched = item.media_type === "movie" && item.watched == 1;
+    const isTvCompleted = item.media_type === "tv" && item.completed;
+    const showBadge = isMovieWatched || isTvCompleted;
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title)}
+      ${posterHTML(item.poster_path, item.title, showBadge)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
