@@ -14,7 +14,8 @@ function currentMedia() {
 
 function setMedia(media) {
   state.searchMedia = media;
-  document.getElementById("media-show").classList.toggle("active", media === "show");
+  document.getElementById("media-dizi").classList.toggle("active", media === "dizi");
+  document.getElementById("media-film").classList.toggle("active", media === "film");
   document.getElementById("media-anime").classList.toggle("active", media === "anime");
   const ph = media === "anime" ? "anime_placeholder" : "search_placeholder";
   const comboInput = document.getElementById("search-input");
@@ -32,16 +33,44 @@ function setMedia(media) {
     actorBtn.dataset.i18n = media === "anime" ? "filter_character" : "filter_actor";
     actorBtn.textContent = t(media === "anime" ? "filter_character" : "filter_actor");
   }
+  state.chips = state.chips.filter((c) => c.type !== "media");
+  renderChips();
+  const movieBtn = document.getElementById("filter-media-movie");
+  const tvBtn = document.getElementById("filter-media-tv");
+  if (movieBtn) movieBtn.style.display = media === "anime" ? "none" : "";
+  if (tvBtn) tvBtn.style.display = media === "anime" ? "none" : "";
+  updateMediaButtons();
 }
 
-document.getElementById("media-show").onclick = () => setMedia("show");
+document.getElementById("media-dizi").onclick = () => setMedia("dizi");
+document.getElementById("media-film").onclick = () => setMedia("film");
 document.getElementById("media-anime").onclick = () => setMedia("anime");
+
+function toggleMediaChip(value, label) {
+  const idx = state.chips.findIndex((c) => c.type === "media");
+  if (idx >= 0 && state.chips[idx].value === value) {
+    state.chips.splice(idx, 1);
+  } else {
+    if (idx >= 0) state.chips.splice(idx, 1);
+    state.chips.push({ type: "media", label, value });
+  }
+  renderChips();
+  updateMediaButtons();
+}
+
+function updateMediaButtons() {
+  const active = state.chips.filter((c) => c.type === "media").map((c) => c.value);
+  const movieBtn = document.getElementById("filter-media-movie");
+  const tvBtn = document.getElementById("filter-media-tv");
+  if (movieBtn) movieBtn.classList.toggle("active", active.includes("movie"));
+  if (tvBtn) tvBtn.classList.toggle("active", active.includes("tv"));
+}
 
 function renderChips() {
   const box = document.getElementById("filter-chips");
   box.innerHTML = state.chips
     .map(
-      (c, i) => `<span class="chip">${c.type === "genre" ? animeGenreLabel(c.label) : c.label}<button class="chip-x" data-i="${i}">✕</button></span>`
+      (c, i) => `<span class="chip chip-${c.type === "media" ? `media-${c.value}` : c.type}">${c.type === "genre" ? animeGenreLabel(c.label) : c.label}<button class="chip-x" data-i="${i}">✕</button></span>`
     )
     .join("");
   box.querySelectorAll(".chip-x").forEach((btn) => {
@@ -102,12 +131,13 @@ function runNormalSearch() {
   const btn = document.getElementById("normal-search-btn");
   setSearchBtnLoading(btn, true);
   const media = currentMedia();
-  const p = media === "anime" ? doAnimeTitleSearch(q) : doTitleSearch(q);
+  const p = media === "anime" ? doAnimeTitleSearch(q) : doTitleSearch(q, media);
   p.finally(() => setSearchBtnLoading(btn, false));
 }
 
-async function doTitleSearch(q) {
-  const res = await fetch("/api/search?q=" + encodeURIComponent(q));
+async function doTitleSearch(q, media) {
+  const mediaType = media === "film" ? "movie" : "tv";
+  const res = await fetch("/api/search?q=" + encodeURIComponent(q) + "&media_type=" + mediaType);
   const data = await res.json();
   const grid = document.getElementById("search-results");
   const animeGrid = document.getElementById("anime-results");
@@ -155,7 +185,7 @@ async function doTitleSearch(q) {
       });
       const j = await r.json();
       toast(r.ok ? t("added") : j.error || t("error"));
-      if (r.ok) switchView("followed");
+      if (r.ok) switchView(item.media_type === "tv" ? "dizi" : "film");
     };
     const calBtn = div.querySelector(".calendar-btn");
     if (calBtn) {
@@ -236,6 +266,8 @@ document.getElementById("search-input")?.addEventListener("input", (e) => {
   }
 });
 
+document.getElementById("filter-media-movie").onclick = () => toggleMediaChip("movie", t("type_movie"));
+document.getElementById("filter-media-tv").onclick = () => toggleMediaChip("tv", t("type_tv"));
 document.getElementById("filter-actor").onclick = () => openPicker(currentMedia() === "anime" ? "fav_anime_char" : "fav_actor");
 document.getElementById("filter-genre").onclick = () => openPicker(currentMedia() === "anime" ? "anime_genre" : "fav_genre");
 document.getElementById("filter-year").onclick = () => openValueModal("year");
@@ -298,6 +330,7 @@ function comboTitle(chipsArr) {
   chipsArr.forEach((c) => {
     if (c.type === "actor" || c.type === "char") parts.push(`${c.label}`);
     else if (c.type === "genre") parts.push(`${animeGenreLabel(c.label)}`);
+    else if (c.type === "media") parts.push(`${c.label}`);
     else if (c.type === "year") parts.push(`${c.label}`);
     else if (c.type === "score") parts.push(`${c.label}`);
   });
@@ -310,10 +343,13 @@ async function doComboSearch(q, chipsArr, media) {
   if (q) params.set("q", q);
   const actors = chipsArr.filter((c) => c.type === "actor" || c.type === "char").map((c) => c.value).join(",");
   const genres = chipsArr.filter((c) => c.type === "genre").map((c) => c.value).join(",");
+  const kindChip = chipsArr.filter((c) => c.type === "media").map((c) => c.value).join(",");
+  const kind = kindChip || (media === "film" ? "movie" : media === "dizi" ? "tv" : "");
   const year = chipsArr.filter((c) => c.type === "year").map((c) => c.value)[0] || "";
   const score = chipsArr.filter((c) => c.type === "score").map((c) => c.value)[0] || "";
   if (actors) params.set("actors", actors);
   if (genres) params.set("genres", genres);
+  if (kind) params.set("kind", kind);
   if (year) params.set("year", year);
   if (score) params.set("score", score);
   const res = await fetch("/api/combo-search?" + params.toString());
@@ -432,7 +468,7 @@ async function doComboSearch(q, chipsArr, media) {
   });
 }
 
-setMedia("show");
+setMedia("dizi");
 renderChips();
 
 async function openPicker(mode) {

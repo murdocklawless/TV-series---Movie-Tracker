@@ -138,6 +138,23 @@ def unwatched():
             }
         )
 
+    movies = []
+    for r in conn.execute(
+        "SELECT * FROM followed WHERE media_type='movie' AND watched=0 ORDER BY release_date IS NULL, release_date ASC"
+    ).fetchall():
+        movies.append(
+            {
+                "id": r["id"],
+                "tmdb_id": r["tmdb_id"],
+                "title": r["title"],
+                "poster_path": r["poster_path"],
+                "vote_average": r["vote_average"] or 0,
+                "networks": json.loads(r["networks"]) if r["networks"] else [],
+                "release_date": r["release_date"],
+                "watched": int(r["watched"] or 0),
+            }
+        )
+
     anime_list = []
     for r in conn.execute("SELECT * FROM anime").fetchall():
         rows = conn.execute(
@@ -162,7 +179,7 @@ def unwatched():
         )
 
     conn.close()
-    return jsonify({"shows": shows, "anime": anime_list})
+    return jsonify({"shows": shows, "anime": anime_list, "movies": movies})
 
 
 @followed_bp.route("/api/releases")

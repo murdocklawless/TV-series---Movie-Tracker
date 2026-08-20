@@ -152,14 +152,47 @@ nav {
 }
 
 .tab:hover {
-  background: #b45309;
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
   color: #fff;
 }
 
 .tab.active {
-  background: #f97316;
+  background: rgba(249, 115, 22, 0.3);
   border-color: #f97316;
   color: #fff;
+}
+
+/* Medya ikonları: masaüstünde metin buton devam eder, ikon gizli */
+.media-tab-icon,
+.media-toggle-icon {
+  display: none;
+}
+
+/* Ek güvence: desktop'ta ikonlar asla görünmez */
+@media (min-width: 769px) {
+  .media-tab-icon,
+  .media-toggle-icon {
+    display: none !important;
+  }
+
+  #tab-search {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 10px;
+    padding-bottom: 8px;
+  }
+
+  #tab-search span {
+    display: none;
+  }
+
+  #tab-sort,
+  #tab-settings {
+    position: relative;
+    top: -1px;
+  }
 }
 
 main {
@@ -586,12 +619,13 @@ input:-webkit-autofill:focus {
 }
 
 .media-toggle button:hover {
+  background: rgba(249, 115, 22, 0.3);
   border-color: #f97316;
   color: #fff;
 }
 
 .media-toggle button.active {
-  background: #f97316;
+  background: rgba(249, 115, 22, 0.3);
   border-color: #f97316;
   color: #fff;
   font-weight: 600;
@@ -619,6 +653,110 @@ input:-webkit-autofill:focus {
 .filter-add-btn:hover {
   background: rgba(249, 115, 22, 0.2);
   border-color: #f97316;
+  color: #fff;
+}
+
+.filter-add-btn.active {
+  background: #f97316;
+  border-color: #f97316;
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Buton kimlik renkleri (koyu tonlar) */
+.filter-add-btn.btn-movie {
+  background: #3f1d1d;
+  border-color: #b91c1c;
+  color: #fecaca;
+}
+.filter-add-btn.btn-movie:hover {
+  background: #5f2c2c;
+  border-color: #ef4444;
+  color: #fff;
+}
+.filter-add-btn.btn-movie.active {
+  background: #b91c1c;
+  border-color: #ef4444;
+  color: #fff;
+}
+
+.filter-add-btn.btn-tv {
+  background: #1d2a4a;
+  border-color: #2563eb;
+  color: #bfdbfe;
+}
+.filter-add-btn.btn-tv:hover {
+  background: #2a3d6e;
+  border-color: #3b82f6;
+  color: #fff;
+}
+.filter-add-btn.btn-tv.active {
+  background: #2563eb;
+  border-color: #3b82f6;
+  color: #fff;
+}
+
+.filter-add-btn.btn-actor {
+  background: #3a1d4a;
+  border-color: #9333ea;
+  color: #e9d5ff;
+}
+.filter-add-btn.btn-actor:hover {
+  background: #542a6e;
+  border-color: #a855f7;
+  color: #fff;
+}
+.filter-add-btn.btn-actor.active {
+  background: #9333ea;
+  border-color: #a855f7;
+  color: #fff;
+}
+
+.filter-add-btn.btn-genre {
+  background: #14401f;
+  border-color: #16a34a;
+  color: #bbf7d0;
+}
+.filter-add-btn.btn-genre:hover {
+  background: #1f5c2d;
+  border-color: #22c55e;
+  color: #fff;
+}
+.filter-add-btn.btn-genre.active {
+  background: #16a34a;
+  border-color: #22c55e;
+  color: #fff;
+}
+
+.filter-add-btn.btn-year {
+  background: #4a3010;
+  border-color: #d97706;
+  color: #fde68a;
+}
+.filter-add-btn.btn-year:hover {
+  background: #6b4517;
+  border-color: #f59e0b;
+  color: #fff;
+}
+.filter-add-btn.btn-year.active {
+  background: #d97706;
+  border-color: #f59e0b;
+  color: #fff;
+}
+
+.filter-add-btn.btn-score {
+  background: #0f3a38;
+  border-color: #14b8a6;
+  color: #99f6e4;
+}
+.filter-add-btn.btn-score:hover {
+  background: #17544f;
+  border-color: #2dd4bf;
+  color: #fff;
+}
+.filter-add-btn.btn-score.active {
+  background: #14b8a6;
+  border-color: #2dd4bf;
   color: #fff;
 }
 
@@ -691,6 +829,43 @@ input:-webkit-autofill:focus {
 
 .chip-icon {
   flex-shrink: 0;
+}
+
+/* Chip renkleri: buton kimlik rengiyle eşleşir */
+.chip.chip-media-movie {
+  background: #3f1d1d;
+  border-color: #b91c1c;
+  color: #fecaca;
+}
+
+.chip.chip-media-tv {
+  background: #1d2a4a;
+  border-color: #2563eb;
+  color: #bfdbfe;
+}
+
+.chip.chip-actor {
+  background: #3a1d4a;
+  border-color: #9333ea;
+  color: #e9d5ff;
+}
+
+.chip.chip-genre {
+  background: #14401f;
+  border-color: #16a34a;
+  color: #bbf7d0;
+}
+
+.chip.chip-year {
+  background: #4a3010;
+  border-color: #d97706;
+  color: #fde68a;
+}
+
+.chip.chip-score {
+  background: #0f3a38;
+  border-color: #14b8a6;
+  color: #99f6e4;
 }
 
 .chip-x {
@@ -2320,6 +2495,45 @@ input:-webkit-autofill:focus {
   margin: 0 0 14px;
   padding-bottom: 8px;
   border-bottom: 1px dotted #f97316;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.section-move-up,
+.section-move-down {
+  background: transparent;
+  border: none;
+  color: #f97316;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  opacity: 0.8;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  line-height: 1;
+  position: absolute;
+  right: 0;
+  transform: translateY(-50%);
+  top: 40%;
+}
+
+.section-move-up:hover,
+.section-move-down:hover {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.15);
+}
+
+.section-move-up:disabled,
+.section-move-down:disabled {
+  opacity: 0.25;
+  cursor: default;
+  transform: translateY(-50%);
+}
+
+.section-move-down {
+  right: 22px;
 }
 
 #unwatched-anime-wrap.has-shows {
@@ -2373,39 +2587,66 @@ input:-webkit-autofill:focus {
   }
 
   .logo {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .logo > div {
     text-align: center;
   }
 
   .tabs {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr auto auto auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 4px;
     width: 100%;
   }
 
-  .tab {
-    padding: 8px 4px;
-    font-size: 0.8rem;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .tabs-group {
+    display: flex;
+    gap: 4px;
   }
 
+  .tabs-group .tab,
+  #tab-search,
+  #tab-settings,
+  .sort-wrap .tab {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .media-tab-icon {
+    display: inline-block;
+    font-size: 0.8rem;
+  }
+
+  .media-toggle-icon {
+    display: inline-block;
+    font-size: 1rem;
+  }
+
+  #tab-dizi span,
+  #tab-film span,
+  #tab-anime span,
+  #tab-unwatched span,
   #tab-search span {
     display: none;
   }
 
-  #tab-search {
-    padding: 8px 10px;
-  }
-
   #tab-settings {
-    padding: 8px 12px;
+    padding: 0;
   }
 
-  .sort-wrap .tab {
-    padding: 8px 10px;
+  .unwatched-section-title {
+    font-size: 0.82rem;
   }
 
   main {
@@ -2466,8 +2707,16 @@ input:-webkit-autofill:focus {
   }
 
   .media-toggle button {
+    width: 36px;
     height: 33px;
-    padding: 0 22px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .media-toggle button span {
+    display: none;
   }
 
   .search-bar input {
@@ -2559,6 +2808,27 @@ input:-webkit-autofill:focus {
 
 /* Modal mobilde tam ekran */
 @media (max-width: 600px) {
+  .filter-add-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: safe center;
+    gap: 6px;
+    margin-bottom: 10px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .filter-add-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filter-add-btn {
+    flex-shrink: 0;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    border-radius: 16px;
+  }
+
   .toast {
     width: max-content;
     max-width: calc(100vw - 32px);

@@ -2,7 +2,7 @@
 import { state } from "./state.js";
 import { t, checkTmdbKey, applyLang } from "./i18n.js";
 import { toast, escAttr, HEART_SVG } from "./utils.js";
-import { sortMenu } from "./views.js";
+import { sortMenu, activateUtilityTab } from "./views.js";
 
 // ---- Search ----
 // ---- Settings ----
@@ -346,6 +346,7 @@ async function renderFavGenresList() {
 document.getElementById("tab-settings").addEventListener("click", (e) => {
   e.stopPropagation();
   sortMenu.classList.remove("open");
+  activateUtilityTab(document.getElementById("tab-settings"));
   document.getElementById("settings-menu").classList.toggle("open");
 });
 document.querySelectorAll(".settings-menu-item").forEach((btn) => {

@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, send_from_directory
 
 from config import STATIC_DIR
-from tmdb import tmdb_request, _tmdb_adv_results, _genre_names_to_ids
+from tmdb import tmdb_request, _tmdb_adv_results, _genre_names_to_ids, _genre_ids_for_media
 from anilist import _anime_adv_results, _anime_title, _anime_cover, _anime_next_ep
 
 search_bp = Blueprint("search", __name__)
@@ -18,8 +18,14 @@ def index():
 @search_bp.route("/api/search")
 def search():
     q = request.args.get("q", "")
+    media_type = request.args.get("media_type", "").strip()
     if not q:
         return jsonify([])
+    if media_type in ("movie", "tv"):
+        data = tmdb_request(f"/search/{media_type}", {"query": q, "include_adult": "false"})
+        if not data:
+            return jsonify({"error": "TMDB API anahtarı geçersiz veya ayarlanmamış"}), 400
+        return jsonify([_build_search_item(item, media_type) for item in data.get("results", [])])
     data = tmdb_request("/search/multi", {"query": q, "include_adult": "false"})
     if not data:
         return jsonify({"error": "TMDB API anahtarı geçersiz veya ayarlanmamış"}), 400
@@ -27,28 +33,29 @@ def search():
     for item in data.get("results", []):
         if item.get("media_type") not in ("movie", "tv"):
             continue
-        num_seasons = None
-        if item.get("media_type") == "tv":
-            detail = tmdb_request(f"/tv/{item.get('id')}")
-            if detail:
-                num_seasons = detail.get("number_of_seasons")
-                num_episodes = detail.get("number_of_episodes")
-        else:
-            num_episodes = None
-        results.append(
-            {
-                "tmdb_id": item.get("id"),
-                "media_type": item.get("media_type"),
-                "title": item.get("title") or item.get("name"),
-                "poster_path": item.get("poster_path"),
-                "release_date": item.get("release_date") or item.get("first_air_date"),
-                "vote_average": item.get("vote_average") or 0,
-                "overview": item.get("overview"),
-                "number_of_seasons": num_seasons,
-                "number_of_episodes": num_episodes,
-            }
-        )
+        results.append(_build_search_item(item, item.get("media_type")))
     return jsonify(results)
+
+
+def _build_search_item(item, media_type):
+    num_seasons = None
+    num_episodes = None
+    if media_type == "tv":
+        detail = tmdb_request(f"/tv/{item.get('id')}")
+        if detail:
+            num_seasons = detail.get("number_of_seasons")
+            num_episodes = detail.get("number_of_episodes")
+    return {
+        "tmdb_id": item.get("id"),
+        "media_type": media_type,
+        "title": item.get("title") or item.get("name"),
+        "poster_path": item.get("poster_path"),
+        "release_date": item.get("release_date") or item.get("first_air_date"),
+        "vote_average": item.get("vote_average") or 0,
+        "overview": item.get("overview"),
+        "number_of_seasons": num_seasons,
+        "number_of_episodes": num_episodes,
+    }
 
 
 @search_bp.route("/api/adv-search")
@@ -144,11 +151,20 @@ def _resolve_actor_ids(parts):
 def combo_search():
     """Çoklu kriter araması: actors+genres+year+score+q (hepsi AND)."""
     media = request.args.get("media", "show")  # show | anime
+    kind = request.args.get("kind", "").strip()  # movie | tv | boş (ikisi)
     actors = request.args.get("actors", "").strip()
     genres = request.args.get("genres", "").strip()
     year = request.args.get("year", "").strip()
     score = request.args.get("score", "").strip()
     q = request.args.get("q", "").strip()
+
+    if kind not in ("", "movie", "tv"):
+        kind = ""
+    media_types = None
+    if kind == "movie":
+        media_types = ("movie",)
+    elif kind == "tv":
+        media_types = ("tv",)
 
     if not (actors or genres or year or score or q):
         return jsonify({"error": "En az bir kriter gerekli"}), 400
@@ -192,20 +208,37 @@ def combo_search():
         params_tv["with_people"] = people
     if genres:
         gnames = [x.strip() for x in genres.split(",") if x.strip()]
-        gids = []
-        for gid in _genre_names_to_ids(gnames):
-            if gid not in gids:
-                gids.append(gid)
-        if not gids:
+        movie_groups = []
+        tv_groups = []
+        for name in gnames:
+            ids_for_name = _genre_names_to_ids([name])
+            movie_groups.append(list(_genre_ids_for_media(ids_for_name, "movie")))
+            tv_groups.append(list(_genre_ids_for_media(ids_for_name, "tv")))
+        all_gids = []
+        for grp in movie_groups + tv_groups:
+            for g in grp:
+                if g not in all_gids:
+                    all_gids.append(g)
+        if not all_gids:
             return jsonify({"error": "Türler TMDB'de bulunamadı"}), 400
         if actors:
             # TMDB with_people + with_genres birlikte OR döndürür; AND için
             # oyuncu sonuçlarını tür ID'leriyle kendi tarafımızda filtrele.
-            genre_filter = set(gids)
+            # Film türleri TV'ye özel birleşik türleri taşımadığı için her
+            # ortama uygun set ayrı ayrı hesaplanır (set = OR).
+            genre_filter = {
+                "movie": set(g for grp in movie_groups for g in grp),
+                "tv": set(g for grp in tv_groups for g in grp),
+            }
         else:
-            joined = ",".join(str(g) for g in gids)
-            params_movie["with_genres"] = joined
-            params_tv["with_genres"] = joined
+            # with_genres: virgül AND, | OR. Birleşik türler grup içinde OR,
+            # seçilen farklı türler arasında AND olur.
+            params_movie["with_genres"] = ",".join(
+                "|".join(str(g) for g in grp) for grp in movie_groups if grp
+            )
+            params_tv["with_genres"] = ",".join(
+                "|".join(str(g) for g in grp) for grp in tv_groups if grp
+            )
     if year_i:
         params_movie["primary_release_year"] = year_i
         params_tv["first_air_date_year"] = year_i
@@ -215,7 +248,7 @@ def combo_search():
     if q:
         params_movie["query"] = q
         params_tv["query"] = q
-    return jsonify(_tmdb_adv_results(params_movie, params_tv, genre_filter))
+    return jsonify(_tmdb_adv_results(params_movie, params_tv, genre_filter, media_types))
 
 
 @search_bp.route("/api/person/<int:person_id>")

@@ -139,7 +139,7 @@ async function openReleases(mediaType, tmdbId, title) {
             allBtn.textContent = allDone ? t("clear") : t("watch_all");
             allBtn.disabled = releasedCount === 0;
           }
-          loadFollowed();
+          loadFollowed(mediaType === "tv" ? "dizi" : "film");
         });
       });
 
@@ -186,7 +186,7 @@ async function openReleases(mediaType, tmdbId, title) {
           btn.dataset.w = allDone ? 0 : 1;
           btn.textContent = allDone ? t("clear") : t("watch_all");
           btn.disabled = releasedCount === 0;
-          loadFollowed();
+          loadFollowed(mediaType === "tv" ? "dizi" : "film");
         });
       });
     }
@@ -208,7 +208,7 @@ async function openReleases(mediaType, tmdbId, title) {
           tr.classList.toggle("watched", watched === 1);
           tr.classList.toggle("new", watched === 0 && isNewTr(tr));
           tr.classList.toggle("today-release", watched === 0 && isTodayTr(tr));
-          loadFollowed();
+          loadFollowed(mediaType === "tv" ? "dizi" : "film");
         });
       });
     }
@@ -476,8 +476,8 @@ data.forEach((item) => {
         const j = await r.json();
         toast(r.ok ? t("added") : j.error || t("error"));
         if (r.ok) {
-          loadFollowed();
-          switchView("followed");
+          loadFollowed(item.media_type === "tv" ? "dizi" : "film");
+          switchView(item.media_type === "tv" ? "dizi" : "film");
           modal.style.display = "none";
         }
       };

@@ -74,6 +74,16 @@ def _genre_names_to_ids(names):
     return [_genre_cache[n] for n in wanted if n in _genre_cache]
 
 
+def _genre_ids_for_media(gids, media_type):
+    """Tür ID listesini ortama göre normalize eder. TMDB'de TV'ye özel birleşik
+    türleri film eşleniklerine genişletir (filmler o tür ID'sini taşımaz)."""
+    out = set(gids)
+    if media_type == "movie" and 10759 in out:  # Aksiyon & Macera -> Aksiyon + Macera
+        out.discard(10759)
+        out.update([28, 12])
+    return out
+
+
 def _fetch_tmdb_genres():
     """TMDB'den (seçili dilde) tüm film+dizi tür isimlerini döndürür."""
     selected = get_setting("language") or "tr-TR"
@@ -325,33 +335,39 @@ def _tmdb_movie_by_people(params, genre_filter=None):
     return out
 
 
-def _tmdb_adv_results(params_movie, params_tv, genre_filter=None):
+def _tmdb_adv_results(params_movie, params_tv, genre_filter=None, media_types=None):
     """Yıl/puan/oyuncu/tür filtreleriyle TMDB discover araması yapar (movie + tv).
 
-    genre_filter: TMDB genre ID kümesi verilirse sonuçlar bu türlerden en az birini
-    içermesi koşuluyla istemci tarafında filtrelenir (with_people + with_genres
-    birlikte TMDB'de OR döndürdüğü için).
+    genre_filter: None veya {media_type: set} sözlüğü. Verilirse sonuçlar o türün
+    ID'lerinden en az birini içermesi koşuluyla istemci tarafında filtrelenir
+    (with_people + with_genres birlikte TMDB'de OR döndürdüğü için).
+    media_types: (movie/tv) hangi ortamların aranacağı; None = ikisi de.
     """
+    if media_types is None:
+        media_types = ("movie", "tv")
     out = []
     for media_type, base_path, date_key in (
         ("movie", "/discover/movie", "release_date"),
         ("tv", "/discover/tv", "first_air_date"),
     ):
+        if media_type not in media_types:
+            continue
+        gf = (genre_filter or {}).get(media_type) if genre_filter else None
         params = dict(params_movie if media_type == "movie" else params_tv)
         params["include_adult"] = "false"
         if media_type == "movie" and params.get("with_people"):
-            out.extend(_tmdb_movie_by_people(params, genre_filter))
+            out.extend(_tmdb_movie_by_people(params, gf))
             continue
         if media_type == "tv" and params.get("with_people"):
-            out.extend(_tmdb_tv_by_people(params, genre_filter))
+            out.extend(_tmdb_tv_by_people(params, gf))
             continue
         data = tmdb_request(base_path, params)
         if not data:
             continue
         for item in (data.get("results") or [])[:20]:
-            if genre_filter:
+            if gf:
                 item_genres = set(item.get("genre_ids") or [])
-                if not (item_genres & genre_filter):
+                if not (item_genres & gf):
                     continue
             num_seasons = None
             num_episodes = None

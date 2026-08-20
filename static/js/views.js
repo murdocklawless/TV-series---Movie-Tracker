@@ -11,17 +11,21 @@ import { renderChips, closeResultsModal } from "./search.js";
 import { closeSettingsMenu } from "./settings.js";
 
 const views = {
-  followed: document.getElementById("view-followed"),
+  dizi: document.getElementById("view-dizi"),
+  film: document.getElementById("view-film"),
   anime: document.getElementById("view-anime"),
   unwatched: document.getElementById("view-unwatched"),
   search: document.getElementById("view-search"),
 };
 
 const tabs = {
-  followed: document.getElementById("tab-followed"),
+  dizi: document.getElementById("tab-dizi"),
+  film: document.getElementById("tab-film"),
   anime: document.getElementById("tab-anime"),
   unwatched: document.getElementById("tab-unwatched"),
   search: document.getElementById("tab-search"),
+  sort: document.getElementById("tab-sort"),
+  settings: document.getElementById("tab-settings"),
 };
 
 function switchView(name) {
@@ -37,16 +41,18 @@ function switchView(name) {
   try {
     localStorage.setItem("activeView", name);
   } catch (e) {}
-  if (name === "followed") loadFollowed();
+  if (name === "dizi") loadFollowed("dizi");
+  if (name === "film") loadFollowed("film");
   if (name === "anime") loadAnime();
   if (name === "unwatched") loadUnwatched();
 }
 
-tabs.followed.onclick = () => switchView("followed");
+tabs.dizi.onclick = () => switchView("dizi");
+tabs.film.onclick = () => switchView("film");
 tabs.anime.onclick = () => switchView("anime");
 tabs.unwatched.onclick = () => switchView("unwatched");
 tabs.search.onclick = () => switchView("search");
-document.getElementById("search-close").onclick = () => switchView("followed");
+document.getElementById("search-close").onclick = () => switchView("dizi");
 
 try {
   state.sortKey = localStorage.getItem("sortKey") || "added";
@@ -101,9 +107,14 @@ function updateSortMenu() {
 }
 
 const sortMenu = document.getElementById("sort-menu");
+function activateUtilityTab(btn) {
+  Object.keys(tabs).forEach((k) => tabs[k].classList.remove("active"));
+  btn.classList.add("active");
+}
 document.getElementById("tab-sort").onclick = (e) => {
   e.stopPropagation();
   closeSettingsMenu();
+  activateUtilityTab(tabs.sort);
   const open = sortMenu.classList.contains("open");
   sortMenu.classList.toggle("open", !open);
   updateSortMenu();
@@ -116,7 +127,8 @@ document.querySelectorAll(".sort-item").forEach((btn) => {
       localStorage.setItem("sortKey", state.sortKey);
     } catch (e2) {}
     sortMenu.classList.remove("open");
-    if (views.followed.classList.contains("active")) loadFollowed();
+    if (views.dizi.classList.contains("active")) loadFollowed("dizi");
+    if (views.film.classList.contains("active")) loadFollowed("film");
     if (views.anime.classList.contains("active")) loadAnime();
   };
 });
@@ -124,12 +136,36 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".sort-wrap")) sortMenu.classList.remove("open");
 });
 
-async function loadFollowed() {
+function tvStatusText(item) {
+  const status = (item.status || "").trim();
+  if (status === "Ended") return `<div class="next-ep muted">${t("tv_status_ended")}</div>`;
+  if (status === "Canceled") return `<div class="next-ep muted">${t("tv_status_canceled")}</div>`;
+  let season = null;
+  try {
+    const sl = JSON.parse(item.season_list || "[]");
+    const now = new Date().toISOString().slice(0, 10);
+    season = sl
+      .filter((s) => s.season_number && s.air_date && s.air_date >= now)
+      .sort((a, b) => (a.air_date || "").localeCompare(b.air_date || ""))[0];
+  } catch (e) {
+    season = null;
+  }
+  if (season) return `<div class="next-ep muted">${t("tv_next_season", { date: shortDate(season.air_date) })}</div>`;
+  if (status === "In Production") return `<div class="next-ep muted">${t("tv_status_production")}</div>`;
+  if (status === "Planned") return `<div class="next-ep muted">${t("tv_status_planned")}</div>`;
+  if (status === "Pilot") return `<div class="next-ep muted">${t("tv_status_pilot")}</div>`;
+  if (status === "Returning Series") return `<div class="next-ep muted">${t("tv_status_returning")}</div>`;
+  return `<div class="next-ep muted">${t("new_season")}</div>`;
+}
+
+async function loadFollowed(view) {
   const res = await fetch("/api/followed");
   let items = await res.json();
+  const isTv = view === "dizi";
+  items = items.filter((i) => (isTv ? i.media_type === "tv" : i.media_type === "movie"));
   items = applySort(items);
-  const grid = document.getElementById("poster-grid");
-  const empty = document.getElementById("empty-followed");
+  const grid = document.getElementById(isTv ? "poster-grid-shows" : "poster-grid-movies");
+  const empty = document.getElementById(isTv ? "empty-dizi" : "empty-film");
   grid.innerHTML = "";
   empty.style.display = items.length ? "none" : "block";
 
@@ -156,7 +192,7 @@ async function loadFollowed() {
                 ? isToday(item.next_episode.air_date)
                   ? `<div class="next-ep today">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} ${t("today_airing")}</div>`
                   : `<div class="next-ep">S${String(item.next_episode.season).padStart(2, "0")}E${String(item.next_episode.episode).padStart(2, "0")} · ${isMobile() ? shortDateShort(item.next_episode.air_date) : shortDate(item.next_episode.air_date)}${isMobile() ? "" : " · "}<span class="next-ep-days" data-tip="${daysHint(item.next_episode.air_date)}">${daysUntil(item.next_episode.air_date)}</span></div>`
-                : `<div class="next-ep muted">${t("new_season")}</div>`
+                : tvStatusText(item)
               : item.release_date
                 ? dateState(item.release_date) === "date-past"
                   ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
@@ -177,7 +213,7 @@ async function loadFollowed() {
         t("unfollow_confirm", { title: item.title }),
         async () => {
           await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
-          loadFollowed();
+          loadFollowed(view);
           toast(t("unfollowed"));
         }
       );
@@ -197,6 +233,10 @@ async function loadFollowed() {
 function animeNextText(next, status) {
   if (!next) {
     if (status === "FINISHED") return `<div class="next-ep muted">${t("anime_status_finished")}</div>`;
+    if (status === "CANCELLED") return `<div class="next-ep muted">${t("anime_status_cancelled")}</div>`;
+    if (status === "HIATUS") return `<div class="next-ep muted">${t("anime_status_hiatus")}</div>`;
+    if (status === "NOT_YET_RELEASED") return `<div class="next-ep muted">${t("anime_status_upcoming")}</div>`;
+    if (status === "RELEASING") return `<div class="next-ep muted">${t("anime_status_releasing")}</div>`;
     return "";
   }
   const d = new Date(next.airing_at * 1000);
@@ -277,28 +317,46 @@ function unwatchedFirstLabel(item) {
 }
 
 async function loadUnwatched() {
-  let data = { shows: [], anime: [] };
+  let data = { shows: [], anime: [], movies: [] };
   try {
     const res = await fetch("/api/unwatched");
     data = await res.json();
   } catch (e) {
-    data = { shows: [], anime: [] };
+    data = { shows: [], anime: [], movies: [] };
   }
-  const showsWrap = document.getElementById("unwatched-shows-wrap");
-  const animeWrap = document.getElementById("unwatched-anime-wrap");
+  const unwatchedView = document.getElementById("view-unwatched");
   const empty = document.getElementById("empty-unwatched");
   const showsGrid = document.getElementById("unwatched-shows");
+  const moviesGrid = document.getElementById("unwatched-movies");
   const animeGrid = document.getElementById("unwatched-anime");
   showsGrid.innerHTML = "";
+  moviesGrid.innerHTML = "";
   animeGrid.innerHTML = "";
 
   const shows = (data.shows || []).map((s) => ({ ...s, isAnime: false }));
+  const movies = (data.movies || []).map((m) => ({ ...m, isAnime: false }));
   const animes = (data.anime || []).map((a) => ({ ...a, isAnime: true }));
 
-  showsWrap.style.display = shows.length ? "" : "none";
+  const hasContent = { shows: shows.length, movies: movies.length, anime: animes.length };
+
+  document.getElementById("unwatched-shows-wrap").style.display = shows.length ? "" : "none";
+  document.getElementById("unwatched-movies-wrap").style.display = movies.length ? "" : "none";
+  const animeWrap = document.getElementById("unwatched-anime-wrap");
   animeWrap.style.display = animes.length ? "" : "none";
   animeWrap.classList.toggle("has-shows", shows.length > 0);
-  empty.style.display = shows.length || animes.length ? "none" : "block";
+  empty.style.display = shows.length || movies.length || animes.length ? "none" : "block";
+
+  // Kayıtlı bölüm sırasını uygula ve boş bölümleri çıkar
+  const order = loadSectionOrder().filter((s) => hasContent[s]);
+  // Dolu olup da sırada olmayanları sona ekle
+  ["shows", "movies", "anime"].forEach((s) => {
+    if (hasContent[s] && !order.includes(s)) order.push(s);
+  });
+  order.forEach((s) => {
+    const wrap = document.getElementById(`unwatched-${s}-wrap`);
+    if (wrap) unwatchedView.insertBefore(wrap, empty);
+  });
+  updateMoveButtons();
 
   shows.forEach((item) => {
     const div = document.createElement("div");
@@ -324,11 +382,44 @@ async function loadUnwatched() {
           ${bottom}
         </div>
       </div>
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
     `;
-    if (item.unwatched > 1) {
-      div.onclick = () => openUnwatchedModal(item, false);
-    }
+    div.querySelector(".calendar-btn").onclick = (e) => {
+      e.stopPropagation();
+      openUnwatchedModal(item, false);
+    };
+    div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
     showsGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+
+  movies.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card unwatched-card";
+    let dateLine = item.release_date
+      ? dateState(item.release_date) === "date-past"
+        ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
+        : `<div class="next-ep">${formatDate(item.release_date).text}</div>`
+      : `<div>${t("date_unknown")}</div>`;
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-movie">${typeLabel("movie")}</span>
+          ${scoreTag(item.vote_average)}
+          ${platformTag(item.networks)}
+          ${dateLine}
+        </div>
+      </div>
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+    `;
+    div.querySelector(".calendar-btn").onclick = (e) => {
+      e.stopPropagation();
+      openReleases("movie", item.tmdb_id, item.title);
+    };
+    div.onclick = () => openDetails("movie", item.tmdb_id, item.title);
+    moviesGrid.appendChild(div);
     applyTitleHint(div);
   });
 
@@ -356,14 +447,90 @@ async function loadUnwatched() {
           ${bottom}
         </div>
       </div>
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
     `;
-    if (item.unwatched > 1) {
-      div.onclick = () => openUnwatchedModal(item, true);
-    }
+    div.querySelector(".calendar-btn").onclick = (e) => {
+      e.stopPropagation();
+      openUnwatchedModal(item, true);
+    };
+    div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
     animeGrid.appendChild(div);
     applyTitleHint(div);
   });
 }
 
+const SECTION_ORDER_KEY = "unwatchedSectionOrder";
+const DEFAULT_ORDER = ["shows", "movies", "anime"];
 
-export { switchView, loadFollowed, loadAnime, loadUnwatched, animeNextText, animeStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu };
+function loadSectionOrder() {
+  try {
+    const v = JSON.parse(localStorage.getItem(SECTION_ORDER_KEY) || "null");
+    if (Array.isArray(v) && v.length) return v;
+  } catch (e) {}
+  return [...DEFAULT_ORDER];
+}
+
+function saveSectionOrder(order) {
+  try {
+    localStorage.setItem(SECTION_ORDER_KEY, JSON.stringify(order));
+  } catch (e) {}
+}
+
+function updateMoveButtons() {
+  const view = document.getElementById("view-unwatched");
+  const visible = [];
+  view.querySelectorAll("[id$='-wrap']").forEach((w) => {
+    if (w.style.display !== "none") visible.push(w);
+  });
+  visible.forEach((w, idx) => {
+    const up = w.querySelector(".section-move-up");
+    const down = w.querySelector(".section-move-down");
+    if (up) up.disabled = idx === 0;
+    if (down) down.disabled = idx === visible.length - 1;
+  });
+}
+
+function moveSection(section, dir) {
+  const view = document.getElementById("view-unwatched");
+  const wrap = document.getElementById(`unwatched-${section}-wrap`);
+  if (!wrap || wrap.style.display === "none") return;
+  const visible = [];
+  view.querySelectorAll("[id$='-wrap']").forEach((w) => {
+    if (w.style.display !== "none") visible.push(w);
+  });
+  const idx = visible.indexOf(wrap);
+  if (idx < 0) return;
+  const target = dir === "up" ? idx - 1 : idx + 1;
+  if (target < 0 || target >= visible.length) return;
+  const empty = document.getElementById("empty-unwatched");
+  if (dir === "up") {
+    view.insertBefore(wrap, visible[target]);
+  } else {
+    if (visible[target].nextSibling && visible[target].nextSibling !== empty) {
+      view.insertBefore(wrap, visible[target].nextSibling);
+    } else {
+      view.insertBefore(wrap, empty);
+    }
+  }
+  const order = visible.map((w) => w.id.replace("unwatched-", "").replace("-wrap", ""));
+  const targetId = order[idx];
+  const newId = order[target];
+  order[idx] = newId;
+  order[target] = targetId;
+  saveSectionOrder(order);
+  updateMoveButtons();
+}
+
+document.addEventListener("click", (e) => {
+  const up = e.target.closest(".section-move-up");
+  if (up && !up.disabled) {
+    moveSection(up.dataset.section, "up");
+    return;
+  }
+  const down = e.target.closest(".section-move-down");
+  if (down && !down.disabled) {
+    moveSection(down.dataset.section, "down");
+  }
+});
+
+export { switchView, loadFollowed, loadAnime, loadUnwatched, animeNextText, animeStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab };

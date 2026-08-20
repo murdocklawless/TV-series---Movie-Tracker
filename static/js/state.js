@@ -16,7 +16,7 @@ export const state = {
   allTimezones: [],
 
   sortKey: "added",
-  searchMedia: "show",
+  searchMedia: "dizi",
   chips: [],
   pickerMode: "",
   pickerSelected: new Set(),

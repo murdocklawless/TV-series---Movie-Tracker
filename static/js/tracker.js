@@ -7,16 +7,17 @@ import { closeResultsModal } from "./search.js";
 import "./settings.js";
 
 // ---- Başlangıç görünümü (son seçilen sekmeyi geri yükle) ----
-let lastView = "followed";
+let lastView = "dizi";
 try {
-  lastView = localStorage.getItem("activeView") || "followed";
+  lastView = localStorage.getItem("activeView") || "dizi";
 } catch (e) {}
-if (!views[lastView]) lastView = "followed";
+if (!views[lastView]) lastView = "dizi";
 switchView(lastView);
 
 // Dil değişince aktif görünümü yenile (applyLang, i18n.js'ten olay yayar)
 document.addEventListener("app:langchange", () => {
-  if (views.followed.classList.contains("active")) loadFollowed();
+  if (views.dizi.classList.contains("active")) loadFollowed("dizi");
+  if (views.film.classList.contains("active")) loadFollowed("film");
   if (views.unwatched.classList.contains("active")) loadUnwatched();
 });
 

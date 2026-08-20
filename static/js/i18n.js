@@ -4,12 +4,16 @@ import { state } from "./state.js";
 const I18N = {
   app_title: { tr: "Takip Listesi", en: "Watchlist", de: "Watchlist", fr: "Ma liste", es: "Mi lista", it: "Watchlist", ru: "Список просмотра", ar: "قائمة المشاهدة", pt: "Minha lista", nl: "Watchlist", pl: "Lista śledzenia", ja: "ウォッチリスト", ko: "시청 목록", zh: "观看列表" },
   logo_title: { tr: "Dizi · Film · Anime Takip", en: "TV · Movie · Anime Tracker", de: "Serien · Film · Anime Tracker", fr: "Suivi Séries · Films · Anime", es: "Seguimiento Series · Pelis · Anime", it: "Tracker Serie · Film · Anime", ru: "Трекер сериалов · фильмов · аниме", ar: "متابعة المسلسلات · الأفلام · الأنمي", pt: "Acompanhamento Séries · Filmes · Anime", nl: "Serie · Film · Anime Tracker", pl: "Śledzenie seriali · filmów · anime", ja: "ドラマ・映画・アニメ追跡", ko: "드라마·영화·애니메 추적", zh: "剧集·电影·动漫追踪" },
-  tab_followed: { tr: "Dizi & Film", en: "Shows & Movies", de: "Serien & Filme", fr: "Séries & Films", es: "Series y Películas", it: "Serie e Film", ru: "Сериалы и фильмы", ar: "مسلسلات وأفلام", pt: "Séries e Filmes", nl: "Series en Films", pl: "Seriale i filmy", ja: "アニメと映画", ko: "시리즈 및 영화", zh: "剧集和电影" },
+  tab_dizi: { tr: "Dizi", en: "Shows", de: "Serien", fr: "Séries", es: "Series", it: "Serie", ru: "Сериалы", ar: "مسلسلات", pt: "Séries", nl: "Series", pl: "Seriale", ja: "アニメ", ko: "시리즈", zh: "剧集" },
+  tab_film: { tr: "Film", en: "Movies", de: "Filme", fr: "Films", es: "Películas", it: "Film", ru: "Фильмы", ar: "أفلام", pt: "Filmes", nl: "Films", pl: "Filmy", ja: "映画", ko: "영화", zh: "电影" },
   tab_search: { tr: "Ara & Ekle", en: "Search & Add", de: "Suchen & Hinzufügen", fr: "Rechercher & Ajouter", es: "Buscar & Añadir", it: "Cerca & Aggiungi", ru: "Поиск и добавление", ar: "بحث وإضافة", pt: "Pesquisar & Adicionar", nl: "Zoeken & Toevoegen", pl: "Szukaj i dodaj", ja: "検索と追加", ko: "검색 및 추가", zh: "搜索和添加" },
   tab_anime: { tr: "Anime", en: "Anime", de: "Anime", fr: "Anime", es: "Anime", it: "Anime", ru: "Аниме", ar: "أنمي", pt: "Anime", nl: "Anime", pl: "Anime", ja: "アニメ", ko: "애니메", zh: "动漫" },
   tab_unwatched: { tr: "İzlenmemiş", en: "Unwatched", de: "Ungesehen", fr: "Non vus", es: "Sin ver", it: "Non visti", ru: "Непросмотренное", ar: "غير مشاهد", pt: "Não assistidos", nl: "Ongezien", pl: "Nieobejrzane", ja: "未視聴", ko: "안 본 것", zh: "未看" },
   unwatched_shows: { tr: "İzlenmemiş Diziler", en: "Unwatched Shows", de: "Ungesehene Serien", fr: "Séries non vues", es: "Series sin ver", it: "Serie non viste", ru: "Непросмотренные сериалы", ar: "مسلسلات غير مشاهد", pt: "Séries não assistidas", nl: "Ongeziene series", pl: "Nieobejrzane seriale", ja: "未視聴のアニメ", ko: "안 본 시리즈", zh: "未看剧集" },
   unwatched_anime: { tr: "İzlenmemiş Animeler", en: "Unwatched Anime", de: "Ungesehene Animes", fr: "Animes non vus", es: "Animes sin ver", it: "Anime non visti", ru: "Непросмотренное аниме", ar: "أنمي غير مشاهد", pt: "Animes não assistidos", nl: "Ongeziene anime", pl: "Nieobejrzane anime", ja: "未視聴のアニメ", ko: "안 본 애니메", zh: "未看动漫" },
+  unwatched_movies: { tr: "İzlenmemiş Filmler", en: "Unwatched Movies", de: "Ungesehene Filme", fr: "Films non vus", es: "Películas sin ver", it: "Film non visti", ru: "Непросмотренные фильмы", ar: "أفلام غير مشاهد", pt: "Filmes não assistidos", nl: "Ongeziene films", pl: "Nieobejrzane filmy", ja: "未視聴の映画", ko: "안 본 영화", zh: "未看电影" },
+  section_move_up: { tr: "Bölümü yukarı taşı", en: "Move section up", de: "Abschnitt nach oben", fr: "Déplacer la section vers le haut", es: "Mover sección arriba", it: "Sposta sezione su", ru: "Переместить раздел вверх", ar: "تحريك القسم لأعلى", pt: "Mover seção para cima", nl: "Sectie omhoog", pl: "Przesuń sekcję w górę", ja: "セクションを上へ", ko: "섹션 위로", zh: "上移区块" },
+  section_move_down: { tr: "Bölümü aşağı taşı", en: "Move section down", de: "Abschnitt nach unten", fr: "Déplacer la section vers le bas", es: "Mover sección abajo", it: "Sposta sezione giù", ru: "Переместить раздел вниз", ar: "تحريك القسم لأسفل", pt: "Mover seção para baixo", nl: "Sectie omlaag", pl: "Przesuń sekcję w dół", ja: "セクションを下へ", ko: "섹션 아래로", zh: "下移区块" },
   unwatched_count: { tr: "İzlenmeyen {n} Bölüm var", en: "{n} unwatched episodes", de: "{n} ungesehene Folgen", fr: "{n} épisodes non vus", es: "{n} episodios sin ver", it: "{n} episodi non visti", ru: "{n} непросмотренных серий", ar: "{n} حلقة غير مشاهدة", pt: "{n} episódios não assistidos", nl: "{n} ongeziene afleveringen", pl: "{n} nieobejrzanych odcinków", ja: "未視聴{n}話", ko: "안 본 {n}개 에피소드", zh: "{n}集未看" },
   unwatched_title: { tr: "İzlenmemiş Bölümler", en: "Unwatched Episodes", de: "Ungesehene Folgen", fr: "Épisodes non vus", es: "Episodios sin ver", it: "Episodi non visti", ru: "Непросмотренные серии", ar: "حلقات غير مشاهدة", pt: "Episódios não assistidos", nl: "Ongeziene afleveringen", pl: "Nieobejrzane odcinki", ja: "未視聴エピソード", ko: "안 본 에피소드", zh: "未看剧集" },
   empty_unwatched: { tr: "İzlenmemiş bölüm yok.", en: "No unwatched episodes.", de: "Keine ungesehenen Folgen.", fr: "Aucun épisode non vu.", es: "No hay episodios sin ver.", it: "Nessun episodio non visto.", ru: "Нет непросмотренных серий.", ar: "لا توجد حلقات غير مشاهدة.", pt: "Nenhum episódio não assistido.", nl: "Geen ongeziene afleveringen.", pl: "Brak nieobejrzanych odcinków.", ja: "未視聴のエピソードはありません。", ko: "안 본 에피소드가 없습니다.", zh: "没有未看的剧集。" },
@@ -21,6 +25,8 @@ const I18N = {
   anime_status_releasing: { tr: "Yayında", en: "Airing", de: "Läuft", fr: "En cours", es: "En emisión", it: "In onda", ru: "Идёт", ar: "يُعرض", pt: "No ar", nl: "Wordt uitgezonden", pl: "W emisji", ja: "放送中", ko: "방영 중", zh: "播出中" },
   anime_status_finished: { tr: "Bitti", en: "Finished", de: "Abgeschlossen", fr: "Terminé", es: "Terminado", it: "Finito", ru: "Завершено", ar: "منتهي", pt: "Finalizado", nl: "Voltooid", pl: "Zakończone", ja: "完結", ko: "완결", zh: "已完结" },
   anime_status_upcoming: { tr: "Yakında", en: "Upcoming", de: "Demnächst", fr: "À venir", es: "Próximamente", it: "In arrivo", ru: "Скоро", ar: "قريبًا", pt: "Em breve", nl: "Binnenkort", pl: "Wkrótce", ja: "近日", ko: "곧", zh: "即将" },
+  anime_status_cancelled: { tr: "İptal edildi", en: "Canceled", de: "Abgesagt", fr: "Annulé", es: "Cancelado", it: "Cancellato", ru: "Отменено", ar: "ملغى", pt: "Cancelado", nl: "Geannuleerd", pl: "Anulowano", ja: "打ち切り", ko: "취소됨", zh: "已取消" },
+  anime_status_hiatus: { tr: "Ara verdi", en: "On Hiatus", de: "Unterbrochen", fr: "En pause", es: "En pausa", it: "In pausa", ru: "На паузе", ar: "متوقف", pt: "Em pausa", nl: "Onderbroken", pl: "Przerwa", ja: "休止中", ko: "휴방 중", zh: "暂停" },
   sort_title: { tr: "Sırala", en: "Sort", de: "Sortieren", fr: "Trier", es: "Ordenar", it: "Ordina", ru: "Сортировать", ar: "ترتيب", pt: "Ordenar", nl: "Sorteren", pl: "Sortuj", ja: "並べ替え", ko: "정렬", zh: "排序" },
   sort_added: { tr: "Ekleme sırası", en: "Recently added", de: "Zuletzt hinzugefügt", fr: "Ajoutés récemment", es: "Añadidos recientes", it: "Aggiunti di recente", ru: "Недавно добавленные", ar: "أضيف مؤخرًا", pt: "Adicionados recentemente", nl: "Recent toegevoegd", pl: "Ostatnio dodane", ja: "最近追加順", ko: "최근 추가순", zh: "最近添加" },
   sort_alpha: { tr: "Alfabetik", en: "Alphabetical", de: "Alphabetisch", fr: "Alphabétique", es: "Alfabético", it: "Alfabetico", ru: "По алфавиту", ar: "أبجدي", pt: "Alfabético", nl: "Alfabetisch", pl: "Alfabetycznie", ja: "アルファベット順", ko: "가나다순", zh: "按字母顺序" },
@@ -129,6 +135,13 @@ const I18N = {
   votes: { tr: "({n} oy)", en: "({n} votes)", de: "({n} Stimmen)", fr: "({n} votes)", es: "({n} votos)", it: "({n} voti)", ru: "({n} голосов)", ar: "({n} أصوات)", pt: "({n} votos)", nl: "({n} stemmen)", pl: "({n} głosów)", ja: "({n}票)", ko: "({n}표)", zh: "({n}票)" },
   today_airing: { tr: "Bugün Yayında", en: "Airing Today", de: "Läuft heute", fr: "Diffusé aujourd'hui", es: "Se emite hoy", it: "In onda oggi", ru: "Сегодня в эфире", ar: "يُعرض اليوم", pt: "No ar hoje", nl: "Vandaag op tv", pl: "Emisja dzisiaj", ja: "今日放送", ko: "오늘 방영", zh: "今日播出" },
   new_season: { tr: "Yeni Sezon Bekleniyor", en: "New Season Coming", de: "Neue Staffel erwartet", fr: "Nouvelle saison à venir", es: "Nueva temporada próxima", it: "Nuova stagione in arrivo", ru: "Ожидается новый сезон", ar: "موسم جديد قادم", pt: "Nova temporada a caminho", nl: "Nieuw seizoen verwacht", pl: "Nowy sezon nadchodzi", ja: "新シーズン予定", ko: "새 시즌 예정", zh: "新季即将推出" },
+  tv_status_returning: { tr: "Yeni sezon bekleniyor", en: "New season coming", de: "Neue Staffel erwartet", fr: "Nouvelle saison à venir", es: "Nueva temporada próxima", it: "Nuova stagione in arrivo", ru: "Ожидается новый сезон", ar: "موسم جديد قادم", pt: "Nova temporada a caminho", nl: "Nieuw seizoen verwacht", pl: "Nowy sezon nadchodzi", ja: "新シーズン予定", ko: "새 시즌 예정", zh: "新季即将推出" },
+  tv_status_ended: { tr: "Sezon Bitti", en: "Season Ended", de: "Staffel beendet", fr: "Saison terminée", es: "Temporada terminada", it: "Stagione conclusa", ru: "Сезон завершён", ar: "انتهى الموسم", pt: "Temporada encerrada", nl: "Seizoen beëindigd", pl: "Sezon zakończony", ja: "シーズン終了", ko: "시즌 종료", zh: "季已完结" },
+  tv_status_canceled: { tr: "İptal edildi", en: "Canceled", de: "Abgesagt", fr: "Annulé", es: "Cancelada", it: "Cancellata", ru: "Отменён", ar: "ملغى", pt: "Cancelada", nl: "Geannuleerd", pl: "Anulowano", ja: "打ち切り", ko: "취소됨", zh: "已取消" },
+  tv_status_production: { tr: "Yapım Aşamasında", en: "In Production", de: "In Produktion", fr: "En production", es: "En producción", it: "In produzione", ru: "В производстве", ar: "قيد الإنتاج", pt: "Em produção", nl: "In productie", pl: "W produkcji", ja: "制作中", ko: "제작 중", zh: "制作中" },
+  tv_status_planned: { tr: "Planlandı", en: "Planned", de: "Geplant", fr: "Planifié", es: "Planeada", it: "Pianificata", ru: "Планируется", ar: "مخطط", pt: "Planejada", nl: "Gepland", pl: "Planowany", ja: "予定", ko: "예정", zh: "已计划" },
+  tv_status_pilot: { tr: "Pilot Bölüm", en: "Pilot Episode", de: "Pilotfolge", fr: "Épisode pilote", es: "Episodio piloto", it: "Episodio pilota", ru: "Пилотная серия", ar: "حلقة تجريبية", pt: "Episódio piloto", nl: "Pilotaflevering", pl: "Odcinek pilotażowy", ja: "パイロット版", ko: "파일럿", zh: "试播集" },
+  tv_next_season: { tr: "Yeni sezon · {date}", en: "New season · {date}", de: "Neue Staffel · {date}", fr: "Nouvelle saison · {date}", es: "Nueva temporada · {date}", it: "Nuova stagione · {date}", ru: "Новый сезон · {date}", ar: "موسم جديد · {date}", pt: "Nova temporada · {date}", nl: "Nieuw seizoen · {date}", pl: "Nowy sezon · {date}", ja: "新シーズン · {date}", ko: "새 시즌 · {date}", zh: "新季 · {date}" },
   today_theaters: { tr: "Bugün Vizyonda", en: "In Theaters Today", de: "Heute im Kino", fr: "En salles aujourd'hui", es: "En cines hoy", it: "Oggi al cinema", ru: "Сегодня в прокате", ar: "في الصالات اليوم", pt: "Nos cinemas hoje", nl: "Vandaag in de bioscoop", pl: "Dziś w kinach", ja: "今日公開", ko: "오늘 개봉", zh: "今日上映" },
   notified: { tr: "Bildirildi", en: "Notified", de: "Benachrichtigt", fr: "Notifié", es: "Notificado", it: "Notificato", ru: "Уведомлено", ar: "تم الإشعار", pt: "Notificado", nl: "Gemeld", pl: "Powiadomiono", ja: "通知済み", ko: "알림됨", zh: "已通知" },
   unfollow_title: { tr: "Takibi bırak", en: "Unfollow", de: "Nicht mehr verfolgen", fr: "Ne plus suivre", es: "Dejar de seguir", it: "Smetti di seguire", ru: "Отписаться", ar: "إلغاء المتابعة", pt: "Deixar de seguir", nl: "Ontvolgen", pl: "Przestań obserwować", ja: "フォロー解除", ko: "팔로우 해제", zh: "取消关注" },
@@ -268,8 +281,19 @@ export function applyLang(lang) {
   document.documentElement.lang = state.currentLang;
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     const key = el.dataset.i18n;
-    if (el.tagName === "INPUT") el.placeholder = t(key);
-    else el.textContent = t(key);
+    if (el.tagName === "INPUT") {
+      el.placeholder = t(key);
+      return;
+    }
+    // İkon + span yapısını koru (ör. <button><i></i><span data-i18n>...):
+    // içinde i varsa yalnızca span[data-i18n]'i güncelle, i'ye dokunma.
+    const innerIcon = el.querySelector("i");
+    const innerSpan = el.querySelector("span[data-i18n]");
+    if (innerIcon && innerSpan) {
+      innerSpan.textContent = t(key);
+      return;
+    }
+    el.textContent = t(key);
   });
   document.querySelectorAll("[data-i18n-title]").forEach((el) => {
     el.setAttribute("data-tip", t(el.dataset.i18nTitle));

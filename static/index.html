@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Takip Listesi</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=304" />
+  <link rel="stylesheet" href="/static/css/style.css?v=321" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -17,29 +17,34 @@
       </div>
     </div>
     <div class="tabs">
-      <button id="tab-followed" class="tab active" data-i18n="tab_followed">Dizi &amp; Film</button>
-      <button id="tab-anime" class="tab" data-i18n="tab_anime">Anime</button>
-      <button id="tab-unwatched" class="tab" data-i18n="tab_unwatched">İzlenmemiş</button>
-      <button id="tab-search" class="tab"><i class="fa-solid fa-magnifying-glass"></i> <span data-i18n="tab_search">Ara &amp; Ekle</span></button>
-      <div class="sort-wrap">
-        <button id="tab-sort" class="tab" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
-        <div id="sort-menu" class="sort-menu">
-          <button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button>
-          <button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button>
-          <button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button>
-          <button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button>
-          <button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button>
-        </div>
+      <div class="tabs-group">
+        <button id="tab-dizi" class="tab active" data-i18n="tab_dizi"><i class="fa-solid fa-tv media-tab-icon"></i><span data-i18n="tab_dizi">Dizi</span></button>
+        <button id="tab-film" class="tab" data-i18n="tab_film"><i class="fa-solid fa-clapperboard media-tab-icon"></i><span data-i18n="tab_film">Film</span></button>
+        <button id="tab-anime" class="tab" data-i18n="tab_anime"><i class="fa-solid fa-torii-gate media-tab-icon"></i><span data-i18n="tab_anime">Anime</span></button>
+        <button id="tab-unwatched" class="tab" data-i18n="tab_unwatched"><i class="fa-solid fa-eye-slash media-tab-icon"></i><span data-i18n="tab_unwatched">İzlenmemiş</span></button>
       </div>
-      <div class="settings-wrap">
-        <button id="tab-settings" class="tab"><i class="fa-solid fa-gear"></i></button>
-        <div id="settings-menu" class="settings-menu">
-          <button class="settings-menu-item" data-target="settings-lang-modal"><i class="fa-solid fa-globe"></i><span data-i18n="settings_lang">Dil ve Zaman</span></button>
-          <button class="settings-menu-item" data-target="settings-tmdb-modal"><i class="fa-solid fa-key"></i><span data-i18n="settings_tmdb">TMDB ve Telegram</span></button>
-          <button class="settings-menu-item tmdb-locked" data-target="settings-favactors-modal"><i class="fa-solid fa-heart"></i><span data-i18n="settings_favactors">Favori Oyuncular</span></button>
-          <button class="settings-menu-item tmdb-locked" data-target="settings-favgenres-modal"><i class="fa-solid fa-star"></i><span data-i18n="settings_favgenres">Favori Türler</span></button>
-          <button class="settings-menu-item tmdb-locked" data-target="settings-notify-modal"><i class="fa-solid fa-bell"></i><span data-i18n="settings_notify">Bildirim Ayarları</span></button>
-          <button class="settings-menu-item tmdb-locked" data-target="settings-update-modal"><i class="fa-solid fa-rotate"></i><span data-i18n="settings_update">Güncelleme</span></button>
+      <div class="tabs-group">
+        <button id="tab-search" class="tab"><i class="fa-solid fa-magnifying-glass"></i> <span data-i18n="tab_search">Ara &amp; Ekle</span></button>
+        <div class="sort-wrap">
+          <button id="tab-sort" class="tab" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
+          <div id="sort-menu" class="sort-menu">
+            <button class="sort-item" data-sort="added"><i class="fa-solid fa-clock"></i><span data-i18n="sort_added">Ekleme sırası</span></button>
+            <button class="sort-item" data-sort="alpha"><i class="fa-solid fa-arrow-down-a-z"></i><span data-i18n="sort_alpha">Alfabetik</span></button>
+            <button class="sort-item" data-sort="score"><i class="fa-solid fa-star"></i><span data-i18n="sort_score">Puana göre</span></button>
+            <button class="sort-item" data-sort="date"><i class="fa-solid fa-calendar"></i><span data-i18n="sort_date">Yaklaşan tarih</span></button>
+            <button class="sort-item" data-sort="type"><i class="fa-solid fa-layer-group"></i><span data-i18n="sort_type">Türe göre</span></button>
+          </div>
+        </div>
+        <div class="settings-wrap">
+          <button id="tab-settings" class="tab"><i class="fa-solid fa-gear"></i></button>
+          <div id="settings-menu" class="settings-menu">
+            <button class="settings-menu-item" data-target="settings-lang-modal"><i class="fa-solid fa-globe"></i><span data-i18n="settings_lang">Dil ve Zaman</span></button>
+            <button class="settings-menu-item" data-target="settings-tmdb-modal"><i class="fa-solid fa-key"></i><span data-i18n="settings_tmdb">TMDB ve Telegram</span></button>
+            <button class="settings-menu-item tmdb-locked" data-target="settings-favactors-modal"><i class="fa-solid fa-heart"></i><span data-i18n="settings_favactors">Favori Oyuncular</span></button>
+            <button class="settings-menu-item tmdb-locked" data-target="settings-favgenres-modal"><i class="fa-solid fa-star"></i><span data-i18n="settings_favgenres">Favori Türler</span></button>
+            <button class="settings-menu-item tmdb-locked" data-target="settings-notify-modal"><i class="fa-solid fa-bell"></i><span data-i18n="settings_notify">Bildirim Ayarları</span></button>
+            <button class="settings-menu-item tmdb-locked" data-target="settings-update-modal"><i class="fa-solid fa-rotate"></i><span data-i18n="settings_update">Güncelleme</span></button>
+          </div>
         </div>
       </div>
     </div>
@@ -51,10 +56,19 @@
       <span id="tmdb-key-msg"></span>
       <button id="tmdb-key-close" class="tmdb-key-close" data-i18n-title="close">&times;</button>
     </div>
-    <!-- Followed view -->
-    <section id="view-followed" class="view active">
-      <div id="poster-grid" class="poster-grid"></div>
-      <div id="empty-followed" class="empty">
+    <!-- Dizi view -->
+    <section id="view-dizi" class="view active">
+      <div id="poster-grid-shows" class="poster-grid"></div>
+      <div id="empty-dizi" class="empty">
+        <p data-i18n="empty_1">Henüz takip ettiğiniz bir şey yok.</p>
+        <p data-i18n="empty_2">Yayınlanmasını istediğiniz dizi ve filmleri ekleyin.</p>
+      </div>
+    </section>
+
+    <!-- Film view -->
+    <section id="view-film" class="view">
+      <div id="poster-grid-movies" class="poster-grid"></div>
+      <div id="empty-film" class="empty">
         <p data-i18n="empty_1">Henüz takip ettiğiniz bir şey yok.</p>
         <p data-i18n="empty_2">Yayınlanmasını istediğiniz dizi ve filmleri ekleyin.</p>
       </div>
@@ -72,11 +86,15 @@
     <!-- Unwatched view -->
     <section id="view-unwatched" class="view">
       <div id="unwatched-shows-wrap">
-        <h2 class="unwatched-section-title" data-i18n="unwatched_shows">İzlenmemiş Diziler</h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="shows" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_shows">İzlenmemiş Diziler</span></h2>
         <div id="unwatched-shows" class="poster-grid"></div>
       </div>
+      <div id="unwatched-movies-wrap">
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="movies" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_movies">İzlenmemiş Filmler</span></h2>
+        <div id="unwatched-movies" class="poster-grid"></div>
+      </div>
       <div id="unwatched-anime-wrap">
-        <h2 class="unwatched-section-title" data-i18n="unwatched_anime">İzlenmemiş Animeler</h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="anime" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_anime">İzlenmemiş Animeler</span></h2>
         <div id="unwatched-anime" class="poster-grid"></div>
       </div>
       <div id="empty-unwatched" class="empty">
@@ -95,8 +113,9 @@
           <div class="search-block">
             <h3 class="search-block-title" data-i18n="search_basic">Ara</h3>
             <div class="media-toggle">
-              <button id="media-show" class="active" data-i18n="search_type_show">Dizi &amp; Film</button>
-              <button id="media-anime" data-i18n="search_type_anime">Anime</button>
+              <button id="media-dizi" class="active" data-i18n="tab_dizi"><i class="fa-solid fa-tv media-toggle-icon"></i><span data-i18n="tab_dizi">Dizi</span></button>
+              <button id="media-film" data-i18n="tab_film"><i class="fa-solid fa-clapperboard media-toggle-icon"></i><span data-i18n="tab_film">Film</span></button>
+              <button id="media-anime" data-i18n="tab_anime"><i class="fa-solid fa-torii-gate media-toggle-icon"></i><span data-i18n="tab_anime">Anime</span></button>
             </div>
             <div class="search-bar">
               <input id="normal-search-input" type="text" placeholder="Film veya dizi ara..." data-i18n="search_placeholder" />
@@ -108,10 +127,12 @@
           <div class="search-block">
             <h3 class="search-block-title" data-i18n="search_combo">Çoklu Ara</h3>
             <div class="filter-add-row">
-              <button id="filter-actor" class="filter-add-btn" data-i18n="filter_actor">Oyuncu</button>
-              <button id="filter-genre" class="filter-add-btn" data-i18n="filter_genre">Tür</button>
-              <button id="filter-year" class="filter-add-btn" data-i18n="search_type_year">Yıl</button>
-              <button id="filter-score" class="filter-add-btn" data-i18n="search_type_score">Puan</button>
+              <button id="filter-media-movie" class="filter-add-btn btn-movie" data-i18n="type_movie">Film</button>
+              <button id="filter-media-tv" class="filter-add-btn btn-tv" data-i18n="type_tv">Dizi</button>
+              <button id="filter-actor" class="filter-add-btn btn-actor" data-i18n="filter_actor">Oyuncu</button>
+              <button id="filter-genre" class="filter-add-btn btn-genre" data-i18n="filter_genre">Tür</button>
+              <button id="filter-year" class="filter-add-btn btn-year" data-i18n="search_type_year">Yıl</button>
+              <button id="filter-score" class="filter-add-btn btn-score" data-i18n="search_type_score">Puan</button>
             </div>
             <div id="filter-chips" class="filter-chips"></div>
             <div class="combo-search-row">
@@ -423,6 +444,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/tracker.js?v=310"></script>
+  <script type="module" src="/static/js/tracker.js?v=314"></script>
 </body>
 </html>
