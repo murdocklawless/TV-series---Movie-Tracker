@@ -71,23 +71,25 @@ nav {
   width: 100%;
   padding: 9px 12px;
   background: none;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 8px;
   color: #c8cdd8;
   font-size: 0.9rem;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .sort-item:hover {
-  background: #262a36;
-  color: #fff;
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
+  color: #c8cdd8;
 }
 
 .sort-item.active {
-  background: #f97316;
-  color: #fff;
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
+  color: #c8cdd8;
 }
 
 .sort-item i {
@@ -280,7 +282,7 @@ main {
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.6);
   border: none;
-  color: #16a34a;
+  color: #22c55e;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -306,7 +308,9 @@ main {
     height: 12px;
   }
   .card .remove,
-  .card .calendar-btn {
+  .card .calendar-btn,
+  .card .move-btn,
+  .card .move-back-btn {
     width: 26px;
     height: 26px;
     top: 6px;
@@ -316,6 +320,16 @@ main {
   }
   .card .calendar-btn {
     left: 6px;
+  }
+  .card .move-btn {
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+  }
+  .card .move-back-btn {
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
   }
 }
 
@@ -516,11 +530,67 @@ main {
   justify-content: center;
 }
 
+.card .move-btn {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #e879f9;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.card .move-btn:hover {
+  color: #f0abfc;
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.card .move-back-btn {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+  color: #e879f9;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.card .move-back-btn i {
+  transform: rotate(180deg);
+}
+
+.card .move-back-btn:hover {
+  color: #f0abfc;
+  background: rgba(0, 0, 0, 0.8);
+}
+
 .card:hover .remove {
   display: block;
 }
 
 .card:hover .calendar-btn {
+  display: flex;
+}
+
+.card:hover .move-btn {
+  display: flex;
+}
+
+.card:hover .move-back-btn {
   display: flex;
 }
 
@@ -850,6 +920,12 @@ input:-webkit-autofill:focus {
   color: #e9d5ff;
 }
 
+.chip.chip-char {
+  background: #3a1d4a;
+  border-color: #9333ea;
+  color: #e9d5ff;
+}
+
 .chip.chip-genre {
   background: #14401f;
   border-color: #16a34a;
@@ -1054,18 +1130,19 @@ input:-webkit-autofill:focus {
   width: 100%;
   padding: 9px 12px;
   background: none;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 8px;
   color: #c8cdd8;
   font-size: 0.9rem;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .settings-menu-item:hover {
-  background: #262a36;
-  color: #f97316;
+  background: rgba(249, 115, 22, 0.3);
+  border-color: #f97316;
+  color: #c8cdd8;
 }
 
 .settings-menu-item i {
@@ -1075,7 +1152,7 @@ input:-webkit-autofill:focus {
 }
 
 .settings-menu-item:hover i {
-  color: #f97316;
+  color: #c8cdd8;
 }
 
 .settings-menu-item.locked {
@@ -1085,6 +1162,7 @@ input:-webkit-autofill:focus {
 
 .settings-menu-item.locked:hover {
   background: none;
+  border-color: transparent;
   color: #c8cdd8;
 }
 
@@ -2540,8 +2618,14 @@ input:-webkit-autofill:focus {
   margin-top: 30px;
 }
 
-#view-unwatched > div {
+#view-unwatched > div,
+#view-watched > div {
   margin-bottom: 24px;
+}
+
+#view-watched.active {
+  display: block;
+  padding: 24px 0;
 }
 
 .unwatched-card .next-ep.unwatched-count {
@@ -2637,6 +2721,7 @@ input:-webkit-autofill:focus {
   #tab-film span,
   #tab-anime span,
   #tab-unwatched span,
+  #tab-watched span,
   #tab-search span {
     display: none;
   }

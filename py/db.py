@@ -60,6 +60,8 @@ def init_db():
         conn.execute("ALTER TABLE followed ADD COLUMN first_air_date TEXT")
     if "watched" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN watched INTEGER DEFAULT 0")
+    if "in_watched" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN in_watched INTEGER DEFAULT 0")
     if "localized" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN localized TEXT")
     conn.execute(
@@ -130,6 +132,8 @@ def init_db():
         conn.execute("ALTER TABLE anime ADD COLUMN genres TEXT")
     if "start_date" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN start_date TEXT")
+    if "in_watched" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN in_watched INTEGER DEFAULT 0")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS anime_cast (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

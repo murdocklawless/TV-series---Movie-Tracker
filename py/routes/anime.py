@@ -125,11 +125,24 @@ def anime_followed():
                 "status": r["status"],
                 "score": score,
                 "studios": r["studios"],
+                "completed": _anime_followed_completed(conn, r["id"]),
                 "next_episode": _anime_followed_next(conn, r["id"]),
             }
         )
     conn.close()
     return jsonify(result)
+
+
+def _anime_followed_completed(conn, anime_id):
+    total = conn.execute(
+        "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=?", (anime_id,)
+    ).fetchone()["c"]
+    if total <= 0:
+        return False
+    watched_cnt = conn.execute(
+        "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=1", (anime_id,)
+    ).fetchone()["c"]
+    return total == watched_cnt
 
 
 def _anime_followed_next(conn, anime_id):
@@ -250,6 +263,27 @@ def anime_episode_watch():
         "ON CONFLICT(anime_id, episode) DO UPDATE SET watched=excluded.watched",
         (anime_id, episode, watched),
     )
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "watched": watched})
+
+
+@anime_bp.route("/api/anime/move-watched", methods=["POST"])
+def anime_move_watched():
+    body = request.get_json()
+    anime_id = body.get("anime_id")
+    watched = 1 if body.get("watched") else 0
+    if not anime_id:
+        return jsonify({"error": "Eksik bilgi"}), 400
+    conn = get_db()
+    row = conn.execute("SELECT id FROM anime WHERE id=?", (anime_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Anime bulunamadı"}), 400
+    if watched and not _anime_followed_completed(conn, anime_id):
+        conn.close()
+        return jsonify({"error": "Anime henüz tamamlanmadı"}), 400
+    conn.execute("UPDATE anime SET in_watched=? WHERE id=?", (watched, anime_id))
     conn.commit()
     conn.close()
     return jsonify({"ok": True, "watched": watched})

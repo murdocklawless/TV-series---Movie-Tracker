@@ -66,6 +66,18 @@ function updateMediaButtons() {
   if (tvBtn) tvBtn.classList.toggle("active", active.includes("tv"));
 }
 
+function updateFilterButtons() {
+  const has = (t) => state.chips.some((c) => c.type === t);
+  const actorBtn = document.getElementById("filter-actor");
+  const genreBtn = document.getElementById("filter-genre");
+  const yearBtn = document.getElementById("filter-year");
+  const scoreBtn = document.getElementById("filter-score");
+  if (actorBtn) actorBtn.classList.toggle("active", has("actor") || has("char"));
+  if (genreBtn) genreBtn.classList.toggle("active", has("genre"));
+  if (yearBtn) yearBtn.classList.toggle("active", has("year"));
+  if (scoreBtn) scoreBtn.classList.toggle("active", has("score"));
+}
+
 function renderChips() {
   const box = document.getElementById("filter-chips");
   box.innerHTML = state.chips
@@ -79,6 +91,8 @@ function renderChips() {
       renderChips();
     };
   });
+  updateMediaButtons();
+  updateFilterButtons();
   if (!state.chips.length) {
     document.getElementById("search-results").innerHTML = "";
     document.getElementById("anime-results").innerHTML = "";

@@ -166,8 +166,43 @@ def backfill_votes():
                         "ON CONFLICT(anime_id, episode) DO UPDATE SET air_at=excluded.air_at",
                         (row["id"], node.get("episode"), node.get("airingAt")),
                     )
+    _reset_stale_watched(conn)
     conn.commit()
     conn.close()
+
+
+def _reset_stale_watched(conn):
+    """in_watched=1 olup artık tamamlanmamış (yeni bölüm yayınlanan) yapımları izlenmişten çıkarır."""
+    for r in conn.execute(
+        "SELECT id FROM followed WHERE media_type='tv' AND in_watched=1"
+    ).fetchall():
+        total = conn.execute(
+            "SELECT COUNT(*) c FROM episodes WHERE follow_id=?", (r["id"],)
+        ).fetchone()["c"]
+        watched_cnt = conn.execute(
+            "SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (r["id"],)
+        ).fetchone()["c"]
+        if total > 0 and total != watched_cnt:
+            conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
+    for r in conn.execute(
+        "SELECT id FROM followed WHERE media_type='movie' AND in_watched=1"
+    ).fetchall():
+        watched = conn.execute(
+            "SELECT watched FROM followed WHERE id=?", (r["id"],)
+        ).fetchone()["watched"]
+        if not (watched == 1):
+            conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
+    for r in conn.execute(
+        "SELECT id FROM anime WHERE in_watched=1"
+    ).fetchall():
+        total = conn.execute(
+            "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=?", (r["id"],)
+        ).fetchone()["c"]
+        watched_cnt = conn.execute(
+            "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=1", (r["id"],)
+        ).fetchone()["c"]
+        if total > 0 and total != watched_cnt:
+            conn.execute("UPDATE anime SET in_watched=0 WHERE id=?", (r["id"],))
 
 
 def sync_genres():

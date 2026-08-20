@@ -4,7 +4,7 @@ import { t } from "./i18n.js";
 import {
   posterHTML, scoreTag, platformTag, typeLabel, applyTitleHint,
   formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
-  isToday, dateState, utcDayStr, utcTodayStr, FILM_SVG, CALENDAR_SVG, toast, tzLocale,
+  isToday, dateState, utcDayStr, utcTodayStr, FILM_SVG, CALENDAR_SVG, CHECK_SVG, toast, tzLocale,
 } from "./utils.js";
 import { openDetails, openReleases, openAnimeDetails, openAnimeSchedule, showConfirm, openUnwatchedModal } from "./components.js";
 import { renderChips, closeResultsModal } from "./search.js";
@@ -15,6 +15,7 @@ const views = {
   film: document.getElementById("view-film"),
   anime: document.getElementById("view-anime"),
   unwatched: document.getElementById("view-unwatched"),
+  watched: document.getElementById("view-watched"),
   search: document.getElementById("view-search"),
 };
 
@@ -23,6 +24,7 @@ const tabs = {
   film: document.getElementById("tab-film"),
   anime: document.getElementById("tab-anime"),
   unwatched: document.getElementById("tab-unwatched"),
+  watched: document.getElementById("tab-watched"),
   search: document.getElementById("tab-search"),
   sort: document.getElementById("tab-sort"),
   settings: document.getElementById("tab-settings"),
@@ -45,30 +47,65 @@ function switchView(name) {
   if (name === "film") loadFollowed("film");
   if (name === "anime") loadAnime();
   if (name === "unwatched") loadUnwatched();
+  if (name === "watched") loadWatched();
+  if (SORT_VIEWS.includes(name)) {
+    state.sortKey = loadViewSort(name);
+    updateSortMenu();
+  }
 }
 
 tabs.dizi.onclick = () => switchView("dizi");
 tabs.film.onclick = () => switchView("film");
 tabs.anime.onclick = () => switchView("anime");
 tabs.unwatched.onclick = () => switchView("unwatched");
+tabs.watched.onclick = () => switchView("watched");
 tabs.search.onclick = () => switchView("search");
 document.getElementById("search-close").onclick = () => switchView("dizi");
 
+const SORT_VIEWS = ["dizi", "film", "anime", "unwatched", "watched"];
+
+function activeView() {
+  if (views.film.classList.contains("active")) return "film";
+  if (views.anime.classList.contains("active")) return "anime";
+  if (views.unwatched.classList.contains("active")) return "unwatched";
+  if (views.watched.classList.contains("active")) return "watched";
+  return "dizi";
+}
+
+function loadViewSort(view) {
+  let v = "added";
+  try {
+    v = localStorage.getItem("sortKey_" + view) || "added";
+  } catch (e) {}
+  return v;
+}
+
+function saveViewSort(view, key) {
+  try {
+    localStorage.setItem("sortKey_" + view, key);
+  } catch (e) {}
+}
+
 try {
-  state.sortKey = localStorage.getItem("sortKey") || "added";
+  state.sortKey = loadViewSort(activeView());
 } catch (e) {}
 
 function sortValue(item) {
   if (state.sortKey === "alpha") return (item.title || "").toLocaleLowerCase();
   if (state.sortKey === "score") return item.score != null ? item.score : item.vote_average || 0;
   if (state.sortKey === "date") {
+    if (item.isAnime) {
+      const at = item.items && item.items[0] ? item.items[0].air_at : null;
+      return at ? new Date(at * 1000).toISOString() : "";
+    }
     if (item.media_type) {
       if (item.media_type === "tv") return item.next_episode ? item.next_episode.air_date || "" : "";
       return item.release_date || "";
     }
-    return item.next_episode ? new Date(item.next_episode.airing_at * 1000).toISOString() : "";
+    const ad = item.items && item.items[0] ? item.items[0].air_date || "" : "";
+    return ad || item.release_date || "";
   }
-  if (state.sortKey === "type") return item.media_type || item.format || "";
+  if (state.sortKey === "type") return item.isAnime ? "anime" : item.media_type || item.format || "";
   return item.id;
 }
 
@@ -123,13 +160,14 @@ document.querySelectorAll(".sort-item").forEach((btn) => {
   btn.onclick = (e) => {
     e.stopPropagation();
     state.sortKey = btn.dataset.sort;
-    try {
-      localStorage.setItem("sortKey", state.sortKey);
-    } catch (e2) {}
+    const av = activeView();
+    saveViewSort(av, state.sortKey);
     sortMenu.classList.remove("open");
     if (views.dizi.classList.contains("active")) loadFollowed("dizi");
     if (views.film.classList.contains("active")) loadFollowed("film");
     if (views.anime.classList.contains("active")) loadAnime();
+    if (views.unwatched.classList.contains("active")) loadUnwatched();
+    if (views.watched.classList.contains("active")) loadWatched();
   };
 });
 document.addEventListener("click", (e) => {
@@ -205,6 +243,7 @@ async function loadFollowed(view) {
         </div>
       </div>
       <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+      ${showBadge ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
       <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
     `;
     div.querySelector(".remove").onclick = (e) => {
@@ -222,6 +261,27 @@ async function loadFollowed(view) {
       e.stopPropagation();
       openReleases(item.media_type, item.tmdb_id, item.title);
     };
+    const moveBtn = div.querySelector(".move-btn");
+    if (moveBtn) {
+      moveBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const r = await fetch("/api/followed/move-watched", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tmdb_id: item.tmdb_id,
+            media_type: item.media_type,
+            watched: 1,
+          }),
+        });
+        const j = await r.json();
+        if (r.ok) {
+          toast(t("moved_to_watched"));
+        } else {
+          toast(j.error || t("error"));
+        }
+      };
+    }
     div.onclick = () => {
       openDetails(item.media_type, item.tmdb_id, item.title);
     };
@@ -273,9 +333,11 @@ async function loadAnime() {
   items.forEach((item) => {
     const div = document.createElement("div");
     const animeToday = !!item.next_episode && utcDayStr(item.next_episode.airing_at) === utcTodayStr();
+    const animeCompleted = !!item.completed;
     div.className = animeToday ? "card today-release-card" : "card";
     div.innerHTML = `
       ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
+      ${animeCompleted ? `<span class="badge-watched">${CHECK_SVG}</span>` : ""}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -286,6 +348,7 @@ async function loadAnime() {
         </div>
       </div>
       <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+      ${animeCompleted ? `<button class="move-btn" data-tip="${t("move_to_watched")}"><i class="fa-solid fa-right-to-bracket"></i></button>` : ""}
       <button class="remove" data-tip="${t("unfollow_title")}">&times;</button>
     `;
     div.querySelector(".remove").onclick = (e) => {
@@ -303,6 +366,23 @@ async function loadAnime() {
       e.stopPropagation();
       openAnimeSchedule(item.id, item.title);
     };
+    const animeMoveBtn = div.querySelector(".move-btn");
+    if (animeMoveBtn) {
+      animeMoveBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const r = await fetch("/api/anime/move-watched", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ anime_id: item.id, watched: 1 }),
+        });
+        const j = await r.json();
+        if (r.ok) {
+          toast(t("moved_to_watched"));
+        } else {
+          toast(j.error || t("error"));
+        }
+      };
+    }
     div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
     grid.appendChild(div);
     applyTitleHint(div);
@@ -333,9 +413,9 @@ async function loadUnwatched() {
   moviesGrid.innerHTML = "";
   animeGrid.innerHTML = "";
 
-  const shows = (data.shows || []).map((s) => ({ ...s, isAnime: false }));
-  const movies = (data.movies || []).map((m) => ({ ...m, isAnime: false }));
-  const animes = (data.anime || []).map((a) => ({ ...a, isAnime: true }));
+  const shows = applySort((data.shows || []).map((s) => ({ ...s, isAnime: false })));
+  const movies = applySort((data.movies || []).map((m) => ({ ...m, isAnime: false })));
+  const animes = applySort((data.anime || []).map((a) => ({ ...a, isAnime: true })));
 
   const hasContent = { shows: shows.length, movies: movies.length, anime: animes.length };
 
@@ -347,7 +427,7 @@ async function loadUnwatched() {
   empty.style.display = shows.length || movies.length || animes.length ? "none" : "block";
 
   // Kayıtlı bölüm sırasını uygula ve boş bölümleri çıkar
-  const order = loadSectionOrder().filter((s) => hasContent[s]);
+  const order = loadSectionOrder("unwatched").filter((s) => hasContent[s]);
   // Dolu olup da sırada olmayanları sona ekle
   ["shows", "movies", "anime"].forEach((s) => {
     if (hasContent[s] && !order.includes(s)) order.push(s);
@@ -356,7 +436,7 @@ async function loadUnwatched() {
     const wrap = document.getElementById(`unwatched-${s}-wrap`);
     if (wrap) unwatchedView.insertBefore(wrap, empty);
   });
-  updateMoveButtons();
+  updateMoveButtons("view-unwatched");
 
   shows.forEach((item) => {
     const div = document.createElement("div");
@@ -383,13 +463,18 @@ async function loadUnwatched() {
         </div>
       </div>
       <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+      <button class="move-back-btn" data-tip="${t("move_back_to", { view: t("tab_film") })}"><i class="fa-solid fa-right-to-bracket"></i></button>
     `;
     div.querySelector(".calendar-btn").onclick = (e) => {
       e.stopPropagation();
-      openUnwatchedModal(item, false);
+      openReleases("movie", item.tmdb_id, item.title);
     };
-    div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
-    showsGrid.appendChild(div);
+    div.querySelector(".move-back-btn").onclick = async (e) => {
+      e.stopPropagation();
+      await moveBackFromWatched(item, "film");
+    };
+    div.onclick = () => openDetails("movie", item.tmdb_id, item.title);
+    moviesGrid.appendChild(div);
     applyTitleHint(div);
   });
 
@@ -459,25 +544,188 @@ async function loadUnwatched() {
   });
 }
 
-const SECTION_ORDER_KEY = "unwatchedSectionOrder";
 const DEFAULT_ORDER = ["shows", "movies", "anime"];
 
-function loadSectionOrder() {
+async function loadWatched() {
+  let data = { shows: [], anime: [], movies: [] };
   try {
-    const v = JSON.parse(localStorage.getItem(SECTION_ORDER_KEY) || "null");
+    const res = await fetch("/api/watched");
+    data = await res.json();
+  } catch (e) {
+    data = { shows: [], anime: [], movies: [] };
+  }
+  const watchedView = document.getElementById("view-watched");
+  const empty = document.getElementById("empty-watched");
+  const showsGrid = document.getElementById("watched-shows");
+  const moviesGrid = document.getElementById("watched-movies");
+  const animeGrid = document.getElementById("watched-anime");
+  showsGrid.innerHTML = "";
+  moviesGrid.innerHTML = "";
+  animeGrid.innerHTML = "";
+
+  const shows = applySort((data.shows || []).map((s) => ({ ...s, isAnime: false })));
+  const movies = applySort((data.movies || []).map((m) => ({ ...m, isAnime: false })));
+  const animes = applySort((data.anime || []).map((a) => ({ ...a, isAnime: true })));
+
+  const hasContent = { shows: shows.length, movies: movies.length, anime: animes.length };
+
+  document.getElementById("watched-shows-wrap").style.display = shows.length ? "" : "none";
+  document.getElementById("watched-movies-wrap").style.display = movies.length ? "" : "none";
+  const animeWrap = document.getElementById("watched-anime-wrap");
+  animeWrap.style.display = animes.length ? "" : "none";
+  animeWrap.classList.toggle("has-shows", shows.length > 0);
+  empty.style.display = shows.length || movies.length || animes.length ? "none" : "block";
+
+  const order = loadSectionOrder("watched").filter((s) => hasContent[s]);
+  ["shows", "movies", "anime"].forEach((s) => {
+    if (hasContent[s] && !order.includes(s)) order.push(s);
+  });
+  order.forEach((s) => {
+    const wrap = document.getElementById(`watched-${s}-wrap`);
+    if (wrap) watchedView.insertBefore(wrap, empty);
+  });
+  updateMoveButtons("view-watched");
+
+  shows.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card unwatched-card";
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title, true)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-tv">${typeLabel("tv")}</span>
+          ${scoreTag(item.vote_average)}
+          ${platformTag(item.networks)}
+          <div class="next-ep unwatched-count">${t("watched_count", { n: item.watched })}</div>
+        </div>
+      </div>
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+      <button class="move-back-btn" data-tip="${t("move_back_to", { view: t("tab_dizi") })}"><i class="fa-solid fa-right-to-bracket"></i></button>
+    `;
+    div.querySelector(".calendar-btn").onclick = (e) => {
+      e.stopPropagation();
+      openReleases("tv", item.tmdb_id, item.title);
+    };
+    div.querySelector(".move-back-btn").onclick = async (e) => {
+      e.stopPropagation();
+      await moveBackFromWatched(item, "dizi");
+    };
+    div.onclick = () => openDetails("tv", item.tmdb_id, item.title);
+    showsGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+
+  movies.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card unwatched-card";
+    let dateLine = item.release_date
+      ? dateState(item.release_date) === "date-past"
+        ? `<div class="next-ep muted">${formatDate(item.release_date).text}</div>`
+        : `<div class="next-ep">${formatDate(item.release_date).text}</div>`
+      : `<div>${t("date_unknown")}</div>`;
+    div.innerHTML = `
+      ${posterHTML(item.poster_path, item.title, true)}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-movie">${typeLabel("movie")}</span>
+          ${scoreTag(item.vote_average)}
+          ${platformTag(item.networks)}
+          ${dateLine}
+        </div>
+      </div>
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+    `;
+    div.querySelector(".calendar-btn").onclick = (e) => {
+      e.stopPropagation();
+      openReleases("movie", item.tmdb_id, item.title);
+    };
+    div.onclick = () => openDetails("movie", item.tmdb_id, item.title);
+    moviesGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+
+  animes.forEach((item) => {
+    const div = document.createElement("div");
+    div.className = "card unwatched-card";
+    div.innerHTML = `
+      ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
+      <div class="info">
+        <div class="title">${item.title}</div>
+        <div class="meta">
+          <span class="badge badge-anime">${t("tab_anime")}</span>
+          ${item.score ? scoreTag(item.score / 10) : ""}
+          ${platformTag(item.studios)}
+          <div class="next-ep unwatched-count">${t("watched_count", { n: item.watched })}</div>
+        </div>
+      </div>
+      <button class="calendar-btn" data-tip="${t("calendar_title")}">${CALENDAR_SVG}</button>
+      <button class="move-back-btn" data-tip="${t("move_back_to", { view: t("tab_anime") })}"><i class="fa-solid fa-right-to-bracket"></i></button>
+    `;
+    div.querySelector(".calendar-btn").onclick = (e) => {
+      e.stopPropagation();
+      openAnimeSchedule(item.id, item.title);
+    };
+    div.querySelector(".move-back-btn").onclick = async (e) => {
+      e.stopPropagation();
+      await moveBackFromWatched(item, "anime");
+    };
+    div.onclick = () => openAnimeDetails(item.id, item.anilist_id, item.title);
+    animeGrid.appendChild(div);
+    applyTitleHint(div);
+  });
+}
+
+async function moveBackFromWatched(item, targetView) {
+  const isAnime = !!item.isAnime;
+  let r;
+  if (isAnime) {
+    r = await fetch("/api/anime/move-watched", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ anime_id: item.id, watched: 0 }),
+    });
+  } else {
+    r = await fetch("/api/followed/move-watched", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tmdb_id: item.tmdb_id, media_type: item.media_type || (targetView === "film" ? "movie" : "tv"), watched: 0 }),
+    });
+  }
+  const j = await r.json();
+  if (!r.ok) {
+    toast(j.error || t("error"));
+    return;
+  }
+  toast(t("moved_back"));
+  await loadWatched();
+  const empty = document.getElementById("empty-watched");
+  const stillHasCards = !empty || empty.style.display === "none";
+  if (!stillHasCards) {
+    switchView(targetView);
+  }
+}
+
+function loadSectionOrder(prefix) {
+  const key = prefix + "SectionOrder";
+  try {
+    const v = JSON.parse(localStorage.getItem(key) || "null");
     if (Array.isArray(v) && v.length) return v;
   } catch (e) {}
   return [...DEFAULT_ORDER];
 }
 
-function saveSectionOrder(order) {
+function saveSectionOrder(prefix, order) {
+  const key = prefix + "SectionOrder";
   try {
-    localStorage.setItem(SECTION_ORDER_KEY, JSON.stringify(order));
+    localStorage.setItem(key, JSON.stringify(order));
   } catch (e) {}
 }
 
-function updateMoveButtons() {
-  const view = document.getElementById("view-unwatched");
+function updateMoveButtons(viewId) {
+  const view = document.getElementById(viewId);
+  if (!view) return;
   const visible = [];
   view.querySelectorAll("[id$='-wrap']").forEach((w) => {
     if (w.style.display !== "none") visible.push(w);
@@ -490,9 +738,10 @@ function updateMoveButtons() {
   });
 }
 
-function moveSection(section, dir) {
-  const view = document.getElementById("view-unwatched");
-  const wrap = document.getElementById(`unwatched-${section}-wrap`);
+function moveSection(section, dir, prefix, viewId, emptyId) {
+  const view = document.getElementById(viewId);
+  if (!view) return;
+  const wrap = document.getElementById(`${prefix}-${section}-wrap`);
   if (!wrap || wrap.style.display === "none") return;
   const visible = [];
   view.querySelectorAll("[id$='-wrap']").forEach((w) => {
@@ -502,7 +751,7 @@ function moveSection(section, dir) {
   if (idx < 0) return;
   const target = dir === "up" ? idx - 1 : idx + 1;
   if (target < 0 || target >= visible.length) return;
-  const empty = document.getElementById("empty-unwatched");
+  const empty = document.getElementById(emptyId);
   if (dir === "up") {
     view.insertBefore(wrap, visible[target]);
   } else {
@@ -512,25 +761,25 @@ function moveSection(section, dir) {
       view.insertBefore(wrap, empty);
     }
   }
-  const order = visible.map((w) => w.id.replace("unwatched-", "").replace("-wrap", ""));
+  const order = visible.map((w) => w.id.replace(`${prefix}-`, "").replace("-wrap", ""));
   const targetId = order[idx];
   const newId = order[target];
   order[idx] = newId;
   order[target] = targetId;
-  saveSectionOrder(order);
-  updateMoveButtons();
+  saveSectionOrder(prefix, order);
+  updateMoveButtons(viewId);
 }
 
 document.addEventListener("click", (e) => {
   const up = e.target.closest(".section-move-up");
   if (up && !up.disabled) {
-    moveSection(up.dataset.section, "up");
+    moveSection(up.dataset.section, "up", up.dataset.prefix, up.dataset.view, up.dataset.empty);
     return;
   }
   const down = e.target.closest(".section-move-down");
   if (down && !down.disabled) {
-    moveSection(down.dataset.section, "down");
+    moveSection(down.dataset.section, "down", down.dataset.prefix, down.dataset.view, down.dataset.empty);
   }
 });
 
-export { switchView, loadFollowed, loadAnime, loadUnwatched, animeNextText, animeStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab };
+export { switchView, loadFollowed, loadAnime, loadUnwatched, loadWatched, animeNextText, animeStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab };

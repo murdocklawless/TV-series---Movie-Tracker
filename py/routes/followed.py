@@ -182,6 +182,145 @@ def unwatched():
     return jsonify({"shows": shows, "anime": anime_list, "movies": movies})
 
 
+@followed_bp.route("/api/watched")
+def watched():
+    """Kullanıcının onayladığı (in_watched=1) tamamen izlenmiş yapımları döndürür.
+    Yeni bölüm yayınlananlar otomatik izlenmişten çıkarılır."""
+    conn = get_db()
+
+    shows = []
+    for r in conn.execute(
+        "SELECT * FROM followed WHERE media_type='tv' AND in_watched=1"
+    ).fetchall():
+        total = conn.execute(
+            "SELECT COUNT(*) c FROM episodes WHERE follow_id=?", (r["id"],)
+        ).fetchone()["c"]
+        watched_cnt = conn.execute(
+            "SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (r["id"],)
+        ).fetchone()["c"]
+        if total <= 0 or total != watched_cnt:
+            conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
+            conn.commit()
+            continue
+        rows = conn.execute(
+            "SELECT season, episode, air_date, name FROM episodes "
+            "WHERE follow_id=? AND watched=1 ORDER BY season ASC, episode ASC",
+            (r["id"],),
+        ).fetchall()
+        items = [
+            {
+                "season": x["season"],
+                "episode": x["episode"],
+                "episode_name": x["name"] or "",
+                "air_date": x["air_date"],
+            }
+            for x in rows
+        ]
+        shows.append(
+            {
+                "id": r["id"],
+                "tmdb_id": r["tmdb_id"],
+                "title": r["title"],
+                "poster_path": r["poster_path"],
+                "vote_average": r["vote_average"] or 0,
+                "networks": json.loads(r["networks"]) if r["networks"] else [],
+                "watched": total,
+                "items": items,
+            }
+        )
+
+    movies = []
+    for r in conn.execute(
+        "SELECT * FROM followed WHERE media_type='movie' AND in_watched=1 ORDER BY release_date IS NULL, release_date ASC"
+    ).fetchall():
+        if not (r["watched"] == 1):
+            conn.execute("UPDATE followed SET in_watched=0 WHERE id=?", (r["id"],))
+            conn.commit()
+            continue
+        movies.append(
+            {
+                "id": r["id"],
+                "tmdb_id": r["tmdb_id"],
+                "title": r["title"],
+                "poster_path": r["poster_path"],
+                "vote_average": r["vote_average"] or 0,
+                "networks": json.loads(r["networks"]) if r["networks"] else [],
+                "release_date": r["release_date"],
+                "watched": 1,
+            }
+        )
+
+    anime_list = []
+    for r in conn.execute("SELECT * FROM anime WHERE in_watched=1").fetchall():
+        total = conn.execute(
+            "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=?", (r["id"],)
+        ).fetchone()["c"]
+        watched_cnt = conn.execute(
+            "SELECT COUNT(*) c FROM anime_episodes WHERE anime_id=? AND watched=1", (r["id"],)
+        ).fetchone()["c"]
+        if total <= 0 or total != watched_cnt:
+            conn.execute("UPDATE anime SET in_watched=0 WHERE id=?", (r["id"],))
+            conn.commit()
+            continue
+        rows = conn.execute(
+            "SELECT episode, air_at FROM anime_episodes "
+            "WHERE anime_id=? AND watched=1 ORDER BY episode ASC",
+            (r["id"],),
+        ).fetchall()
+        anime_list.append(
+            {
+                "id": r["id"],
+                "anilist_id": r["anilist_id"],
+                "title": r["title"],
+                "cover_url": r["cover_url"],
+                "score": r["score"],
+                "studios": r["studios"],
+                "watched": total,
+                "items": [{"episode": x["episode"], "air_at": x["air_at"]} for x in rows],
+            }
+        )
+
+    conn.close()
+    return jsonify({"shows": shows, "movies": movies, "anime": anime_list})
+
+
+@followed_bp.route("/api/followed/move-watched", methods=["POST"])
+def followed_move_watched():
+    body = request.get_json()
+    tmdb_id = body.get("tmdb_id")
+    media_type = body.get("media_type")
+    watched = 1 if body.get("watched") else 0
+    if not tmdb_id or media_type not in ("movie", "tv"):
+        return jsonify({"error": "Eksik bilgi"}), 400
+    conn = get_db()
+    follow = conn.execute(
+        "SELECT * FROM followed WHERE tmdb_id=? AND media_type=?",
+        (tmdb_id, media_type),
+    ).fetchone()
+    if not follow:
+        conn.close()
+        return jsonify({"error": "Takip bulunamadı"}), 400
+    if watched:
+        if media_type == "movie":
+            if not (follow["watched"] == 1):
+                conn.close()
+                return jsonify({"error": "Film henüz izlenmedi"}), 400
+        else:
+            total = conn.execute(
+                "SELECT COUNT(*) c FROM episodes WHERE follow_id=?", (follow["id"],)
+            ).fetchone()["c"]
+            watched_cnt = conn.execute(
+                "SELECT COUNT(*) c FROM episodes WHERE follow_id=? AND watched=1", (follow["id"],)
+            ).fetchone()["c"]
+            if total <= 0 or total != watched_cnt:
+                conn.close()
+                return jsonify({"error": "Dizi henüz tamamlanmadı"}), 400
+    conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True, "watched": watched})
+
+
 @followed_bp.route("/api/releases")
 def releases():
     media_type = request.args.get("media_type")

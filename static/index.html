@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Takip Listesi</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=321" />
+  <link rel="stylesheet" href="/static/css/style.css?v=322" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -22,6 +22,7 @@
         <button id="tab-film" class="tab" data-i18n="tab_film"><i class="fa-solid fa-clapperboard media-tab-icon"></i><span data-i18n="tab_film">Film</span></button>
         <button id="tab-anime" class="tab" data-i18n="tab_anime"><i class="fa-solid fa-torii-gate media-tab-icon"></i><span data-i18n="tab_anime">Anime</span></button>
         <button id="tab-unwatched" class="tab" data-i18n="tab_unwatched"><i class="fa-solid fa-eye-slash media-tab-icon"></i><span data-i18n="tab_unwatched">İzlenmemiş</span></button>
+        <button id="tab-watched" class="tab" data-i18n="tab_watched"><i class="fa-solid fa-eye media-tab-icon"></i><span data-i18n="tab_watched">İzlenmiş</span></button>
       </div>
       <div class="tabs-group">
         <button id="tab-search" class="tab"><i class="fa-solid fa-magnifying-glass"></i> <span data-i18n="tab_search">Ara &amp; Ekle</span></button>
@@ -86,19 +87,38 @@
     <!-- Unwatched view -->
     <section id="view-unwatched" class="view">
       <div id="unwatched-shows-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="shows" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_shows">İzlenmemiş Diziler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="shows" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_shows">İzlenmemiş Diziler</span></h2>
         <div id="unwatched-shows" class="poster-grid"></div>
       </div>
       <div id="unwatched-movies-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="movies" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_movies">İzlenmemiş Filmler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="movies" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_movies">İzlenmemiş Filmler</span></h2>
         <div id="unwatched-movies" class="poster-grid"></div>
       </div>
       <div id="unwatched-anime-wrap">
-        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="anime" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_anime">İzlenmemiş Animeler</span></h2>
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="anime" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="unwatched" data-view="view-unwatched" data-empty="empty-unwatched" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="unwatched_anime">İzlenmemiş Animeler</span></h2>
         <div id="unwatched-anime" class="poster-grid"></div>
       </div>
       <div id="empty-unwatched" class="empty">
         <p data-i18n="empty_unwatched">İzlenmemiş bölüm yok.</p>
+      </div>
+    </section>
+
+    <!-- Watched view -->
+    <section id="view-watched" class="view">
+      <div id="watched-shows-wrap">
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="shows" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="shows" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="watched_shows">İzlenmiş Diziler</span></h2>
+        <div id="watched-shows" class="poster-grid"></div>
+      </div>
+      <div id="watched-movies-wrap">
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="movies" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="movies" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="watched_movies">İzlenmiş Filmler</span></h2>
+        <div id="watched-movies" class="poster-grid"></div>
+      </div>
+      <div id="watched-anime-wrap">
+        <h2 class="unwatched-section-title"><button class="section-move-up" data-section="anime" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü yukarı taşı"><i class="fa-solid fa-arrow-up"></i></button><button class="section-move-down" data-section="anime" data-prefix="watched" data-view="view-watched" data-empty="empty-watched" data-tip="Bölümü aşağı taşı"><i class="fa-solid fa-arrow-down"></i></button><span data-i18n="watched_anime">İzlenmiş Animeler</span></h2>
+        <div id="watched-anime" class="poster-grid"></div>
+      </div>
+      <div id="empty-watched" class="empty">
+        <p data-i18n="empty_watched">İzlenmiş yapım yok.</p>
       </div>
     </section>
 
