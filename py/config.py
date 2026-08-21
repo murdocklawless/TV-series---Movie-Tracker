@@ -45,3 +45,14 @@ def _poster_cache_headers(resp):
     except Exception:
         pass
     return resp
+
+
+@app.after_request
+def _x_cache_bypass(resp):
+    # Cache'lenmemis API yanitlarina BYPASS etiketi (HIT/MISS zaten yazilmissa dokunma)
+    try:
+        if request.path.startswith("/api/") and "X-Cache" not in resp.headers:
+            resp.headers["X-Cache"] = "BYPASS"
+    except Exception:
+        pass
+    return resp

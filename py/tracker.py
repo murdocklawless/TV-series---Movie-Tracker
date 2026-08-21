@@ -1,7 +1,8 @@
 import os
 
 from config import app
-from db import init_db
+from db import init_db, get_setting
+from ramcache import list_cache
 from scheduler import backfill_votes, start_scheduler
 
 from routes.search import search_bp
@@ -17,6 +18,10 @@ app.register_blueprint(settings_bp)
 app.register_blueprint(notification_bp)
 
 init_db()
+try:
+    list_cache.configure(int(get_setting("cache_ttl") or 3600))
+except (TypeError, ValueError):
+    pass
 backfill_votes()
 start_scheduler()
 

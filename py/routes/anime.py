@@ -1,9 +1,10 @@
 import datetime
+import os
 
 from flask import Blueprint, jsonify, request
 
 from db import get_db
-from poster_store import download_anime_poster_with_sizes, delete_poster, delete_poster_by_web, poster_local_path
+from poster_store import download_anime_poster_with_sizes, delete_poster, delete_poster_by_web, poster_local_path, filesystem_path_from_web, ensure_thumbnail
 from anilist import (
     anilist_search,
     anilist_detail,
@@ -15,8 +16,41 @@ from anilist import (
     load_anime_details,
     _anime_start_year,
 )
+from ramcache import list_cache, bump, gen, cached_response
 
 anime_bp = Blueprint("anime", __name__)
+
+
+def _with_poster_local(d, arow):
+    """Anime detayina lokal w500 poster yolunu (dosya gercekten varsa) ekler."""
+    pl = arow["poster_local"] if arow and "poster_local" in arow.keys() else None
+    if pl:
+        fs = filesystem_path_from_web(pl)
+        if fs and os.path.exists(fs):
+            d = dict(d)
+            d["poster_local"] = pl
+    return d
+
+
+def _sync_anime_poster(conn, anilist_id, fresh_cover, arow):
+    """AniList afişi değiştiyse ya da lokal dosya kayıpsa yeniden indirip DB'yi günceller."""
+    if not fresh_cover or not arow:
+        return False
+    old = arow["cover_url"] if "cover_url" in arow.keys() else None
+    local = arow["poster_local"] if "poster_local" in arow.keys() else None
+    fs = filesystem_path_from_web(local) if local else None
+    if fresh_cover == old and fs and os.path.exists(fs):
+        return False
+    w500, w185 = download_anime_poster_with_sizes(anilist_id, fresh_cover)
+    if not w500 and not w185:
+        return False
+    delete_poster_by_web(poster_local_path("anime", anilist_id, "thumbnail"))
+    ensure_thumbnail("anime", anilist_id, None)
+    conn.execute(
+        "UPDATE anime SET cover_url=?, poster_local=?, poster_local_w185=? WHERE id=?",
+        (fresh_cover, w500 or local, w185, arow["id"]),
+    )
+    return True
 
 
 @anime_bp.route("/api/anime/search")
@@ -57,22 +91,24 @@ def anime_details():
     if not anilist_id:
         return jsonify({"error": "anilist_id gereklidir"}), 400
     conn = get_db()
-    arow = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
+    arow = conn.execute("SELECT id, poster_local, cover_url FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
     if arow and not refresh:
         d = load_anime_details(conn, arow["id"])
         if d and d.get("description"):
             conn.close()
-            return jsonify(d)
+            return jsonify(_with_poster_local(d, arow))
     detail = anilist_detail(anilist_id)
     if not detail:
         conn.close()
         return jsonify({"error": "AniList'ten veri alınamadı"}), 404
     if arow:
+        _sync_anime_poster(conn, anilist_id, _anime_cover(detail), arow)
         save_anime_details(conn, arow["id"], detail)
         conn.commit()
         d = load_anime_details(conn, arow["id"])
+        arow = conn.execute("SELECT id, poster_local FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
         conn.close()
-        return jsonify(d)
+        return jsonify(_with_poster_local(d, arow))
     conn.close()
     return jsonify(
         {
@@ -103,6 +139,10 @@ def anime_details():
 
 @anime_bp.route("/api/anime/followed")
 def anime_followed():
+    key = ("anime_followed", gen(), datetime.datetime.now().strftime("%Y%m%d%H"))
+    hit = list_cache.get(key)
+    if hit is not None:
+        return cached_response(hit, True)
     conn = get_db()
     rows = conn.execute("SELECT * FROM anime ORDER BY id DESC").fetchall()
     result = []
@@ -135,7 +175,8 @@ def anime_followed():
             }
         )
     conn.close()
-    return jsonify(result)
+    list_cache.set(key, result)
+    return cached_response(result, False)
 
 
 def _anime_followed_completed(conn, anime_id):
@@ -216,6 +257,7 @@ def anime_follow():
             )
         conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True})
 
 
@@ -237,6 +279,7 @@ def anime_unfollow(anime_id):
     for p in (row["poster_local"] if row and "poster_local" in row.keys() else None, row["poster_local_w185"] if row and "poster_local_w185" in row.keys() else None):
         if p:
             delete_poster_by_web(p)
+    bump()
     return jsonify({"ok": True})
 
 
@@ -290,6 +333,7 @@ def anime_episode_watch():
     )
     conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True, "watched": watched})
 
 
@@ -311,4 +355,5 @@ def anime_move_watched():
     conn.execute("UPDATE anime SET in_watched=? WHERE id=?", (watched, anime_id))
     conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True, "watched": watched})

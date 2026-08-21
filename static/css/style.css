@@ -3376,3 +3376,10 @@ input:-webkit-autofill:focus {
   }
 }
 
+
+.cache-info {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #2e7d32;
+  text-align: justify;
+}

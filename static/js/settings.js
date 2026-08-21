@@ -207,6 +207,7 @@ async function loadSettings() {
   document.getElementById("s-lang").value = s.language || "tr-TR";
   document.getElementById("s-telegram-enabled").checked = (s.telegram_enabled || "1") !== "0";
   document.getElementById("s-ntfy-enabled").checked = (s.ntfy_enabled || "1") !== "0";
+  document.getElementById("s-cache-ttl").value = s.cache_ttl || "90";
   applyLang((s.language || "tr-TR").split("-")[0]);
   updateNotifyToggleStates();
 }
@@ -465,6 +466,12 @@ document.getElementById("s-telegram-enabled").addEventListener("change", (e) => 
 });
 document.getElementById("s-ntfy-enabled").addEventListener("change", (e) => {
   saveSettingsPartial({ ntfy_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+});
+
+document.getElementById("s-cache-ttl").addEventListener("change", () => {
+  const el = document.getElementById("s-cache-ttl");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ cache_ttl: el.value }, hint);
 });
 
 document.getElementById("test-settings").onclick = async () => {

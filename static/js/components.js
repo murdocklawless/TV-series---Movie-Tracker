@@ -266,7 +266,7 @@ function renderTmdbDetails(data, title, highlightGenre) {
   let html = '<div class="details-wrap">';
   html += '<div class="details-poster-col">';
   if (data.poster_path) {
-    html += `<img class="details-poster" src="${IMAGE_BASE}${data.poster_path}" alt="${data.title}" />`;
+    html += `<img class="details-poster" src="${data.poster_local || IMAGE_BASE + data.poster_path}" alt="${data.title}" />`;
   }
   const badges = [];
   if (data.media_type === "tv") {
@@ -332,7 +332,7 @@ function bindTmdbDetailsEvents() {
 function renderAnimeDetails(data) {
   let html = '<div class="details-wrap">';
   html += '<div class="details-poster-col">';
-  if (data.cover_url) html += `<img class="details-poster" src="${data.cover_url}" alt="${data.title}" />`;
+  if (data.cover_url || data.poster_local) html += `<img class="details-poster" src="${data.poster_local || data.cover_url}" alt="${data.title}" />`;
   const badges = [];
   badges.push(t("tab_anime"));
   if (data.format) badges.push(data.format);

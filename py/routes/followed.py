@@ -1,5 +1,6 @@
 import json
 import datetime
+import os
 
 from flask import Blueprint, jsonify, request
 
@@ -7,7 +8,8 @@ from db import get_db, today_str
 from tmdb import get_tmdb_info, get_tmdb_cast, save_details, load_details, tmdb_request
 from tvmaze import _tvmaze_episode_times
 from scheduler import sync_episodes
-from poster_store import download_tmdb_poster_with_sizes, delete_poster_by_web, poster_local_path, delete_poster
+from poster_store import download_tmdb_poster_with_sizes, delete_poster_by_web, poster_local_path, delete_poster, filesystem_path_from_web, ensure_thumbnail
+from ramcache import list_cache, bump, gen, cached_response
 
 followed_bp = Blueprint("followed", __name__)
 
@@ -82,11 +84,16 @@ def follow():
         sync_episodes(conn, new_follow)
 
     conn.close()
+    bump()
     return jsonify({"ok": True})
 
 
 @followed_bp.route("/api/followed")
 def followed():
+    key = ("followed", gen(), today_str())
+    hit = list_cache.get(key)
+    if hit is not None:
+        return cached_response(hit, True)
     conn = get_db()
     rows = conn.execute("SELECT * FROM followed ORDER BY id DESC").fetchall()
     today = today_str()
@@ -121,12 +128,17 @@ def followed():
                 item["completed"] = False
         items.append(item)
     conn.close()
-    return jsonify(items)
+    list_cache.set(key, items)
+    return cached_response(items, False)
 
 
 @followed_bp.route("/api/unwatched")
 def unwatched():
     """Yayına girmiş ve izlenmemiş bölümleri olan dizi ve animeleri döndürür."""
+    key = ("unwatched", gen(), today_str())
+    hit = list_cache.get(key)
+    if hit is not None:
+        return cached_response(hit, True)
     conn = get_db()
     today = today_str()
     now = int(datetime.datetime.now().timestamp())
@@ -210,7 +222,9 @@ def unwatched():
         )
 
     conn.close()
-    return jsonify({"shows": shows, "anime": anime_list, "movies": movies})
+    payload = {"shows": shows, "anime": anime_list, "movies": movies}
+    list_cache.set(key, payload)
+    return cached_response(payload, False)
 
 
 @followed_bp.route("/api/unfollow/<int:follow_id>", methods=["DELETE"])
@@ -239,6 +253,7 @@ def unfollow(follow_id):
     for p in (row["poster_local"] if "poster_local" in row.keys() else None, row["poster_local_w185"] if "poster_local_w185" in row.keys() else None):
         if p:
             delete_poster_by_web(p)
+    bump()
     return jsonify({"ok": True})
 
 
@@ -246,6 +261,10 @@ def unfollow(follow_id):
 def watched():
     """Kullanıcının onayladığı (in_watched=1) tamamen izlenmiş yapımları döndürür.
     Yeni bölüm yayınlananlar otomatik izlenmişten çıkarılır."""
+    key = ("watched", gen(), today_str())
+    hit = list_cache.get(key)
+    if hit is not None:
+        return cached_response(hit, True)
     conn = get_db()
 
     shows = []
@@ -347,7 +366,9 @@ def watched():
         )
 
     conn.close()
-    return jsonify({"shows": shows, "movies": movies, "anime": anime_list})
+    payload = {"shows": shows, "movies": movies, "anime": anime_list}
+    list_cache.set(key, payload)
+    return cached_response(payload, False)
 
 
 @followed_bp.route("/api/followed/move-watched", methods=["POST"])
@@ -384,6 +405,7 @@ def followed_move_watched():
     conn.execute("UPDATE followed SET in_watched=? WHERE id=?", (watched, follow["id"]))
     conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True, "watched": watched})
 
 
@@ -486,6 +508,7 @@ def episode_watch():
     )
     conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True, "watched": watched})
 
 
@@ -569,6 +592,7 @@ def season_watch():
         count += 1
     conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True, "count": count})
 
 
@@ -590,6 +614,7 @@ def movie_watch():
     conn.execute("UPDATE followed SET watched=? WHERE id=?", (watched, follow["id"]))
     conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True, "watched": watched})
 
 
@@ -612,6 +637,44 @@ def _load_localized(row_localized):
         return v if isinstance(v, dict) else {}
     except (ValueError, TypeError):
         return {}
+
+
+def _poster_local_for(media_type, tmdb_id):
+    """Takip edilen içerik için lokal w500 poster web yolunu (dosya gercekten varsa) dondurur."""
+    kind = "tv" if media_type == "tv" else "movie"
+    cand = poster_local_path(kind, tmdb_id, "w500")
+    fs = filesystem_path_from_web(cand) if cand else None
+    if cand and fs and os.path.exists(fs):
+        return cand
+    return None
+
+
+def _attach_poster_local(resp, pl):
+    if pl:
+        resp["poster_local"] = pl
+    return resp
+
+
+def _sync_tmdb_poster(conn, media_type, tmdb_id, fresh_path, row):
+    """TMDB afişi değiştiyse ya da lokal dosya kayıpsa yeniden indirip DB'yi günceller."""
+    if not fresh_path or not row:
+        return None
+    kind = "tv" if media_type == "tv" else "movie"
+    old_path = row["poster_path"] if "poster_path" in row.keys() else None
+    local = row["poster_local"] if "poster_local" in row.keys() else None
+    fs = filesystem_path_from_web(local) if local else None
+    if fresh_path == old_path and fs and os.path.exists(fs):
+        return None
+    w500, w185 = download_tmdb_poster_with_sizes(media_type, tmdb_id, fresh_path)
+    if not w500 and not w185:
+        return None
+    delete_poster_by_web(poster_local_path(kind, tmdb_id, "thumbnail"))
+    ensure_thumbnail(kind, tmdb_id, None)
+    conn.execute(
+        "UPDATE followed SET poster_path=?, poster_local=?, poster_local_w185=? WHERE id=?",
+        (fresh_path, w500 or local, w185, row["id"]),
+    )
+    return w500
 
 
 def _build_response(media_type, d):
@@ -665,6 +728,7 @@ def details():
         (tmdb_id, media_type),
     ).fetchone()
     localized = _load_localized(follow["localized"] if follow else None)
+    pl = _poster_local_for(media_type, tmdb_id)
 
     # -- lang VERİLMEDİYSE: legacy davranış (base cached overview, yoksa fetch). --
     if not lang:
@@ -672,7 +736,7 @@ def details():
             d = load_details(conn, follow["id"])
             if d and d.get("overview"):
                 conn.close()
-                return jsonify(_build_response(media_type, d))
+                return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
         data = tmdb_request(f"/{media_type}/{tmdb_id}")
         if not data:
             conn.close()
@@ -681,13 +745,14 @@ def details():
         cst = get_tmdb_cast(media_type, tmdb_id)
         if follow:
             save_details(conn, follow["id"], info, cst)
+            _sync_tmdb_poster(conn, media_type, int(tmdb_id), data.get("poster_path"), follow)
             conn.commit()
         conn.close()
         d = dict(info or {})
         d["title"] = data.get("title") or data.get("name") or data.get("original_name") or ""
         d["poster_path"] = data.get("poster_path")
         d["cast"] = cst
-        return jsonify(_build_response(media_type, d))
+        return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
 
     # -- lang VERİLDİYSE: dil başına önbellek. --
     locale = _lang_to_locale(lang)
@@ -702,7 +767,7 @@ def details():
         d["genres"] = loc.get("genres") or d.get("genres") or []
         d["tagline"] = loc.get("tagline") or d.get("tagline")
         conn.close()
-        return jsonify(_build_response(media_type, d))
+        return jsonify(_attach_poster_local(_build_response(media_type, d), pl))
 
     # Cache miss: seçilen dilde her zaman canlı fetch, sonra önbelleğe yaz.
     data = tmdb_request(f"/{media_type}/{tmdb_id}", lang=locale)
@@ -712,6 +777,7 @@ def details():
     info = get_tmdb_info(media_type, tmdb_id, lang=locale)
     cst = get_tmdb_cast(media_type, tmdb_id)
     if follow:
+        _sync_tmdb_poster(conn, media_type, int(tmdb_id), data.get("poster_path"), follow)
         localized[lang] = {
             "title": data.get("title") or data.get("name"),
             "overview": info.get("overview") or "",
@@ -722,6 +788,7 @@ def details():
             "UPDATE followed SET localized=? WHERE id=?",
             (json.dumps(localized, ensure_ascii=False), follow["id"]),
         )
+        save_details(conn, follow["id"], info, cst, include_texts=False)
         conn.commit()
     conn.close()
 
@@ -729,4 +796,4 @@ def details():
     d["title"] = data.get("title") or data.get("name") or data.get("original_name") or ""
     d["poster_path"] = data.get("poster_path")
     d["cast"] = cst
-    return jsonify(_build_response(media_type, d))
+    return jsonify(_attach_poster_local(_build_response(media_type, d), pl))

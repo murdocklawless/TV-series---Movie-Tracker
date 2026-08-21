@@ -146,6 +146,7 @@ def get_settings():
             "ntfy_topic": get_setting("ntfy_topic") or "",
             "telegram_enabled": get_setting("telegram_enabled") or "1",
             "ntfy_enabled": get_setting("ntfy_enabled") or "1",
+            "cache_ttl": get_setting("cache_ttl") or "3600",
         }
     )
 
@@ -167,9 +168,16 @@ def save_settings():
         "ntfy_topic",
         "telegram_enabled",
         "ntfy_enabled",
+        "cache_ttl",
     ):
         if key in body:
             set_setting(key, str(body[key] or ""))
+    if "cache_ttl" in body:
+        try:
+            from ramcache import list_cache
+            list_cache.configure(int(body["cache_ttl"] or 0))
+        except (TypeError, ValueError):
+            pass
     if any(k in body for k in ("notify_hour", "sync_hour", "genre_hour", "data_hour", "notification_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})

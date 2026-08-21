@@ -3,6 +3,7 @@ import json
 from flask import Blueprint, jsonify, request
 
 from db import get_db
+from ramcache import list_cache, bump, gen, cached_response
 
 notification_bp = Blueprint("notification", __name__)
 
@@ -87,6 +88,7 @@ def create_notification(title, message, type_name, media_type=None, tmdb_id=None
     conn.commit()
     nid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     conn.close()
+    bump()
     return nid
 
 
@@ -103,6 +105,10 @@ def list_notifications():
         offset = 0
     limit = max(1, min(100, limit))
     offset = max(0, offset)
+    key = ("notif_list", gen(), unread or "", limit, offset)
+    hit = list_cache.get(key)
+    if hit is not None:
+        return cached_response(hit, True)
     conn = get_db()
     if unread in ("1", "true", "yes"):
         rows = conn.execute("SELECT * FROM notifications WHERE is_read=0 ORDER BY created_at DESC LIMIT ? OFFSET ?", (limit, offset)).fetchall()
@@ -113,19 +119,26 @@ def list_notifications():
     for r in rows:
         d = dict(r)
         out.append(d)
-    return jsonify(out)
+    list_cache.set(key, out)
+    return cached_response(out, False)
 
 
 @notification_bp.route("/api/notifications/count", methods=["GET"])
 def count_notifications():
     unread = request.args.get("unread")
+    key = ("notif_count", gen(), unread or "")
+    hit = list_cache.get(key)
+    if hit is not None:
+        return cached_response(hit, True)
     conn = get_db()
     if unread in ("1", "true", "yes"):
         c = conn.execute("SELECT COUNT(*) c FROM notifications WHERE is_read=0").fetchone()["c"]
     else:
         c = conn.execute("SELECT COUNT(*) c FROM notifications").fetchone()["c"]
     conn.close()
-    return jsonify({"count": c})
+    payload = {"count": c}
+    list_cache.set(key, payload)
+    return cached_response(payload, False)
 
 
 @notification_bp.route("/api/notifications/<int:nid>/read", methods=["POST"])
@@ -140,6 +153,7 @@ def mark_read(nid):
     conn.execute("UPDATE notifications SET is_read=? WHERE id=?", (is_read, nid))
     conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True})
 
 
@@ -149,6 +163,7 @@ def mark_all_read():
     conn.execute("UPDATE notifications SET is_read=1 WHERE is_read=0")
     conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True})
 
 
@@ -159,6 +174,7 @@ def delete_one(nid):
     conn.execute("DELETE FROM notifications WHERE id=?", (nid,))
     conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True})
 
 
@@ -169,4 +185,5 @@ def delete_all():
     conn.execute("DELETE FROM notifications")
     conn.commit()
     conn.close()
+    bump()
     return jsonify({"ok": True})

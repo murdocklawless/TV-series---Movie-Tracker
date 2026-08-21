@@ -238,11 +238,15 @@ def _anime_start_year(d):
 
 
 def save_anime_details(conn, anime_id, detail):
-    """AniList detayından statik verileri ve karakterleri DB'ye yazar."""
+    """AniList detayından statik + dinamik verileri ve karakterleri DB'ye yazar (title/cover_url hariç)."""
     if not detail:
         return
+    studios = ", ".join(
+        s.get("name") for s in ((detail.get("studios") or {}).get("nodes") or []) if s.get("name")
+    )
     conn.execute(
-        "UPDATE anime SET banner=?, description=?, format=?, duration=?, genres=?, start_date=? WHERE id=?",
+        "UPDATE anime SET banner=?, description=?, format=?, duration=?, genres=?, start_date=?, "
+        "score=?, status=?, episodes=?, studios=? WHERE id=?",
         (
             detail.get("bannerImage"),
             detail.get("description"),
@@ -250,6 +254,10 @@ def save_anime_details(conn, anime_id, detail):
             detail.get("duration"),
             json.dumps(detail.get("genres") or []),
             _anime_start_year(detail),
+            detail.get("averageScore"),
+            detail.get("status"),
+            detail.get("episodes"),
+            studios,
             anime_id,
         ),
     )

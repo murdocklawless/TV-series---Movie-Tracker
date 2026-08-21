@@ -17,6 +17,7 @@ from tmdb import (
 )
 from anilist import anilist_detail, anilist_schedule, save_anime_details, _fetch_anilist_genres
 from notifications import notify_all
+from ramcache import bump
 
 
 def sync_episodes(conn, follow):
@@ -93,6 +94,7 @@ def sync_releases():
             sync_episodes(conn, follow)
     conn.commit()
     conn.close()
+    bump()
 
 
 def check_releases():
@@ -124,6 +126,7 @@ def check_releases():
             conn.commit()
 
     conn.close()
+    bump()
 
 
 def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_path=None, cover_url=None, kind=None, ident=None, notified_date=None, remote_url=None):
@@ -312,6 +315,7 @@ def check_notifications():
         except Exception:
             pass
     conn.close()
+    bump()
 
 
 def backfill_votes():
@@ -358,6 +362,7 @@ def backfill_votes():
     _reset_stale_watched(conn)
     conn.commit()
     conn.close()
+    bump()
 
 
 def _reset_stale_watched(conn):
@@ -405,6 +410,7 @@ def sync_genres():
             )
     conn.commit()
     conn.close()
+    bump()
     print("sync_genres tamam", len(_tmdb_genre_names()), len(_anilist_genre_names()))
 
 

@@ -174,28 +174,45 @@ def get_tmdb_cast(media_type, tmdb_id):
     return out
 
 
-def save_details(conn, follow_id, info, cast):
-    """Detay verilerini ve oyuncu kadrosunu DB'ye yazar."""
+def save_details(conn, follow_id, info, cast, include_texts=True):
+    """Detay verilerini ve oyuncu kadrosunu DB'ye yazar.
+    include_texts=False ise overview/genres/tagline korunur (dil-bagimsiz refresh icin)."""
     if not info:
         return
-    conn.execute(
-        "UPDATE followed SET overview=?, genres=?, tagline=?, runtime=?, "
-        "number_of_seasons=?, number_of_episodes=?, status=?, season_list=?, "
-        "vote_count=?, first_air_date=? WHERE id=?",
-        (
-            info.get("overview") or "",
-            json.dumps(info.get("genres") or []),
-            info.get("tagline") or "",
-            info.get("runtime"),
-            info.get("number_of_seasons"),
-            info.get("number_of_episodes"),
-            info.get("status") or "",
-            json.dumps(info.get("season_list") or []),
-            info.get("vote_count"),
-            info.get("release_date"),
-            follow_id,
-        ),
-    )
+    if include_texts:
+        conn.execute(
+            "UPDATE followed SET overview=?, genres=?, tagline=?, runtime=?, "
+            "number_of_seasons=?, number_of_episodes=?, status=?, season_list=?, "
+            "vote_count=?, first_air_date=? WHERE id=?",
+            (
+                info.get("overview") or "",
+                json.dumps(info.get("genres") or []),
+                info.get("tagline") or "",
+                info.get("runtime"),
+                info.get("number_of_seasons"),
+                info.get("number_of_episodes"),
+                info.get("status") or "",
+                json.dumps(info.get("season_list") or []),
+                info.get("vote_count"),
+                info.get("release_date"),
+                follow_id,
+            ),
+        )
+    else:
+        conn.execute(
+            "UPDATE followed SET runtime=?, number_of_seasons=?, number_of_episodes=?, "
+            "status=?, season_list=?, vote_count=?, first_air_date=? WHERE id=?",
+            (
+                info.get("runtime"),
+                info.get("number_of_seasons"),
+                info.get("number_of_episodes"),
+                info.get("status") or "",
+                json.dumps(info.get("season_list") or []),
+                info.get("vote_count"),
+                info.get("release_date"),
+                follow_id,
+            ),
+        )
     conn.execute("DELETE FROM cast WHERE follow_id=?", (follow_id,))
     for i, c in enumerate(cast):
         conn.execute(
