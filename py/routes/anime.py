@@ -3,6 +3,7 @@ import datetime
 from flask import Blueprint, jsonify, request
 
 from db import get_db
+from poster_store import download_anime_poster_with_sizes, delete_poster, delete_poster_by_web, poster_local_path
 from anilist import (
     anilist_search,
     anilist_detail,
@@ -52,11 +53,12 @@ def anime_search():
 @anime_bp.route("/api/anime/details")
 def anime_details():
     anilist_id = request.args.get("anilist_id")
+    refresh = (request.args.get("refresh") or "").strip().lower() in ("1", "true", "yes")
     if not anilist_id:
         return jsonify({"error": "anilist_id gereklidir"}), 400
     conn = get_db()
     arow = conn.execute("SELECT id FROM anime WHERE anilist_id=?", (anilist_id,)).fetchone()
-    if arow:
+    if arow and not refresh:
         d = load_anime_details(conn, arow["id"])
         if d and d.get("description"):
             conn.close()
@@ -121,6 +123,8 @@ def anime_followed():
                 "anilist_id": r["anilist_id"],
                 "title": r["title"],
                 "cover_url": r["cover_url"],
+                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
+                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
                 "episodes": r["episodes"],
                 "status": r["status"],
                 "score": score,
@@ -191,6 +195,16 @@ def anime_follow():
     save_anime_details(conn, anime_db_id, detail)
     conn.commit()
 
+    # Poster lokal indirme w500+w185 (bir kez) - ayri kolonlar
+    try:
+        if cover:
+            w500, w185 = download_anime_poster_with_sizes(anilist_id, cover)
+            if w500 or w185:
+                conn.execute("UPDATE anime SET poster_local=?, poster_local_w185=? WHERE id=?", (w500, w185, anime_db_id))
+                conn.commit()
+    except Exception:
+        pass
+
     schedule = anilist_schedule(anilist_id)
     if schedule and schedule.get("airingSchedule"):
         for node in schedule["airingSchedule"].get("nodes") or []:
@@ -208,11 +222,21 @@ def anime_follow():
 @anime_bp.route("/api/anime/unfollow/<int:anime_id>", methods=["DELETE"])
 def anime_unfollow(anime_id):
     conn = get_db()
+    row = conn.execute("SELECT poster_local, poster_local_w185, anilist_id FROM anime WHERE id=?", (anime_id,)).fetchone()
+    anilist_id = row["anilist_id"] if row else None
     conn.execute("DELETE FROM anime_cast WHERE anime_id=?", (anime_id,))
     conn.execute("DELETE FROM anime_episodes WHERE anime_id=?", (anime_id,))
     conn.execute("DELETE FROM anime WHERE id=?", (anime_id,))
     conn.commit()
     conn.close()
+    if anilist_id:
+        try:
+            delete_poster("anime", anilist_id)
+        except Exception:
+            pass
+    for p in (row["poster_local"] if row and "poster_local" in row.keys() else None, row["poster_local_w185"] if row and "poster_local_w185" in row.keys() else None):
+        if p:
+            delete_poster_by_web(p)
     return jsonify({"ok": True})
 
 

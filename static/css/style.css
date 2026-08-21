@@ -173,9 +173,27 @@ nav {
 
 /* Ek güvence: desktop'ta ikonlar asla görünmez */
 @media (min-width: 769px) {
+  /* Desktop: 3 sütunlu grid -> logo sol, media ortada, utils sağda */
+  nav {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+  }
+
   .media-tab-icon,
   .media-toggle-icon {
     display: none !important;
+  }
+
+  /* İlk .tabs-group (media butonları) nav'ın ortasında */
+  nav > .tabs-group:first-of-type {
+    justify-self: center;
+  }
+
+  /* İkinci .tabs-group (search/sort/settings) sağda kalsın */
+  nav > .tabs-group:last-of-type {
+    justify-self: end;
   }
 
   #tab-search {
@@ -1017,7 +1035,7 @@ input:-webkit-autofill:focus {
 /* Anime */
 #view-anime.active {
   display: block;
-  padding: 24px 0;
+  padding: 0;
 }
 
 #view-anime .poster-grid {
@@ -1188,6 +1206,200 @@ input:-webkit-autofill:focus {
 
 .settings-menu-item.locked:hover i {
   color: #c8cdd8;
+}
+
+/* Notification center */
+.notif-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.utils-tabs-group {
+  position: relative;
+}
+
+.notif-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.notif-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 360px;
+  max-width: 380px;
+  max-height: 60vh;
+  background: #1e2230;
+  border: 1px solid #3a4050;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+  display: none;
+  z-index: 20;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.notif-menu.open {
+  display: flex;
+}
+
+.notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid #262a36;
+  color: #f97316;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.notif-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notif-header-btn {
+  background: transparent;
+  border: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.notif-clear-btn {
+  color: #ef4444;
+}
+
+.notif-clear-btn:hover {
+  color: #f87171;
+}
+
+.notif-mark-btn {
+  color: #7dd3fc;
+}
+
+.notif-mark-btn:hover {
+  color: #bae6fd;
+}
+
+.notif-list {
+  overflow-y: auto;
+  max-height: 50vh;
+}
+
+.notif-empty {
+  text-align: center;
+  padding: 24px 12px;
+  color: #6b7180;
+  font-size: 0.85rem;
+}
+
+.notif-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  align-items: flex-start;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.notif-item:nth-child(odd) {
+  background: #1e2230;
+}
+
+.notif-item:nth-child(even) {
+  background: #232938;
+}
+
+.notif-item.unread {
+  border-left: 3px solid #f97316;
+}
+
+.notif-item + .notif-item {
+  border-top: 1px dotted #3a4050;
+}
+
+.notif-item:hover {
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.notif-thumb {
+  width: 45px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+  background: #222;
+}
+
+.notif-thumb-fallback {
+  width: 45px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #22252f;
+  color: #555a66;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.notif-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e6e6e6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-message {
+  font-size: 0.8rem;
+  color: #aab;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.notif-time {
+  font-size: 0.7rem;
+  color: #6b7180;
+  margin-top: 4px;
+}
+
+@media (max-width:768px) {
+  .notif-menu {
+    right: 0;
+    left: auto;
+    min-width: 0;
+    width: calc(100vw - 24px);
+    max-width: 360px;
+  }
 }
 
 .settings-modal {
@@ -1882,8 +2094,32 @@ input:-webkit-autofill:focus {
   color: #bae6fd;
 }
 
+#details-refresh {
+  color: #D0D4DC;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+#details-refresh.loading i {
+  animation: spin 0.7s linear infinite;
+}
+
+#details-refresh:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
 .modal-close:hover {
   color: #f87171;
+}
+
+#details-refresh:hover {
+  background: transparent;
+  color: #FFFFFF;
 }
 
 .modal-body {
@@ -2663,7 +2899,12 @@ input:-webkit-autofill:focus {
 
 #view-watched.active {
   display: block;
-  padding: 24px 0;
+  padding: 0;
+}
+
+#view-unwatched.active {
+  display: block;
+  padding: 0;
 }
 
 .unwatched-card .next-ep.unwatched-count {
@@ -2702,13 +2943,18 @@ input:-webkit-autofill:focus {
 /* Tablet ve altı */
 @media (max-width: 768px) {
   nav {
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "logo logo"
+      "media utils";
     gap: 10px;
     padding: 12px 14px;
+    align-items: center;
   }
 
   .logo {
+    grid-area: logo;
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
@@ -2720,12 +2966,22 @@ input:-webkit-autofill:focus {
     text-align: center;
   }
 
-  .tabs {
+  .media-tabs-group {
+    grid-area: media;
+    justify-self: start;
     display: flex;
-    justify-content: space-between;
     align-items: center;
     gap: 4px;
-    width: 100%;
+    width: auto;
+  }
+
+  .utils-tabs-group {
+    grid-area: utils;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: auto;
   }
 
   .tabs-group {
@@ -2736,7 +2992,9 @@ input:-webkit-autofill:focus {
   .tabs-group .tab,
   #tab-search,
   #tab-settings,
-  .sort-wrap .tab {
+  #tab-notif,
+  .sort-wrap .tab,
+  .notif-wrap .tab {
     width: 30px;
     height: 30px;
     padding: 0;

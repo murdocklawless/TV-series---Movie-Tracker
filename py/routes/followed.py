@@ -7,6 +7,7 @@ from db import get_db, today_str
 from tmdb import get_tmdb_info, get_tmdb_cast, save_details, load_details, tmdb_request
 from tvmaze import _tvmaze_episode_times
 from scheduler import sync_episodes
+from poster_store import download_tmdb_poster_with_sizes, delete_poster_by_web, poster_local_path, delete_poster
 
 followed_bp = Blueprint("followed", __name__)
 
@@ -49,6 +50,30 @@ def follow():
     if info:
         save_details(conn, new_id, info, get_tmdb_cast(media_type, tmdb_id))
         conn.commit()
+
+    # Poster lokal indirme (w500, bir kez) - ayri kolon poster_local
+    try:
+        pp = poster_path
+        if not pp:
+            # info poster_path dondurmez, dogrudan TMDB detayi dene
+            try:
+                _d = tmdb_request(f"/{media_type}/{tmdb_id}")
+                pp = (_d or {}).get("poster_path")
+                if pp:
+                    conn.execute("UPDATE followed SET poster_path=? WHERE id=?", (pp, new_id))
+                    conn.commit()
+            except Exception:
+                pp = None
+        if pp:
+            w500, w185 = download_tmdb_poster_with_sizes(media_type, tmdb_id, pp)
+            if w500:
+                conn.execute("UPDATE followed SET poster_local=?, poster_local_w185=? WHERE id=?", (w500, w185, new_id))
+                conn.commit()
+            elif w185:
+                conn.execute("UPDATE followed SET poster_local_w185=? WHERE id=?", (w185, new_id))
+                conn.commit()
+    except Exception:
+        pass
 
     if media_type == "tv":
         new_follow = conn.execute(
@@ -131,6 +156,8 @@ def unwatched():
                 "tmdb_id": r["tmdb_id"],
                 "title": r["title"],
                 "poster_path": r["poster_path"],
+                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
+                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "unwatched": len(items),
@@ -148,6 +175,8 @@ def unwatched():
                 "tmdb_id": r["tmdb_id"],
                 "title": r["title"],
                 "poster_path": r["poster_path"],
+                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
+                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "release_date": r["release_date"],
@@ -171,6 +200,8 @@ def unwatched():
                 "anilist_id": r["anilist_id"],
                 "title": r["title"],
                 "cover_url": r["cover_url"],
+                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
+                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
                 "score": r["score"],
                 "studios": r["studios"],
                 "unwatched": len(rows),
@@ -180,6 +211,35 @@ def unwatched():
 
     conn.close()
     return jsonify({"shows": shows, "anime": anime_list, "movies": movies})
+
+
+@followed_bp.route("/api/unfollow/<int:follow_id>", methods=["DELETE"])
+def unfollow(follow_id):
+    conn = get_db()
+    row = conn.execute("SELECT poster_local, poster_local_w185, tmdb_id, media_type FROM followed WHERE id=?", (follow_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Takip bulunamadı"}), 404
+    tmdb_id = row["tmdb_id"]
+    media_type = row["media_type"]
+    conn.execute("DELETE FROM episodes WHERE follow_id=?", (follow_id,))
+    conn.execute("DELETE FROM cast WHERE follow_id=?", (follow_id,))
+    conn.execute("DELETE FROM followed WHERE id=?", (follow_id,))
+    conn.commit()
+    conn.close()
+    # lokal posterleri sil (w500 + w185, eski flat dahil)
+    try:
+        delete_poster(media_type, tmdb_id)
+        # fallback both kinds
+        delete_poster("tv", tmdb_id)
+        delete_poster("movie", tmdb_id)
+    except Exception:
+        pass
+    # also try legacy web paths if any
+    for p in (row["poster_local"] if "poster_local" in row.keys() else None, row["poster_local_w185"] if "poster_local_w185" in row.keys() else None):
+        if p:
+            delete_poster_by_web(p)
+    return jsonify({"ok": True})
 
 
 @followed_bp.route("/api/watched")
@@ -222,6 +282,8 @@ def watched():
                 "tmdb_id": r["tmdb_id"],
                 "title": r["title"],
                 "poster_path": r["poster_path"],
+                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
+                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "watched": total,
@@ -243,6 +305,8 @@ def watched():
                 "tmdb_id": r["tmdb_id"],
                 "title": r["title"],
                 "poster_path": r["poster_path"],
+                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
+                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "release_date": r["release_date"],
@@ -273,6 +337,8 @@ def watched():
                 "anilist_id": r["anilist_id"],
                 "title": r["title"],
                 "cover_url": r["cover_url"],
+                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
+                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
                 "score": r["score"],
                 "studios": r["studios"],
                 "watched": total,
@@ -589,6 +655,7 @@ def details():
     media_type = request.args.get("media_type")
     tmdb_id = request.args.get("tmdb_id")
     lang = (request.args.get("lang") or "").strip() or None
+    refresh = (request.args.get("refresh") or "").strip().lower() in ("1", "true", "yes")
     if media_type not in ("movie", "tv") or not tmdb_id:
         return jsonify({"error": "Geçersiz istek"}), 400
 
@@ -601,7 +668,7 @@ def details():
 
     # -- lang VERİLMEDİYSE: legacy davranış (base cached overview, yoksa fetch). --
     if not lang:
-        if follow:
+        if follow and not refresh:
             d = load_details(conn, follow["id"])
             if d and d.get("overview"):
                 conn.close()
@@ -626,8 +693,8 @@ def details():
     locale = _lang_to_locale(lang)
     loc = localized.get(lang) if follow else None
 
-    # Cache hit: o dilde kayıt varsa fetch yapmadan dön (cast dil-bağımsız).
-    if follow and loc and loc.get("overview"):
+    # Cache hit: o dilde kayıt varsa fetch yapmadan dön (cast dil-bağımsız). refresh bypass.
+    if follow and loc and loc.get("overview") and not refresh:
         d = load_details(conn, follow["id"]) or {}
         d = dict(d)
         d["title"] = loc.get("title") or d.get("title")

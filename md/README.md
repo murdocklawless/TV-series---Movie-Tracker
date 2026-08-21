@@ -1,4 +1,4 @@
-# TV-series---Movie-Tracker
+# TV-series-Movies-Animes-Tracker-Notifier
 
 Dizi ve filmleri takip eden, yeni bölümlerin yayın tarihlerini takvimde gösteren ve çıkış gününde Telegram üzerinden bildirim gönderen web uygulaması. Tüm veriler TMDB (The Movie Database) API'sinden gelir.
 

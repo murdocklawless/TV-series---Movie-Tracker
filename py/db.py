@@ -64,6 +64,10 @@ def init_db():
         conn.execute("ALTER TABLE followed ADD COLUMN in_watched INTEGER DEFAULT 0")
     if "localized" not in cols:
         conn.execute("ALTER TABLE followed ADD COLUMN localized TEXT")
+    if "poster_local" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN poster_local TEXT")
+    if "poster_local_w185" not in cols:
+        conn.execute("ALTER TABLE followed ADD COLUMN poster_local_w185 TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS episodes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,6 +138,10 @@ def init_db():
         conn.execute("ALTER TABLE anime ADD COLUMN start_date TEXT")
     if "in_watched" not in acols:
         conn.execute("ALTER TABLE anime ADD COLUMN in_watched INTEGER DEFAULT 0")
+    if "poster_local" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN poster_local TEXT")
+    if "poster_local_w185" not in acols:
+        conn.execute("ALTER TABLE anime ADD COLUMN poster_local_w185 TEXT")
     conn.execute(
         """CREATE TABLE IF NOT EXISTS anime_cast (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -155,6 +163,29 @@ def init_db():
             UNIQUE(anime_id, episode)
         )"""
     )
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            message TEXT NOT NULL,
+            tmdb_id INTEGER,
+            anilist_id INTEGER,
+            media_type TEXT,
+            season INTEGER,
+            episode INTEGER,
+            poster_local TEXT,
+            thumbnail_local TEXT,
+            is_read INTEGER DEFAULT 0,
+            notified_date TEXT,
+            created_at INTEGER NOT NULL
+        )"""
+    )
+    try:
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_notif_read ON notifications(is_read, created_at DESC)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_notif_media ON notifications(media_type, tmdb_id)")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 

@@ -193,6 +193,7 @@ async function loadSettings() {
   document.getElementById("s-sync-hour").value = s.sync_hour || "09:00";
   document.getElementById("s-genre-hour").value = s.genre_hour || "05:00";
   document.getElementById("s-data-hour").value = s.data_hour || "05:10";
+  document.getElementById("s-notification-hour").value = s.notification_hour || "09:05";
   document.getElementById("s-ntfy").value = s.ntfy_topic || "";
   await loadTimezones();
   initTzCombo();
@@ -200,6 +201,7 @@ async function loadSettings() {
   initTimePicker("s-sync-hour");
   initTimePicker("s-genre-hour");
   initTimePicker("s-data-hour");
+  initTimePicker("s-notification-hour");
   state.currentTz = s.timezone || "Europe/Istanbul";
   document.getElementById("s-tz").value = state.currentTz;
   document.getElementById("s-lang").value = s.language || "tr-TR";
@@ -450,6 +452,12 @@ document.getElementById("s-data-hour").addEventListener("change", () => {
   const el = document.getElementById("s-data-hour");
   const hint = el.closest("label").querySelector(".saved-hint");
   saveSettingsPartial({ data_hour: el.value }, hint);
+});
+
+document.getElementById("s-notification-hour").addEventListener("change", () => {
+  const el = document.getElementById("s-notification-hour");
+  const hint = el.closest("label").querySelector(".saved-hint");
+  saveSettingsPartial({ notification_hour: el.value }, hint);
 });
 
 document.getElementById("s-telegram-enabled").addEventListener("change", (e) => {

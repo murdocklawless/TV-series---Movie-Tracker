@@ -10,6 +10,8 @@ import {
 import { loadFollowed, loadAnime, switchView, animeStatusLabel } from "./views.js";
 import { setMedia, renderChips, doComboSearch } from "./search.js";
 
+let currentDetails = null;
+
 async function openReleases(mediaType, tmdbId, title) {
   const modal = document.getElementById("releases-modal");
   const body = document.getElementById("releases-body");
@@ -221,6 +223,7 @@ function closeReleases() {
 
 function closeDetails() {
   document.getElementById("details-modal").style.display = "none";
+  currentDetails = null;
 }
 
 function closeModals() {
@@ -259,7 +262,129 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeModals();
 });
 
+function renderTmdbDetails(data, title, highlightGenre) {
+  let html = '<div class="details-wrap">';
+  html += '<div class="details-poster-col">';
+  if (data.poster_path) {
+    html += `<img class="details-poster" src="${IMAGE_BASE}${data.poster_path}" alt="${data.title}" />`;
+  }
+  const badges = [];
+  if (data.media_type === "tv") {
+    badges.push(t("type_tv"));
+    if (data.number_of_seasons) badges.push(t("seasons", { n: data.number_of_seasons }));
+    if (data.number_of_episodes) badges.push(t("episodes", { n: data.number_of_episodes }));
+    if (data.status) badges.push(data.status);
+    if (data.first_air_date) badges.push(formatDate(data.first_air_date).text);
+  } else {
+    badges.push(t("type_movie"));
+    if (data.release_date) badges.push(formatDate(data.release_date).text);
+  }
+  if (data.runtime) badges.push(fmtRuntime(data.runtime));
+  html += '<div class="details-meta">';
+  badges.forEach((b) => {
+    html += `<span class="detail-badge">${b}</span>`;
+  });
+  html += "</div>";
+  if (data.genres && data.genres.length) {
+    html += '<div class="genre-tags">';
+    const hg = highlightGenre ? highlightGenre.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) : [];
+    data.genres.forEach((g) => {
+      const fav = state.favGenres.has(g) || hg.includes(g.toLowerCase());
+      html += `<span class="detail-badge genre-tag${fav ? " fav" : ""}" data-genre="${g.replace(/"/g, "&quot;")}">${g}</span>`;
+    });
+    html += "</div>";
+  }
+  if (data.vote_average != null) {
+    html += `<div class="details-rating">${fmtScore(data.vote_average)} / 10 <span class="details-votes">${t("votes", { n: data.vote_count || 0 })}</span></div>`;
+  }
+  html += "</div>";
+  html += '<div class="details-main">';
+  if (data.tagline) html += `<div class="details-tagline">${data.tagline}</div>`;
+  if (data.overview) html += `<p class="details-overview">${data.overview}</p>`;
+  if (data.cast && data.cast.length) {
+    html += '<div class="details-cast"><div class="details-cast-list">';
+    data.cast.forEach((c) => {
+      const img = c.profile_path ? `<img class="cast-avatar" src="${IMAGE_BASE}${c.profile_path}" alt="${c.name}" />` : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
+      const fav = c.id && state.favActors.has(String(c.id)) ? " fav" : "";
+      html += `<div class="cast-item" data-person-id="${c.id || ""}" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${c.name}</div><div class="cast-char">${c.character || ""}</div></div>${c.id ? `<button class="cast-fav${fav}" data-person-id="${c.id}" data-person-name="${c.name.replace(/"/g, "&quot;")}" data-tip="${t("fav_actor")}">${HEART_SVG}</button>` : ""}</div>`;
+    });
+    html += "</div></div>";
+  }
+  html += "</div></div>";
+  return html;
+}
+
+function bindTmdbDetailsEvents() {
+  const body = document.getElementById("details-body");
+  body.querySelectorAll(".cast-item").forEach((el) => {
+    const pid = el.dataset.personId;
+    if (!pid) return;
+    el.onclick = () => openPerson(pid, el.querySelector(".cast-name").textContent);
+  });
+  body.querySelectorAll(".cast-fav").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      toggleFavActor(btn);
+    };
+  });
+}
+
+function renderAnimeDetails(data) {
+  let html = '<div class="details-wrap">';
+  html += '<div class="details-poster-col">';
+  if (data.cover_url) html += `<img class="details-poster" src="${data.cover_url}" alt="${data.title}" />`;
+  const badges = [];
+  badges.push(t("tab_anime"));
+  if (data.format) badges.push(data.format);
+  if (data.status) badges.push(animeStatusLabel(data.status));
+  if (data.episodes) badges.push(t("episodes", { n: data.episodes }));
+  if (data.duration) badges.push(fmtRuntime(data.duration));
+  if (data.start_date) badges.push(String(data.start_date));
+  if (data.studios && data.studios.length) badges.push(data.studios.join(", "));
+  html += '<div class="details-meta">';
+  badges.forEach((b) => { html += `<span class="detail-badge">${b}</span>`; });
+  html += "</div>";
+  if (data.genres && data.genres.length) {
+    html += '<div class="genre-tags">';
+    data.genres.forEach((g) => {
+      html += `<span class="detail-badge anime-genre-tag${state.favAnimeGenres.has(g) ? " fav" : ""}" data-anime-genre="${g.replace(/"/g, "&quot;")}">${animeGenreLabel(g)}</span>`;
+    });
+    html += "</div>";
+  }
+  if (data.score != null) html += `<div class="details-rating">${fmtScore(data.score / 10)} / 10</div>`;
+  html += "</div>";
+  html += '<div class="details-main">';
+  if (data.description) html += `<div class="details-tagline" style="white-space:pre-wrap">${data.description.replace(/<[^>]*>/g, "")}</div>`;
+  if (data.characters && data.characters.length) {
+    html += '<div class="details-cast"><div class="details-cast-list">';
+    data.characters.forEach((c) => {
+      const img = c.image ? `<img class="cast-avatar" src="${c.image}" alt="${c.name}" />` : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
+      const fav = c.id && state.favAnimeChars.has(String(c.id)) ? " fav" : "";
+      html += `<div class="cast-item" data-char-id="${c.id || ""}" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${c.name}</div></div>${c.id ? `<button class="cast-fav${fav}" data-char-id="${c.id}" data-char-name="${c.name.replace(/"/g, "&quot;")}" data-anime-title="${(data.title || "").replace(/"/g, "&quot;")}" data-tip="${t("fav_char")}">${HEART_SVG}</button>` : ""}</div>`;
+    });
+    html += "</div></div>";
+  }
+  html += "</div></div>";
+  return html;
+}
+
+function bindAnimeDetailsEvents() {
+  const body = document.getElementById("details-body");
+  body.querySelectorAll(".cast-item").forEach((el) => {
+    const cid = el.dataset.charId;
+    if (!cid) return;
+    el.onclick = () => openAnimeChar(cid, el.querySelector(".cast-name").textContent);
+  });
+  body.querySelectorAll(".cast-fav").forEach((btn) => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      toggleFavAnimeChar(btn);
+    };
+  });
+}
+
 async function openDetails(mediaType, tmdbId, title, highlightPerson, highlightPersonId, highlightGenre) {
+  currentDetails = { kind: "tmdb", mediaType, tmdbId, title, highlightPerson, highlightPersonId, highlightGenre };
   const modal = document.getElementById("details-modal");
   const body = document.getElementById("details-body");
   const calBtn = document.getElementById("details-calendar");
@@ -280,85 +405,8 @@ async function openDetails(mediaType, tmdbId, title, highlightPerson, highlightP
       return;
     }
     document.getElementById("details-title").textContent = data.title || title || "";
-
-    let html = '<div class="details-wrap">';
-    html += '<div class="details-poster-col">';
-    if (data.poster_path) {
-      html += `<img class="details-poster" src="${IMAGE_BASE}${data.poster_path}" alt="${data.title}" />`;
-    }
-
-    const badges = [];
-    if (data.media_type === "tv") {
-      badges.push(t("type_tv"));
-      if (data.number_of_seasons) badges.push(t("seasons", { n: data.number_of_seasons }));
-      if (data.number_of_episodes) badges.push(t("episodes", { n: data.number_of_episodes }));
-      if (data.status) badges.push(data.status);
-      if (data.first_air_date) badges.push(formatDate(data.first_air_date).text);
-    } else {
-      badges.push(t("type_movie"));
-      if (data.release_date) badges.push(formatDate(data.release_date).text);
-    }
-    if (data.runtime) badges.push(fmtRuntime(data.runtime));
-
-    html += '<div class="details-meta">';
-    badges.forEach((b) => {
-      html += `<span class="detail-badge">${b}</span>`;
-    });
-    html += "</div>";
-
-    if (data.genres && data.genres.length) {
-      html += '<div class="genre-tags">';
-      const hg = highlightGenre ? highlightGenre.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean) : [];
-      data.genres.forEach((g) => {
-        const fav = state.favGenres.has(g) || hg.includes(g.toLowerCase());
-        html += `<span class="detail-badge genre-tag${fav ? " fav" : ""}" data-genre="${g.replace(/"/g, "&quot;")}">${g}</span>`;
-      });
-      html += "</div>";
-    }
-
-    if (data.vote_average != null) {
-      html += `<div class="details-rating">${fmtScore(data.vote_average)} / 10 <span class="details-votes">${t("votes", { n: data.vote_count || 0 })}</span></div>`;
-    }
-    html += "</div>";
-
-    html += '<div class="details-main">';
-
-    if (data.tagline) {
-      html += `<div class="details-tagline">${data.tagline}</div>`;
-    }
-
-    if (data.overview) {
-      html += `<p class="details-overview">${data.overview}</p>`;
-    }
-
-    if (data.cast && data.cast.length) {
-      html += '<div class="details-cast"><div class="details-cast-list">';
-      data.cast.forEach((c) => {
-        const img = c.profile_path
-          ? `<img class="cast-avatar" src="${IMAGE_BASE}${c.profile_path}" alt="${c.name}" />`
-          : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
-        const fav = c.id && state.favActors.has(String(c.id)) ? " fav" : "";
-        html += `<div class="cast-item" data-person-id="${c.id || ""}" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${c.name}</div><div class="cast-char">${c.character || ""}</div></div>${
-          c.id ? `<button class="cast-fav${fav}" data-person-id="${c.id}" data-person-name="${c.name.replace(/"/g, "&quot;")}" data-tip="${t("fav_actor")}">${HEART_SVG}</button>` : ""
-        }</div>`;
-      });
-      html += "</div></div>";
-    }
-
-    html += "</div></div>";
-
-    body.innerHTML = html;
-    body.querySelectorAll(".cast-item").forEach((el) => {
-      const pid = el.dataset.personId;
-      if (!pid) return;
-      el.onclick = () => openPerson(pid, el.querySelector(".cast-name").textContent);
-    });
-    body.querySelectorAll(".cast-fav").forEach((btn) => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        toggleFavActor(btn);
-      };
-    });
+    body.innerHTML = renderTmdbDetails(data, title, highlightGenre);
+    bindTmdbDetailsEvents();
   } catch (e) {
     body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
   }
@@ -581,6 +629,7 @@ document.getElementById("unwatched-modal").addEventListener("click", (e) => {
 });
 
 async function openAnimeDetails(dbId, anilistId, title) {
+  currentDetails = { kind: "anime", dbId, anilistId, title };
   const modal = document.getElementById("details-modal");
   const body = document.getElementById("details-body");
   const calBtn = document.getElementById("details-calendar");
@@ -605,75 +654,8 @@ async function openAnimeDetails(dbId, anilistId, title) {
       return;
     }
     document.getElementById("details-title").textContent = data.title || title || "";
-
-    let html = '<div class="details-wrap">';
-    html += '<div class="details-poster-col">';
-    if (data.cover_url) {
-      html += `<img class="details-poster" src="${data.cover_url}" alt="${data.title}" />`;
-    }
-
-    const badges = [];
-    badges.push(t("tab_anime"));
-    if (data.format) badges.push(data.format);
-    if (data.status) badges.push(animeStatusLabel(data.status));
-    if (data.episodes) badges.push(t("episodes", { n: data.episodes }));
-    if (data.duration) badges.push(fmtRuntime(data.duration));
-    if (data.start_date) badges.push(String(data.start_date));
-    if (data.studios && data.studios.length) badges.push(data.studios.join(", "));
-
-    html += '<div class="details-meta">';
-    badges.forEach((b) => {
-      html += `<span class="detail-badge">${b}</span>`;
-    });
-    html += "</div>";
-
-    if (data.genres && data.genres.length) {
-      html += '<div class="genre-tags">';
-      data.genres.forEach((g) => {
-        html += `<span class="detail-badge anime-genre-tag${state.favAnimeGenres.has(g) ? " fav" : ""}" data-anime-genre="${g.replace(/"/g, "&quot;")}">${animeGenreLabel(g)}</span>`;
-      });
-      html += "</div>";
-    }
-
-    if (data.score != null) {
-      html += `<div class="details-rating">${fmtScore(data.score / 10)} / 10</div>`;
-    }
-    html += "</div>";
-
-    html += '<div class="details-main">';
-
-    if (data.description) {
-      html += `<div class="details-tagline" style="white-space:pre-wrap">${data.description.replace(/<[^>]*>/g, "")}</div>`;
-    }
-
-    if (data.characters && data.characters.length) {
-      html += '<div class="details-cast"><div class="details-cast-list">';
-      data.characters.forEach((c) => {
-        const img = c.image
-          ? `<img class="cast-avatar" src="${c.image}" alt="${c.name}" />`
-          : `<div class="cast-avatar cast-avatar-fallback">${c.name.charAt(0)}</div>`;
-        const fav = c.id && state.favAnimeChars.has(String(c.id)) ? " fav" : "";
-        html += `<div class="cast-item" data-char-id="${c.id || ""}" role="button" tabindex="0">${img}<div class="cast-info"><div class="cast-name">${c.name}</div></div>${
-          c.id ? `<button class="cast-fav${fav}" data-char-id="${c.id}" data-char-name="${c.name.replace(/"/g, "&quot;")}" data-anime-title="${(data.title || "").replace(/"/g, "&quot;")}" data-tip="${t("fav_char")}">${HEART_SVG}</button>` : ""
-        }</div>`;
-      });
-      html += "</div></div>";
-    }
-
-    html += "</div></div>";
-
-    body.innerHTML = html;
-    body.querySelectorAll(".cast-item").forEach((el) => {
-      const cid = el.dataset.charId;
-      if (!cid) return;
-      el.onclick = () => openAnimeChar(cid, el.querySelector(".cast-name").textContent);
-    });
-    body.querySelectorAll(".cast-fav").forEach((btn) => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        toggleFavAnimeChar(btn);
-      };
-    });
+    body.innerHTML = renderAnimeDetails(data);
+    bindAnimeDetailsEvents();
   } catch (e) {
     body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
   }
@@ -841,6 +823,52 @@ document.getElementById("details-modal").addEventListener("click", async (e) => 
   }
 });
 
+
+const detailsRefreshBtn = document.getElementById("details-refresh");
+if (detailsRefreshBtn) {
+  detailsRefreshBtn.onclick = async () => {
+    if (!currentDetails || detailsRefreshBtn.classList.contains("loading")) return;
+    const body = document.getElementById("details-body");
+    detailsRefreshBtn.classList.add("loading");
+    detailsRefreshBtn.disabled = true;
+    body.innerHTML = `<div class="releases-loading">${t("loading")}</div>`;
+    try {
+      if (currentDetails.kind === "tmdb") {
+        const { mediaType, tmdbId, title, highlightPerson, highlightPersonId, highlightGenre } = currentDetails;
+        const res = await fetch(`/api/details?media_type=${encodeURIComponent(mediaType)}&tmdb_id=${encodeURIComponent(tmdbId)}&lang=${encodeURIComponent(state.currentLang)}${highlightPerson ? `&highlight_person=${encodeURIComponent(highlightPerson)}` : ""}${highlightPersonId ? `&highlight_person_id=${encodeURIComponent(highlightPersonId)}` : ""}&refresh=1`, { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok) {
+          body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;
+          toast(errText(data.error) || t("data_failed"), true);
+          return;
+        }
+        document.getElementById("details-title").textContent = data.title || title || "";
+        body.innerHTML = renderTmdbDetails(data, title, highlightGenre);
+        bindTmdbDetailsEvents();
+        toast(t("refreshed") || "Yenilendi");
+      } else if (currentDetails.kind === "anime") {
+        const { anilistId, title } = currentDetails;
+        const res = await fetch(`/api/anime/details?anilist_id=${encodeURIComponent(anilistId)}&refresh=1`, { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok) {
+          body.innerHTML = `<div class="releases-error">${errText(data.error) || t("data_failed")}</div>`;
+          toast(errText(data.error) || t("data_failed"), true);
+          return;
+        }
+        document.getElementById("details-title").textContent = data.title || title || "";
+        body.innerHTML = renderAnimeDetails(data);
+        bindAnimeDetailsEvents();
+        toast(t("refreshed") || "Yenilendi");
+      }
+    } catch (e) {
+      body.innerHTML = `<div class="releases-error">${t("conn_error")}</div>`;
+      toast(t("conn_error"), true);
+    } finally {
+      detailsRefreshBtn.classList.remove("loading");
+      detailsRefreshBtn.disabled = false;
+    }
+  };
+}
 
 export { openReleases, closeReleases, closeDetails, closeModals, closeConfirm, showConfirm,
          openDetails, toggleFavActor, toggleFavAnimeChar, openAnimeChar, openPerson,

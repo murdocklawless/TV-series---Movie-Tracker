@@ -2,7 +2,7 @@
 import { state } from "./state.js";
 import { t } from "./i18n.js";
 import {
-  posterHTML, scoreTag, platformTag, typeLabel, applyTitleHint,
+  posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, applyTitleHint,
   formatDate, shortDate, shortDateShort, isMobile, daysUntil, daysHint,
   isToday, dateState, utcDayStr, utcTodayStr, FILM_SVG, CALENDAR_SVG, CHECK_SVG, toast, tzLocale,
 } from "./utils.js";
@@ -217,7 +217,7 @@ async function loadFollowed(view) {
     const isTvCompleted = item.media_type === "tv" && item.completed;
     const showBadge = isMovieWatched || isTvCompleted;
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, showBadge)}
+      ${posterHTML(item.poster_path, item.title, showBadge, item.poster_local, item.poster_local_w185)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -338,8 +338,7 @@ async function loadAnime() {
     const animeCompleted = !!item.completed;
     div.className = animeToday ? "card today-release-card" : "card";
     div.innerHTML = `
-      ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
-      ${animeCompleted ? `<span class="badge-watched">${CHECK_SVG}</span>` : ""}
+      ${animePosterHTML(item.cover_url, item.title, animeCompleted, item.poster_local, item.poster_local_w185)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -455,7 +454,7 @@ async function loadUnwatched() {
       bottom = `<div class="next-ep unwatched-count">${t("unwatched_count", { n: item.unwatched })}</div>`;
     }
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title)}
+      ${posterHTML(item.poster_path, item.title, false, item.poster_local, item.poster_local_w185)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -485,7 +484,7 @@ async function loadUnwatched() {
         : `<div class="next-ep">${formatDate(item.release_date).text}</div>`
       : `<div>${t("date_unknown")}</div>`;
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title)}
+      ${posterHTML(item.poster_path, item.title, false, item.poster_local, item.poster_local_w185)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -520,7 +519,7 @@ async function loadUnwatched() {
       bottom = `<div class="next-ep unwatched-count">${t("unwatched_count", { n: item.unwatched })}</div>`;
     }
     div.innerHTML = `
-      ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
+      ${animePosterHTML(item.cover_url, item.title, false, item.poster_local, item.poster_local_w185)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -588,7 +587,7 @@ async function loadWatched() {
     const div = document.createElement("div");
     div.className = "card unwatched-card";
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, true)}
+      ${posterHTML(item.poster_path, item.title, true, item.poster_local, item.poster_local_w185)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -623,7 +622,7 @@ async function loadWatched() {
         : `<div class="next-ep">${formatDate(item.release_date).text}</div>`
       : `<div>${t("date_unknown")}</div>`;
     div.innerHTML = `
-      ${posterHTML(item.poster_path, item.title, true)}
+      ${posterHTML(item.poster_path, item.title, true, item.poster_local, item.poster_local_w185)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">
@@ -653,7 +652,7 @@ async function loadWatched() {
     const div = document.createElement("div");
     div.className = "card unwatched-card";
     div.innerHTML = `
-      ${item.cover_url ? `<img src="${item.cover_url}" alt="${item.title}" onerror="this.outerHTML=noPosterFallback()" />` : `<div class="no-poster">${FILM_SVG}</div>`}
+      ${animePosterHTML(item.cover_url, item.title, true, item.poster_local, item.poster_local_w185)}
       <div class="info">
         <div class="title">${item.title}</div>
         <div class="meta">

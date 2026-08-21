@@ -140,6 +140,7 @@ def get_settings():
             "sync_hour": get_setting("sync_hour") or "09:00",
             "genre_hour": get_setting("genre_hour") or "05:00",
             "data_hour": get_setting("data_hour") or "05:10",
+            "notification_hour": get_setting("notification_hour") or "09:05",
             "timezone": get_setting("timezone") or "Europe/Istanbul",
             "language": get_setting("language") or "tr-TR",
             "ntfy_topic": get_setting("ntfy_topic") or "",
@@ -160,6 +161,7 @@ def save_settings():
         "sync_hour",
         "genre_hour",
         "data_hour",
+        "notification_hour",
         "timezone",
         "language",
         "ntfy_topic",
@@ -168,7 +170,7 @@ def save_settings():
     ):
         if key in body:
             set_setting(key, str(body[key] or ""))
-    if any(k in body for k in ("notify_hour", "sync_hour", "genre_hour", "data_hour", "timezone")):
+    if any(k in body for k in ("notify_hour", "sync_hour", "genre_hour", "data_hour", "notification_hour", "timezone")):
         schedule_releases()
     return jsonify({"ok": True})
 

@@ -32,9 +32,35 @@ window.noPosterFallback = function () {
   return `<div class="no-poster">${FILM_SVG}</div>`;
 };
 
-function posterHTML(posterPath, title, withBadge) {
-  const img = posterPath
-    ? `<img src="${IMAGE_BASE}${posterPath}" alt="${title}" onerror="this.outerHTML=noPosterFallback()" />`
+function posterHTML(posterPath, title, withBadge, posterLocal, posterLocalW185) {
+  let src = null, srcset = null;
+  if (posterLocalW185 && posterLocal) {
+    src = posterLocalW185;
+    srcset = `${posterLocalW185} 185w, ${posterLocal} 500w`;
+  } else if (posterLocal) {
+    src = posterLocal;
+  } else if (posterPath) {
+    src = `${IMAGE_BASE}${posterPath}`;
+  }
+  const img = src
+    ? `<img src="${src}"${srcset ? ` srcset="${srcset}" sizes="170px"` : ""} alt="${title}" loading="lazy" decoding="async" onerror="this.outerHTML=noPosterFallback()" />`
+    : `<div class="no-poster">${FILM_SVG}</div>`;
+  const badge = withBadge ? `<span class="badge-watched">${CHECK_SVG}</span>` : "";
+  return `<div class="poster-wrap">${img}${badge}</div>`;
+}
+
+function animePosterHTML(coverUrl, title, withBadge, posterLocal, posterLocalW185) {
+  let src = null, srcset = null;
+  if (posterLocalW185 && posterLocal) {
+    src = posterLocalW185;
+    srcset = `${posterLocalW185} 185w, ${posterLocal} 500w`;
+  } else if (posterLocal) {
+    src = posterLocal;
+  } else if (coverUrl) {
+    src = coverUrl;
+  }
+  const img = src
+    ? `<img src="${src}"${srcset ? ` srcset="${srcset}" sizes="170px"` : ""} alt="${title}" loading="lazy" decoding="async" onerror="this.outerHTML=noPosterFallback()" />`
     : `<div class="no-poster">${FILM_SVG}</div>`;
   const badge = withBadge ? `<span class="badge-watched">${CHECK_SVG}</span>` : "";
   return `<div class="poster-wrap">${img}${badge}</div>`;
@@ -272,7 +298,7 @@ function fmtScore(v) {
 
 export {
   IMAGE_BASE, HEART_SVG, CHECK_SVG, FILM_SVG, CALENDAR_SVG,
-  loadGenres, posterHTML, scoreTag, platformTag, typeLabel, toast, escAttr,
+  loadGenres, posterHTML, animePosterHTML, scoreTag, platformTag, typeLabel, toast, escAttr,
   applyTitleHint, tzLocale, formatDate, utcTodayStr, utcDayStr, utcStateStr,
   canSelectAll, isNewEpisode, isNewTr, isTodayTr, shortDate, shortDateShort,
   isMobile, daysUntil, daysHint, todayInTz, isToday, dateState,

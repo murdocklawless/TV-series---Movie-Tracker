@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Takip Listesi</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=322" />
+  <link rel="stylesheet" href="/static/css/style.css?v=336" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 </head>
 <body>
@@ -13,18 +13,19 @@
       <img class="logo-img" src="/static/images/logo.png" alt="Logo" />
       <div>
         <div class="logo-title" data-i18n="logo_title">Dizi · Film · Anime Takip</div>
-        <div class="logo-sub">Powered by DeepSeek V4</div>
       </div>
     </div>
-    <div class="tabs">
-      <div class="tabs-group">
+    <div class="tabs-group media-tabs-group">
         <button id="tab-dizi" class="tab active" data-i18n="tab_dizi"><i class="fa-solid fa-tv media-tab-icon"></i><span data-i18n="tab_dizi">Dizi</span></button>
         <button id="tab-film" class="tab" data-i18n="tab_film"><i class="fa-solid fa-clapperboard media-tab-icon"></i><span data-i18n="tab_film">Film</span></button>
         <button id="tab-anime" class="tab" data-i18n="tab_anime"><i class="fa-solid fa-torii-gate media-tab-icon"></i><span data-i18n="tab_anime">Anime</span></button>
         <button id="tab-unwatched" class="tab" data-i18n="tab_unwatched"><i class="fa-solid fa-eye-slash media-tab-icon"></i><span data-i18n="tab_unwatched">İzlenmemiş</span></button>
         <button id="tab-watched" class="tab" data-i18n="tab_watched"><i class="fa-solid fa-eye media-tab-icon"></i><span data-i18n="tab_watched">İzlenmiş</span></button>
-      </div>
-      <div class="tabs-group">
+    </div>
+    <div class="tabs-group utils-tabs-group">
+        <div class="notif-wrap">
+          <button id="tab-notif" class="tab" data-tip="Bildirimler"><i class="fa-solid fa-bell"></i><span id="notif-badge" class="notif-badge" style="display:none">0</span></button>
+        </div>
         <button id="tab-search" class="tab"><i class="fa-solid fa-magnifying-glass"></i> <span data-i18n="tab_search">Ara &amp; Ekle</span></button>
         <div class="sort-wrap">
           <button id="tab-sort" class="tab" data-i18n-title="sort_title"><i class="fa-solid fa-arrow-down-wide-short"></i></button>
@@ -47,7 +48,17 @@
             <button class="settings-menu-item tmdb-locked" data-target="settings-update-modal"><i class="fa-solid fa-rotate"></i><span data-i18n="settings_update">Güncelleme</span></button>
           </div>
         </div>
-      </div>
+        <div id="notif-menu" class="notif-menu">
+            <div class="notif-header">
+              <span data-i18n="notif_title">Bildirimler</span>
+              <div class="notif-header-actions">
+                <button id="notif-mark-all" class="notif-header-btn notif-mark-btn" data-tip="Tümünü okundu işaretle"><i class="fa-solid fa-check-double"></i></button>
+                <button id="notif-clear" class="notif-header-btn notif-clear-btn" data-tip="Temizle"><i class="fa-regular fa-trash-can"></i></button>
+              </div>
+            </div>
+            <div id="notif-list" class="notif-list"></div>
+            <div id="notif-empty" class="notif-empty" style="display:none" data-i18n="notif_empty">Henüz bildiriminiz yok.</div>
+          </div>
     </div>
   </nav>
 
@@ -358,6 +369,22 @@
             </div>
           </div>
         </label>
+        <label><span class="settings-label-head"><span data-i18n="label_notification_hour">Bildirim Kontrol Saati</span><span class="saved-hint" data-i18n="saved">Kaydedildi</span></span>
+          <div class="time-combobox">
+            <input id="s-notification-hour" type="text" value="09:05" />
+            <i class="fa-solid fa-clock time-clock"></i>
+            <div id="s-notification-time-list" class="time-list" style="display:none">
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_hour">Saat</div>
+                <div class="time-col-body" id="s-notification-hour-list"></div>
+              </div>
+              <div class="time-col">
+                <div class="time-col-title" data-i18n="time_minute">Dakika</div>
+                <div class="time-col-body" id="s-notification-minute-list"></div>
+              </div>
+            </div>
+          </div>
+        </label>
         <div id="update-saved-hint" class="notify-saved" data-i18n="saved">Kaydedildi</div>
       </div>
     </div>
@@ -388,6 +415,7 @@
               <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
           </button>
+          <button id="details-refresh" type="button" class="modal-close" data-tip="Refresh"><i class="fa-solid fa-rotate"></i></button>
           <button id="details-close" class="modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
         </div>
       </div>
@@ -464,6 +492,6 @@
     </div>
   </div>
 
-  <script type="module" src="/static/js/tracker.js?v=314"></script>
+  <script type="module" src="/static/js/tracker.js?v=324"></script>
 </body>
 </html>
