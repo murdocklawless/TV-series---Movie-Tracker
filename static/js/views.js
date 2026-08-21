@@ -174,6 +174,20 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".sort-wrap")) sortMenu.classList.remove("open");
 });
 
+function tvStatusLabel(status) {
+  const s = (status || "").trim();
+  const map = {
+    "Ended": "tv_status_ended",
+    "Canceled": "tv_status_canceled",
+    "Cancelled": "tv_status_canceled",
+    "Returning Series": "tv_status_returning",
+    "In Production": "tv_status_production",
+    "Planned": "tv_status_planned",
+    "Pilot": "tv_status_pilot",
+  };
+  return map[s] ? t(map[s]) : s;
+}
+
 function tvStatusText(item) {
   const status = (item.status || "").trim();
   if (status === "Ended") return `<div class="next-ep muted">${t("tv_status_ended")}</div>`;
@@ -254,7 +268,8 @@ async function loadFollowed(view) {
           await fetch(`/api/unfollow/${item.id}`, { method: "DELETE" });
           loadFollowed(view);
           toast(t("unfollowed", { name: item.title }));
-        }
+        },
+        { title: t("confirm_unfollow") }
       );
     };
     div.querySelector(".calendar-btn").onclick = (e) => {
@@ -360,7 +375,8 @@ async function loadAnime() {
           await fetch(`/api/anime/unfollow/${item.id}`, { method: "DELETE" });
           loadAnime();
           toast(t("unfollowed", { name: item.title }));
-        }
+        },
+        { title: t("confirm_unfollow") }
       );
     };
     div.querySelector(".calendar-btn").onclick = (e) => {
@@ -784,4 +800,4 @@ document.addEventListener("click", (e) => {
   }
 });
 
-export { switchView, loadFollowed, loadAnime, loadUnwatched, loadWatched, animeNextText, animeStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab };
+export { switchView, loadFollowed, loadAnime, loadUnwatched, loadWatched, animeNextText, animeStatusLabel, tvStatusLabel, applySort, updateSortMenu, views, tabs, sortMenu, activateUtilityTab };

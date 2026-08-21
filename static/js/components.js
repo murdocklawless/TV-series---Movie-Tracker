@@ -7,7 +7,7 @@ import {
   fmtRuntime, fmtScore, applyTitleHint, escAttr, toast,
   isNewTr, isTodayTr, canSelectAll, utcStateStr, isNewEpisode, tzLocale,
 } from "./utils.js";
-import { loadFollowed, loadAnime, switchView, animeStatusLabel } from "./views.js";
+import { loadFollowed, loadAnime, switchView, animeStatusLabel, tvStatusLabel } from "./views.js";
 import { setMedia, renderChips, doComboSearch } from "./search.js";
 
 let currentDetails = null;
@@ -236,14 +236,14 @@ function closeConfirm() {
   document.getElementById("confirm-modal").style.display = "none";
 }
 
-function showConfirm(text, onYes) {
+function showConfirm(text, onYes, opts = {}) {
+  if (opts.title) document.getElementById("confirm-title").textContent = opts.title;
   document.getElementById("confirm-text").textContent = text;
   document.getElementById("confirm-modal").style.display = "flex";
   document.getElementById("confirm-yes").onclick = () => {
     closeConfirm();
     onYes();
   };
-  document.getElementById("confirm-no").onclick = closeConfirm;
   document.getElementById("confirm-close").onclick = closeConfirm;
   document.getElementById("confirm-modal").addEventListener("click", (e) => {
     if (e.target === e.currentTarget) closeConfirm();
@@ -273,7 +273,7 @@ function renderTmdbDetails(data, title, highlightGenre) {
     badges.push(t("type_tv"));
     if (data.number_of_seasons) badges.push(t("seasons", { n: data.number_of_seasons }));
     if (data.number_of_episodes) badges.push(t("episodes", { n: data.number_of_episodes }));
-    if (data.status) badges.push(data.status);
+    if (data.status) badges.push(tvStatusLabel(data.status));
     if (data.first_air_date) badges.push(formatDate(data.first_air_date).text);
   } else {
     badges.push(t("type_movie"));

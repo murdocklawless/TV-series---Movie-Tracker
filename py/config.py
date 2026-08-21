@@ -42,6 +42,9 @@ def _poster_cache_headers(resp):
         if request.path.startswith("/static/images/posters/"):
             resp.headers["Cache-Control"] = "public, max-age=2592000, immutable"
             # ETag zaten Flask tarafindan eklenir
+        elif request.path.startswith(("/static/js/", "/static/css/")):
+            # JS/CSS: her kullanimda ETag dogrulamasi (304) - deploy aninda tum cihazlarda guncellenir
+            resp.headers["Cache-Control"] = "no-cache"
     except Exception:
         pass
     return resp

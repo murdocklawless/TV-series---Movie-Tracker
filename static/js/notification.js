@@ -153,7 +153,7 @@ function init() {
         await fetch("/api/notifications", { method: "DELETE" });
         fetchList();
         fetchCount();
-      });
+      }, { title: t("notif_clear_title") });
     };
   }
   document.addEventListener("click", (e) => {

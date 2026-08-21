@@ -1670,7 +1670,8 @@ input:-webkit-autofill:focus {
   box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.3);
 }
 
-.settings-form select#s-lang {
+.settings-form select#s-lang,
+.settings-form select#s-cache-ttl {
   padding: 12px 30px 12px 14px;
   appearance: none;
   -webkit-appearance: none;
@@ -1941,11 +1942,13 @@ input:-webkit-autofill:focus {
 }
 
 .confirm-danger {
-  background: #dc2626;
+  background: transparent;
+  border: 1px solid #b4b8c4;
 }
 
 .confirm-danger:hover {
-  background: #ef4444;
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.3);
 }
 
 .msg {
@@ -3124,7 +3127,8 @@ input:-webkit-autofill:focus {
     padding-right: 30px;
   }
 
-  .settings-modal .settings-form select#s-lang {
+  .settings-modal .settings-form select#s-lang,
+  .settings-modal .settings-form select#s-cache-ttl {
     padding: 0 30px 0 16px;
   }
 
