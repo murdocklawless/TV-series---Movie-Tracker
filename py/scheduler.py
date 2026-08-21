@@ -19,6 +19,37 @@ from anilist import anilist_detail, anilist_schedule, save_anime_details, _fetch
 from notifications import notify_all
 from ramcache import bump
 
+# Tüm bildirim tipleri (anahtar, grup) — ayarlar modalı ve tip filtrelemesi tek kaynak
+NOTIF_TYPES = [
+    ("episode_today", "tv"),
+    ("season_start", "tv"),
+    ("season_planned", "tv"),
+    ("season_production", "tv"),
+    ("status_ended", "tv"),
+    ("status_canceled", "tv"),
+    ("status_pilot", "tv"),
+    ("status_returning", "tv"),
+    ("season_upcoming", "tv"),
+    ("unwatched_bulk", "tv"),
+    ("vote_threshold", "tv"),
+    ("movie_today", "movie"),
+    ("movie_rescheduled", "movie"),
+    ("networks_changed", "movie"),
+    ("anime_episode_today", "anime"),
+    ("anime_hiatus", "anime"),
+    ("anime_cancelled", "anime"),
+    ("anime_finished", "anime"),
+    ("anime_releasing", "anime"),
+    ("anime_episodes", "anime"),
+]
+
+# Dış kanala (Telegram/ntfy) check_releases'ten giden tipler; burada tekrar push edilmez
+NOTIF_PUSH_EXCLUDED = {"episode_today", "movie_today"}
+
+
+def _notif_enabled(type_name):
+    return get_setting(f"notif_{type_name}") != "0"
+
 
 def sync_episodes(conn, follow):
     """Takip edilen dizinin tüm sezon/bölüm tarihlerini episodes tablosuna işler."""
@@ -108,10 +139,11 @@ def check_releases():
         (today,),
     ).fetchall()
     for row in rows:
+        enabled = _notif_enabled("episode_today")
         msg, poster = build_episode_message(
             row["title"], row["media_type"], row["season"], row["episode"], row["air_date"], row["poster_path"]
         )
-        if notify_all(msg, poster):
+        if not enabled or notify_all(msg, poster):
             conn.execute("UPDATE episodes SET notified=1 WHERE id=?", (row["id"],))
             conn.commit()
 
@@ -120,8 +152,9 @@ def check_releases():
         (today,),
     ).fetchall()
     for movie in movies:
+        enabled = _notif_enabled("movie_today")
         msg, poster = build_movie_message(movie["title"], movie["release_date"], movie["poster_path"])
-        if notify_all(msg, poster):
+        if not enabled or notify_all(msg, poster):
             conn.execute("UPDATE followed SET notified=1 WHERE id=?", (movie["id"],))
             conn.commit()
 
@@ -131,6 +164,9 @@ def check_releases():
 
 def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anilist_id=None, season=None, episode=None, poster_path=None, cover_url=None, kind=None, ident=None, notified_date=None, remote_url=None):
     try:
+        # tip kapalıysa hiçbir kanala gitmez
+        if not _notif_enabled(type_name):
+            return
         from notification import create_notification
         # derive remote url if not given
         if not remote_url:
@@ -162,7 +198,14 @@ def _notif_create(title, message, type_name, media_type=None, tmdb_id=None, anil
                         poster_local = None
         except Exception:
             poster_local = None
-        create_notification(title, message, type_name, media_type=media_type, tmdb_id=tmdb_id, anilist_id=anilist_id, season=season, episode=episode, poster_local=poster_local, remote_poster_url=remote_url, kind_for_thumb=kind, ident_for_thumb=ident, notified_date=notified_date)
+        # bildirim merkezi (in-app) — kendi anahtarıyla açılır/kapanır
+        if get_setting("notif_center_enabled") != "0":
+            create_notification(title, message, type_name, media_type=media_type, tmdb_id=tmdb_id, anilist_id=anilist_id, season=season, episode=episode, poster_local=poster_local, remote_poster_url=remote_url, kind_for_thumb=kind, ident_for_thumb=ident, notified_date=notified_date)
+        # dış kanal push'u — episode_today/movie_today check_releases'ten gider, çift göndermeyi önle
+        if type_name not in NOTIF_PUSH_EXCLUDED:
+            from notifications import send_telegram, send_ntfy
+            send_telegram(message, remote_url)
+            send_ntfy(message, remote_url)
     except Exception as e:
         print(f"notif create failed {type_name} {title}: {e}")
 

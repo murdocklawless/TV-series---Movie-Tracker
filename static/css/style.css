@@ -1514,7 +1514,8 @@ input:-webkit-autofill:focus {
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  max-width: 250px;
+  gap: 100px;
+  max-width: 400px;
   margin-left: auto;
   margin-right: auto;
   padding: 12px 8px;
@@ -1544,6 +1545,42 @@ input:-webkit-autofill:focus {
 
 .notify-name i.notify-ico-ntfy {
   color: #2b8474;
+}
+
+.notify-frame {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 4px 14px 10px;
+  margin: 10px auto;
+  max-width: 440px;
+}
+
+.notify-frame-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #f97316;
+  margin: 8px 0 2px;
+}
+
+.notify-ico-center {
+  color: #f59e0b;
+}
+
+.notif-group-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #f97316;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 10px 8px 6px;
+  border-bottom: 1px dotted #f97316;
 }
 
 .switch {

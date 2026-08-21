@@ -323,13 +323,24 @@
         <button class="modal-close settings-modal-close" data-tip="Kapat" data-i18n-title="close">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="notify-row">
-          <span class="notify-name"><i class="fa-brands fa-telegram notify-ico-telegram"></i> Telegram</span>
-          <label class="switch"><input type="checkbox" id="s-telegram-enabled" checked /><span class="slider"></span></label>
+        <div class="notify-frame">
+          <div class="notify-frame-title" data-i18n="notif_frame_channels">Telegram · ntfy</div>
+          <div class="notify-row">
+            <span class="notify-name"><i class="fa-brands fa-telegram notify-ico-telegram"></i> Telegram</span>
+            <label class="switch"><input type="checkbox" id="s-telegram-enabled" checked /><span class="slider"></span></label>
+          </div>
+          <div class="notify-row">
+            <span class="notify-name"><i class="fa-solid fa-bell notify-ico-ntfy"></i> ntfy</span>
+            <label class="switch"><input type="checkbox" id="s-ntfy-enabled" checked /><span class="slider"></span></label>
+          </div>
+          <div class="notify-row">
+            <span class="notify-name"><i class="fa-solid fa-bell notify-ico-center"></i> <span data-i18n="label_notif_center">Bildirim Merkezi (Web UI)</span></span>
+            <label class="switch"><input type="checkbox" id="s-center-enabled" checked /><span class="slider"></span></label>
+          </div>
         </div>
-        <div class="notify-row">
-          <span class="notify-name"><i class="fa-solid fa-bell notify-ico-ntfy"></i> ntfy</span>
-          <label class="switch"><input type="checkbox" id="s-ntfy-enabled" checked /><span class="slider"></span></label>
+        <div class="notify-frame">
+          <div class="notify-frame-title" data-i18n="notif_frame_types">Bildirim Türleri</div>
+          <div id="notif-types-groups"></div>
         </div>
         <div id="notify-saved-hint" class="notify-saved" data-i18n="saved">Kaydedildi</div>
       </div>

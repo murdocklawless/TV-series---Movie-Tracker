@@ -4,7 +4,7 @@ import os
 from flask import Blueprint, jsonify, request
 
 from db import get_db
-from poster_store import download_anime_poster_with_sizes, delete_poster, delete_poster_by_web, poster_local_path, filesystem_path_from_web, ensure_thumbnail
+from poster_store import download_anime_poster_with_sizes, delete_poster, delete_poster_by_web, poster_local_path, filesystem_path_from_web, ensure_thumbnail, versioned_web_path
 from anilist import (
     anilist_search,
     anilist_detail,
@@ -28,7 +28,7 @@ def _with_poster_local(d, arow):
         fs = filesystem_path_from_web(pl)
         if fs and os.path.exists(fs):
             d = dict(d)
-            d["poster_local"] = pl
+            d["poster_local"] = versioned_web_path(pl)
     return d
 
 
@@ -50,6 +50,7 @@ def _sync_anime_poster(conn, anilist_id, fresh_cover, arow):
         "UPDATE anime SET cover_url=?, poster_local=?, poster_local_w185=? WHERE id=?",
         (fresh_cover, w500 or local, w185, arow["id"]),
     )
+    bump()
     return True
 
 
@@ -163,8 +164,8 @@ def anime_followed():
                 "anilist_id": r["anilist_id"],
                 "title": r["title"],
                 "cover_url": r["cover_url"],
-                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
-                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
+                "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
+                "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "episodes": r["episodes"],
                 "status": r["status"],
                 "score": score,

@@ -7,7 +7,7 @@ from flask import Blueprint, jsonify, request
 
 from db import get_setting, set_setting
 from notifications import ntfy_topic_clean
-from scheduler import schedule_releases, _tmdb_genre_names, _anilist_genre_names
+from scheduler import schedule_releases, _tmdb_genre_names, _anilist_genre_names, NOTIF_TYPES
 
 settings_bp = Blueprint("settings", __name__)
 
@@ -146,7 +146,9 @@ def get_settings():
             "ntfy_topic": get_setting("ntfy_topic") or "",
             "telegram_enabled": get_setting("telegram_enabled") or "1",
             "ntfy_enabled": get_setting("ntfy_enabled") or "1",
+            "notif_center_enabled": get_setting("notif_center_enabled") or "1",
             "cache_ttl": get_setting("cache_ttl") or "3600",
+            **{f"notif_{k}": get_setting(f"notif_{k}") or "1" for k, _g in NOTIF_TYPES},
         }
     )
 
@@ -168,7 +170,9 @@ def save_settings():
         "ntfy_topic",
         "telegram_enabled",
         "ntfy_enabled",
+        "notif_center_enabled",
         "cache_ttl",
+        *(f"notif_{k}" for k, _g in NOTIF_TYPES),
     ):
         if key in body:
             set_setting(key, str(body[key] or ""))

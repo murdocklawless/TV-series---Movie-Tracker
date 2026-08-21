@@ -8,7 +8,7 @@ from db import get_db, today_str
 from tmdb import get_tmdb_info, get_tmdb_cast, save_details, load_details, tmdb_request
 from tvmaze import _tvmaze_episode_times
 from scheduler import sync_episodes
-from poster_store import download_tmdb_poster_with_sizes, delete_poster_by_web, poster_local_path, delete_poster, filesystem_path_from_web, ensure_thumbnail
+from poster_store import download_tmdb_poster_with_sizes, delete_poster_by_web, poster_local_path, delete_poster, filesystem_path_from_web, ensure_thumbnail, versioned_web_path
 from ramcache import list_cache, bump, gen, cached_response
 
 followed_bp = Blueprint("followed", __name__)
@@ -106,6 +106,10 @@ def followed():
             item["networks"] = []
         # film için watched, dizi için completed
         item["watched"] = int(item.get("watched") or 0)
+        if item.get("poster_local"):
+            item["poster_local"] = versioned_web_path(item["poster_local"])
+        if item.get("poster_local_w185"):
+            item["poster_local_w185"] = versioned_web_path(item["poster_local_w185"])
         if item["media_type"] == "tv":
             nxt = conn.execute(
                 "SELECT season, episode, air_date FROM episodes "
@@ -168,8 +172,8 @@ def unwatched():
                 "tmdb_id": r["tmdb_id"],
                 "title": r["title"],
                 "poster_path": r["poster_path"],
-                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
-                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
+                "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
+                "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "unwatched": len(items),
@@ -187,8 +191,8 @@ def unwatched():
                 "tmdb_id": r["tmdb_id"],
                 "title": r["title"],
                 "poster_path": r["poster_path"],
-                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
-                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
+                "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
+                "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "release_date": r["release_date"],
@@ -212,8 +216,8 @@ def unwatched():
                 "anilist_id": r["anilist_id"],
                 "title": r["title"],
                 "cover_url": r["cover_url"],
-                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
-                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
+                "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
+                "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "score": r["score"],
                 "studios": r["studios"],
                 "unwatched": len(rows),
@@ -301,8 +305,8 @@ def watched():
                 "tmdb_id": r["tmdb_id"],
                 "title": r["title"],
                 "poster_path": r["poster_path"],
-                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
-                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
+                "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
+                "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "watched": total,
@@ -324,8 +328,8 @@ def watched():
                 "tmdb_id": r["tmdb_id"],
                 "title": r["title"],
                 "poster_path": r["poster_path"],
-                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
-                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
+                "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
+                "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "vote_average": r["vote_average"] or 0,
                 "networks": json.loads(r["networks"]) if r["networks"] else [],
                 "release_date": r["release_date"],
@@ -356,8 +360,8 @@ def watched():
                 "anilist_id": r["anilist_id"],
                 "title": r["title"],
                 "cover_url": r["cover_url"],
-                "poster_local": r["poster_local"] if "poster_local" in r.keys() else None,
-                "poster_local_w185": r["poster_local_w185"] if "poster_local_w185" in r.keys() else None,
+                "poster_local": versioned_web_path(r["poster_local"] if "poster_local" in r.keys() else None),
+                "poster_local_w185": versioned_web_path(r["poster_local_w185"] if "poster_local_w185" in r.keys() else None),
                 "score": r["score"],
                 "studios": r["studios"],
                 "watched": total,
@@ -645,13 +649,13 @@ def _poster_local_for(media_type, tmdb_id):
     cand = poster_local_path(kind, tmdb_id, "w500")
     fs = filesystem_path_from_web(cand) if cand else None
     if cand and fs and os.path.exists(fs):
-        return cand
+        return versioned_web_path(cand)
     return None
 
 
 def _attach_poster_local(resp, pl):
     if pl:
-        resp["poster_local"] = pl
+        resp["poster_local"] = versioned_web_path(pl)
     return resp
 
 
@@ -674,6 +678,7 @@ def _sync_tmdb_poster(conn, media_type, tmdb_id, fresh_path, row):
         "UPDATE followed SET poster_path=?, poster_local=?, poster_local_w185=? WHERE id=?",
         (fresh_path, w500 or local, w185, row["id"]),
     )
+    bump()
     return w500
 
 

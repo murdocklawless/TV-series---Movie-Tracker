@@ -6,6 +6,38 @@ import { sortMenu, activateUtilityTab } from "./views.js";
 
 // ---- Search ----
 // ---- Settings ----
+
+// Bildirim tipleri — py/scheduler.py NOTIF_TYPES ile birebir aynı
+const NOTIF_TYPES = [
+  ["episode_today", "tv"], ["season_start", "tv"], ["season_planned", "tv"],
+  ["season_production", "tv"], ["status_ended", "tv"], ["status_canceled", "tv"],
+  ["status_pilot", "tv"], ["status_returning", "tv"], ["season_upcoming", "tv"],
+  ["unwatched_bulk", "tv"], ["vote_threshold", "tv"],
+  ["movie_today", "movie"], ["movie_rescheduled", "movie"], ["networks_changed", "movie"],
+  ["anime_episode_today", "anime"], ["anime_hiatus", "anime"], ["anime_cancelled", "anime"],
+  ["anime_finished", "anime"], ["anime_releasing", "anime"], ["anime_episodes", "anime"],
+];
+const NOTIF_GROUPS = [["tv", "notif_group_tv"], ["movie", "notif_group_movie"], ["anime", "notif_group_anime"]];
+
+function renderNotifTypes() {
+  const wrap = document.getElementById("notif-types-groups");
+  if (!wrap) return;
+  wrap.innerHTML = NOTIF_GROUPS.map(([g, label]) => `
+    <div class="notif-group-title" data-i18n="${label}">${escAttr(t(label))}</div>
+    ${NOTIF_TYPES.filter(([, gg]) => gg === g).map(([k]) => `
+      <div class="notify-row notify-type-row">
+        <span class="notify-name"><span data-i18n="notif_type_${k}">${escAttr(t("notif_type_" + k))}</span></span>
+        <label class="switch"><input type="checkbox" id="s-notif-${k}" checked /><span class="slider"></span></label>
+      </div>`).join("")}
+  `).join("");
+  const hint = document.getElementById("notify-saved-hint");
+  NOTIF_TYPES.forEach(([k]) => {
+    document.getElementById(`s-notif-${k}`).addEventListener("change", (e) => {
+      saveSettingsPartial({ [`notif_${k}`]: e.target.checked ? "1" : "0" }, hint);
+    });
+  });
+}
+
 async function loadTimezones() {
   try {
     const res = await fetch("/api/timezones");
@@ -207,6 +239,11 @@ async function loadSettings() {
   document.getElementById("s-lang").value = s.language || "tr-TR";
   document.getElementById("s-telegram-enabled").checked = (s.telegram_enabled || "1") !== "0";
   document.getElementById("s-ntfy-enabled").checked = (s.ntfy_enabled || "1") !== "0";
+  document.getElementById("s-center-enabled").checked = (s.notif_center_enabled || "1") !== "0";
+  NOTIF_TYPES.forEach(([k]) => {
+    const el = document.getElementById(`s-notif-${k}`);
+    if (el) el.checked = (s[`notif_${k}`] || "1") !== "0";
+  });
   document.getElementById("s-cache-ttl").value = s.cache_ttl || "90";
   applyLang((s.language || "tr-TR").split("-")[0]);
   updateNotifyToggleStates();
@@ -467,6 +504,11 @@ document.getElementById("s-telegram-enabled").addEventListener("change", (e) => 
 document.getElementById("s-ntfy-enabled").addEventListener("change", (e) => {
   saveSettingsPartial({ ntfy_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
 });
+document.getElementById("s-center-enabled").addEventListener("change", (e) => {
+  saveSettingsPartial({ notif_center_enabled: e.target.checked ? "1" : "0" }, document.getElementById("notify-saved-hint"));
+});
+
+renderNotifTypes();
 
 document.getElementById("s-cache-ttl").addEventListener("change", () => {
   const el = document.getElementById("s-cache-ttl");

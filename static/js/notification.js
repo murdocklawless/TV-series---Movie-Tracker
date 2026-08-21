@@ -156,9 +156,10 @@ function init() {
       }, { title: t("notif_clear_title") });
     };
   }
+  // capture fazında: stopPropagation'lı butonlarda (tab-sort, tab-settings vb.) bile dış tık paneli kapatır
   document.addEventListener("click", (e) => {
-    if (!e.target.closest(".notif-wrap")) closeMenu();
-  });
+    if (!e.target.closest(".notif-wrap") && !e.target.closest("#notif-menu")) closeMenu();
+  }, true);
   window.addEventListener("resize", () => {
     if (menu.classList.contains("open")) alignMenu();
   });

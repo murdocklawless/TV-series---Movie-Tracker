@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 
 from db import get_db
 from ramcache import list_cache, bump, gen, cached_response
+from poster_store import versioned_web_path
 
 notification_bp = Blueprint("notification", __name__)
 
@@ -118,6 +119,10 @@ def list_notifications():
     out = []
     for r in rows:
         d = dict(r)
+        if d.get("thumbnail_local"):
+            d["thumbnail_local"] = versioned_web_path(d["thumbnail_local"])
+        if d.get("poster_local"):
+            d["poster_local"] = versioned_web_path(d["poster_local"])
         out.append(d)
     list_cache.set(key, out)
     return cached_response(out, False)

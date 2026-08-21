@@ -114,6 +114,19 @@ def filesystem_path_from_web(web_path):
     return _web_to_fs(web_path)
 
 
+def versioned_web_path(web_path):
+    """Poster web yoluna dosya mtime'ini ?v= olarak ekler (cache-busting).
+    Dosya yoksa ya da yol /static/ degilse oldugu gibi dondurur."""
+    if not web_path or not str(web_path).startswith("/static/"):
+        return web_path
+    try:
+        v = int(os.path.getmtime(_web_to_fs(web_path)))
+    except OSError:
+        return web_path
+    sep = "&" if "?" in web_path else "?"
+    return f"{web_path}{sep}v={v}"
+
+
 def _generate_thumb(w500_path, thumb_path, width=45):
     """w500 dosyadan thumbnail uret (genislik width). Pillow yoksa kopyala."""
     try:
